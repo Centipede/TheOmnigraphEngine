@@ -1,5 +1,9 @@
 # The OmniGraph Engine
 
+An automatic system for the ingestion, transcription, and indexing of printed works
+
+## Prelude
+
 OCR scanning books is a mixed blessing. For personal studies, I scan many books, but I have yet to achieve a “hole-in-one” success. My requirements are meticulous:
 
 * Structure must remain intact. Chapters, subchapters, main content, and footnotes must be kept separate.
@@ -38,3 +42,16 @@ Starting today (commit #1), I will dedicate a steady—though limited—amount o
 
 **Rene Jensen**
 [rene@catatonic.dk](mailto:rene@catatonic.dk)
+
+
+## The Names
+
+No way around it. ChatGPT and I entertained each other with an enthusiastic joint venture of steampunk, faux victorian name fun.
+
+## Planning
+
+As I already have a test project working, I will take an approach that is unusual in the public sphere:
+I will write **planning documents** that aims at summing up all the lessons I have learned.
+
+[Ingestor](Documentation/Planning/Ingestor.md)
+
