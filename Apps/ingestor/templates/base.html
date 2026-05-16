@@ -7,11 +7,22 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/light.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/dark.css">
   <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/shoelace-autoloader.js"></script>
+
+  <!-- Runs synchronously to avoid flash of wrong theme -->
+  <script>
+    (function () {
+      const mode = localStorage.getItem('theme') || 'system';
+      const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      if (dark) document.documentElement.classList.add('sl-theme-dark');
+    })();
+  </script>
 
   <style>
     :root {
-      /* Override Pico and Shoelace tokens here as the design evolves */
+      /* Design tokens — override Pico and Shoelace variables here as needed */
     }
   </style>
 
@@ -23,12 +34,51 @@
       <ul>
         <li><strong><a href="/projects">OmniGraph Ingestor</a></strong></li>
       </ul>
-      {% block nav %}{% endblock %}
+      <ul>
+        <li><a href="/projects">Home</a></li>
+        <li><a href="/settings">Settings</a></li>
+        <li>
+          <sl-dropdown id="theme-picker">
+            <sl-icon-button slot="trigger" id="theme-icon" name="circle-half" label="Theme"></sl-icon-button>
+            <sl-menu>
+              <sl-menu-item value="light"><sl-icon slot="prefix" name="sun"></sl-icon>Light</sl-menu-item>
+              <sl-menu-item value="system"><sl-icon slot="prefix" name="circle-half"></sl-icon>System</sl-menu-item>
+              <sl-menu-item value="dark"><sl-icon slot="prefix" name="moon"></sl-icon>Dark</sl-menu-item>
+            </sl-menu>
+          </sl-dropdown>
+        </li>
+      </ul>
     </nav>
   </header>
+
   <main>
     {% block content %}{% endblock %}
   </main>
+
   {% block scripts %}{% endblock %}
+
+  <script type="module">
+    const ICONS = { light: 'sun', system: 'circle-half', dark: 'moon' };
+
+    function applyTheme(mode) {
+      const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('sl-theme-dark', dark);
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.setAttribute('name', ICONS[mode]);
+    }
+
+    applyTheme(localStorage.getItem('theme') || 'system');
+
+    document.getElementById('theme-picker')?.addEventListener('sl-select', (e) => {
+      const mode = e.detail.item.value;
+      localStorage.setItem('theme', mode);
+      applyTheme(mode);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((localStorage.getItem('theme') || 'system') === 'system') applyTheme('system');
+    });
+  </script>
 </body>
 </html>
