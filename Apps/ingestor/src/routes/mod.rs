@@ -1,3 +1,4 @@
+pub mod pages;
 pub mod projects;
 
 use axum::{
@@ -39,6 +40,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(|| async { Redirect::to("/projects") }))
         .route("/projects", get(projects::projects_page).post(projects::create_project_form))
+        .route("/settings", get(pages::settings))
         .nest("/api", api)
         .fallback(static_handler)
         .with_state(state)

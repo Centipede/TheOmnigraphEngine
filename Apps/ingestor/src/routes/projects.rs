@@ -23,8 +23,8 @@ pub struct CreateProject {
 
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
     let projects = read_projects(&state);
-    let html = state.templates
-        .get_template("projects/index.html").unwrap()
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/index.html").unwrap()
         .render(context! { projects }).unwrap();
     Html(html)
 }

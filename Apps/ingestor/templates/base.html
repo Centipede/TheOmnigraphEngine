@@ -4,15 +4,131 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}OmniGraph Ingestor{% endblock %}</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/light.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/shoelace-autoloader.js"></script>
+
+  <!-- Runs synchronously to avoid flash of wrong theme -->
+  <script>
+    (function () {
+      const mode = localStorage.getItem('theme') || 'system';
+      const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      if (dark) document.documentElement.classList.add('sl-theme-dark');
+    })();
+  </script>
+
+  <style>
+    /* ── Color tokens ───────────────────────────────────────────── */
+    :root,
+    [data-theme="light"] {
+      --color-bg:           #f8f9fa;
+      --color-surface:      #ffffff;
+      --color-border:       #dee2e6;
+      --color-text:         #212529;
+      --color-text-muted:   #6c757d;
+      --color-accent:       #2563eb;
+      --color-accent-hover: #1d4ed8;
+    }
+
+    [data-theme="dark"] {
+      --color-bg:           #111317;
+      --color-surface:      #1e2025;
+      --color-border:       #2e3138;
+      --color-text:         #e1e3e8;
+      --color-text-muted:   #868e96;
+      --color-accent:       #60a5fa;
+      --color-accent-hover: #93c5fd;
+    }
+
+    /* ── Font-size tokens ───────────────────────────────────────── */
+    :root {
+      --fs-h1:   2rem;
+      --fs-h2:   1.5rem;
+      --fs-h3:   1.25rem;
+      --fs-body: 1rem;
+    }
+
+    /* ── Apply tokens ───────────────────────────────────────────── */
+    body { background-color: var(--color-bg); color: var(--color-text); font-size: var(--fs-body); font-family: var(--sl-font-sans); }
+    h1   { font-size: var(--fs-h1); }
+    h2   { font-size: var(--fs-h2); }
+    h3   { font-size: var(--fs-h3); }
+
+    /* ── Navbar ─────────────────────────────────────────────────── */
+    header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+    }
+    .nav-brand {
+      font-weight: 600;
+      font-size: var(--fs-body);
+      text-decoration: none;
+      color: var(--color-text);
+    }
+    .nav-end {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+  </style>
+
   {% block head %}{% endblock %}
 </head>
 <body>
   <header>
-    <h1><a href="/projects">OmniGraph Ingestor</a></h1>
+    <nav>
+      <a href="/projects" class="nav-brand">OmniGraph Ingestor</a>
+      <div class="nav-end">
+        <sl-button href="/projects" variant="text">Home</sl-button>
+        <sl-button href="/settings" variant="text">Settings</sl-button>
+        <sl-dropdown id="theme-picker">
+          <sl-icon-button slot="trigger" id="theme-icon" name="circle-half" label="Theme"></sl-icon-button>
+          <sl-menu>
+            <sl-menu-item value="light"><sl-icon slot="prefix" name="sun"></sl-icon>Light</sl-menu-item>
+            <sl-menu-item value="system"><sl-icon slot="prefix" name="circle-half"></sl-icon>System</sl-menu-item>
+            <sl-menu-item value="dark"><sl-icon slot="prefix" name="moon"></sl-icon>Dark</sl-menu-item>
+          </sl-menu>
+        </sl-dropdown>
+      </div>
+    </nav>
   </header>
+
   <main>
     {% block content %}{% endblock %}
   </main>
+
   {% block scripts %}{% endblock %}
+
+  <script type="module">
+    const ICONS = { light: 'sun', system: 'circle-half', dark: 'moon' };
+
+    function applyTheme(mode) {
+      const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('sl-theme-dark', dark);
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.setAttribute('name', ICONS[mode]);
+    }
+
+    applyTheme(localStorage.getItem('theme') || 'system');
+
+    document.getElementById('theme-picker')?.addEventListener('sl-select', (e) => {
+      const mode = e.detail.item.value;
+      localStorage.setItem('theme', mode);
+      applyTheme(mode);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if ((localStorage.getItem('theme') || 'system') === 'system') applyTheme('system');
+    });
+  </script>
 </body>
 </html>
