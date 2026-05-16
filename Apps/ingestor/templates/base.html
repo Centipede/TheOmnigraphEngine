@@ -55,6 +55,29 @@
     h1   { font-size: var(--fs-h1); }
     h2   { font-size: var(--fs-h2); }
     h3   { font-size: var(--fs-h3); }
+
+    /* ── Navbar ─────────────────────────────────────────────────── */
+    header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+    }
+    .nav-brand {
+      font-weight: 600;
+      font-size: var(--fs-body);
+      text-decoration: none;
+      color: var(--color-text);
+    }
+    .nav-end {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
   </style>
 
   {% block head %}{% endblock %}
@@ -62,23 +85,19 @@
 <body>
   <header>
     <nav>
-      <ul>
-        <li><strong><a href="/projects">OmniGraph Ingestor</a></strong></li>
-      </ul>
-      <ul>
-        <li><a href="/projects">Home</a></li>
-        <li><a href="/settings">Settings</a></li>
-        <li>
-          <sl-dropdown id="theme-picker">
-            <sl-icon-button slot="trigger" id="theme-icon" name="circle-half" label="Theme"></sl-icon-button>
-            <sl-menu>
-              <sl-menu-item value="light"><sl-icon slot="prefix" name="sun"></sl-icon>Light</sl-menu-item>
-              <sl-menu-item value="system"><sl-icon slot="prefix" name="circle-half"></sl-icon>System</sl-menu-item>
-              <sl-menu-item value="dark"><sl-icon slot="prefix" name="moon"></sl-icon>Dark</sl-menu-item>
-            </sl-menu>
-          </sl-dropdown>
-        </li>
-      </ul>
+      <a href="/projects" class="nav-brand">OmniGraph Ingestor</a>
+      <div class="nav-end">
+        <sl-button href="/projects" variant="text">Home</sl-button>
+        <sl-button href="/settings" variant="text">Settings</sl-button>
+        <sl-dropdown id="theme-picker">
+          <sl-icon-button slot="trigger" id="theme-icon" name="circle-half" label="Theme"></sl-icon-button>
+          <sl-menu>
+            <sl-menu-item value="light"><sl-icon slot="prefix" name="sun"></sl-icon>Light</sl-menu-item>
+            <sl-menu-item value="system"><sl-icon slot="prefix" name="circle-half"></sl-icon>System</sl-menu-item>
+            <sl-menu-item value="dark"><sl-icon slot="prefix" name="moon"></sl-icon>Dark</sl-menu-item>
+          </sl-menu>
+        </sl-dropdown>
+      </div>
     </nav>
   </header>
 
