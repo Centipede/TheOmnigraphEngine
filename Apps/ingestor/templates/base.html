@@ -81,6 +81,13 @@
       border-color: var(--color-accent);
     }
 
+    /* ── Secret inputs (API keys etc.) ─────────────────────────── */
+    /* type="text" avoids browser password-manager popups;
+       -webkit-text-security masks the value visually in Safari/Chrome. */
+    .secret-input {
+      -webkit-text-security: disc;
+    }
+
     /* ── Form grid (two-column: label | input) ──────────────────── */
     .form-grid {
       display: grid;

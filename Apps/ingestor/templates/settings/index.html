@@ -11,7 +11,7 @@
     OpenAI
     {% if openai_key_set %}<small>stored — leave blank to keep</small>{% endif %}
   </label>
-  <input type="password" id="openai_api_key" name="openai_api_key"
+  <input type="text" class="secret-input" id="openai_api_key" name="openai_api_key"
          placeholder="{% if openai_key_set %}••••••••{% else %}sk-...{% endif %}"
          autocomplete="off">
 
@@ -19,7 +19,7 @@
     Perplexity
     {% if perplexity_key_set %}<small>stored — leave blank to keep</small>{% endif %}
   </label>
-  <input type="password" id="perplexity_api_key" name="perplexity_api_key"
+  <input type="text" class="secret-input" id="perplexity_api_key" name="perplexity_api_key"
          placeholder="{% if perplexity_key_set %}••••••••{% else %}pplx-...{% endif %}"
          autocomplete="off">
 
