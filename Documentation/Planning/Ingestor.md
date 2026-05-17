@@ -16,6 +16,18 @@ Considering:
 - Go for webserver, postgresql for data repository and regular html+htmx+alpine.js for frontend.
 - Sticking to Django but trying to optimize it.
 
+## Configuration
+
+Sensitive configuration (API keys etc.) is stored in a TOML file at the platform's standard config directory:
+
+| Platform | Path |
+|----------|------|
+| macOS    | `~/Library/Application Support/omnigraph/secrets.toml` |
+| Linux    | `~/.config/omnigraph/secrets.toml` |
+| Windows  | `%APPDATA%\omnigraph\secrets.toml` |
+
+The file is created with `0600` permissions on Unix (owner read/write only). In-memory, secret values are wrapped in `secrecy::Secret<String>` to prevent accidental exposure in logs or debug output.
+
 ## Functionality
 
 - Ingesting pages to a book from scanned image files or PDF
