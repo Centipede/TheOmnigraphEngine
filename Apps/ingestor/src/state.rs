@@ -1,11 +1,13 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::{Arc, RwLock}};
 use minijinja::Environment;
 use minijinja_autoreload::AutoReloader;
+use crate::secrets::AppSecrets;
 
 #[derive(Clone)]
 pub struct AppState {
     pub projects_dir: Arc<PathBuf>,
     pub templates: Arc<AutoReloader>,
+    pub secrets: Arc<RwLock<AppSecrets>>,
 }
 
 impl AppState {
@@ -14,6 +16,8 @@ impl AppState {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("./projects"));
 
+        let mut env = Environment::new();
+        env.set_loader(minijinja::path_loader("templates"));
         let reloader = AutoReloader::new(|notifier| {
             let mut env = Environment::new();
             notifier.watch_path("templates", true);
@@ -24,6 +28,7 @@ impl AppState {
         Self {
             projects_dir: Arc::new(projects_dir),
             templates: Arc::new(reloader),
+            secrets: Arc::new(RwLock::new(crate::secrets::load())),
         }
     }
 }

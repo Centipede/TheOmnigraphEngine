@@ -1,4 +1,5 @@
 mod routes;
+mod secrets;
 mod state;
 
 use state::AppState;
