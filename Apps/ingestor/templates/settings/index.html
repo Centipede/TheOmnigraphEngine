@@ -6,10 +6,10 @@
 <h2>Settings</h2>
 
 <h3>API Keys</h3>
-<form method="post" action="/settings">
+<form method="post" action="/settings" class="form-grid">
   <label for="openai_api_key">
     OpenAI
-    {% if openai_key_set %}<small> — key is stored, leave blank to keep it</small>{% endif %}
+    {% if openai_key_set %}<small>stored — leave blank to keep</small>{% endif %}
   </label>
   <input type="password" id="openai_api_key" name="openai_api_key"
          placeholder="{% if openai_key_set %}••••••••{% else %}sk-...{% endif %}"
@@ -17,12 +17,14 @@
 
   <label for="perplexity_api_key">
     Perplexity
-    {% if perplexity_key_set %}<small> — key is stored, leave blank to keep it</small>{% endif %}
+    {% if perplexity_key_set %}<small>stored — leave blank to keep</small>{% endif %}
   </label>
   <input type="password" id="perplexity_api_key" name="perplexity_api_key"
          placeholder="{% if perplexity_key_set %}••••••••{% else %}pplx-...{% endif %}"
          autocomplete="off">
 
-  <sl-button type="submit" variant="primary">Save</sl-button>
+  <div class="form-actions">
+    <sl-button type="submit" variant="primary">Save</sl-button>
+  </div>
 </form>
 {% endblock %}
