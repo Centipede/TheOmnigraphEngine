@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ project.name }} — OmniGraph Ingestor{% endblock %}
+{% block title %}{{ project.name }} — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="text">Pages</sl-button>
+{% endblock %}
+
 
 {% block content %}
 <div style="max-width: 48rem; margin: 2rem auto; padding: 0 1rem;">
@@ -29,12 +35,19 @@
     {% if project.authors %}
     <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Authors</dt>
     <dd style="margin: 0;">
-      {% for author in project.authors %}{{ author.full_name }}{% if author.abbrev %} ({{ author.abbrev }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+      {% for author in project.authors %}{{ author.full_name }}{% if author.abbrev %} ({{ author.abbrev }}){% endif %}{%
+      if not loop.last %}, {% endif %}{% endfor %}
     </dd>
     {% endif %}
   </dl>
 
   <h3>Pages</h3>
-  <p style="color: var(--color-text-muted);">No pages yet.</p>
+  <p style="color: var(--color-text-muted);">
+  {% if pages %}
+    Pages: {{ pages|length }}
+  {% else %}
+  No pages yet.
+  {% endif %}
+  </p>
 </div>
 {% endblock %}
