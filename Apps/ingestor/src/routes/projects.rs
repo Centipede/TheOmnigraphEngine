@@ -32,6 +32,21 @@ pub struct CreateProject {
     pub machine_name: String,
 }
 
+#[derive(Deserialize)]
+pub struct MetadataForm {
+    pub name: String,
+    #[serde(default)]
+    pub abbrev: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub published: String,
+    #[serde(default)]
+    pub author_names: Vec<String>,
+    #[serde(default)]
+    pub author_abbrevs: Vec<String>,
+}
+
 // HTML handlers
 
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
@@ -85,6 +100,80 @@ pub async fn project_page(
     Html(html).into_response()
 }
 
+pub async fn project_metadata_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let published_str = project.published.map(|d| {
+        format!("{:04}-{:02}-{:02}", d.year(), d.month() as u8, d.day())
+    });
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/metadata.html").unwrap()
+        .render(context! { project, published_str }).unwrap();
+    Html(html).into_response()
+}
+
+pub async fn project_metadata_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Form(form): Form<MetadataForm>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    if !toml_path.exists() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let name = form.name.trim().to_string();
+    if name.is_empty() {
+        return Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response();
+    }
+
+    let authors: Vec<Author> = form.author_names.iter()
+        .zip(form.author_abbrevs.iter())
+        .filter(|(n, _)| !n.trim().is_empty())
+        .map(|(n, a)| Author {
+            full_name: n.trim().to_string(),
+            abbrev: a.trim().to_string(),
+        })
+        .collect();
+
+    let opt = |s: String| -> Option<String> {
+        let s = s.trim().to_string();
+        if s.is_empty() { None } else { Some(s) }
+    };
+
+    let project = Project {
+        name,
+        machine_name: machine_name.clone(),
+        abbrev: opt(form.abbrev),
+        description: opt(form.description),
+        authors,
+        published: opt(form.published).and_then(|s| parse_date(&s)),
+    };
+
+    let Ok(toml_str) = toml::to_string(&project) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    if fs::write(&toml_path, toml_str).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
+}
+
 // JSON API handlers
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
@@ -114,6 +203,15 @@ pub async fn create_project(
 }
 
 // Shared helpers
+
+fn parse_date(s: &str) -> Option<time::Date> {
+    let mut parts = s.splitn(3, '-');
+    let year: i32 = parts.next()?.parse().ok()?;
+    let month: u8 = parts.next()?.parse().ok()?;
+    let day: u8 = parts.next()?.parse().ok()?;
+    let month = time::Month::try_from(month).ok()?;
+    time::Date::from_calendar_date(year, month, day).ok()
+}
 
 fn is_valid_machine_name(s: &str) -> bool {
     !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')

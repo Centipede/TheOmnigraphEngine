@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — Metadata — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="primary">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="text">Pages</sl-button>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 48rem; margin: 2rem auto; padding: 0 1rem;">
+  <a href="/projects/{{ project.machine_name }}" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← {{ project.name }}</a>
+  <h2 style="margin-top: 0.5rem;">Metadata</h2>
+
+  <form method="post" action="/projects/{{ project.machine_name }}/metadata" class="form-grid">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="{{ project.name }}" required>
+
+    <label for="abbrev">Abbreviation</label>
+    <input type="text" id="abbrev" name="abbrev" value="{{ project.abbrev | default('') }}">
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="3">{{ project.description | default('') }}</textarea>
+
+    <label for="published">Published</label>
+    <input type="date" id="published" name="published" value="{{ published_str | default('') }}">
+
+    <label>Authors</label>
+    <div>
+      <div id="authors-list">
+        {% for author in project.authors %}
+        <div class="author-row" style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+          <input type="text" name="author_names" value="{{ author.full_name }}" placeholder="Full name" style="flex: 2;">
+          <input type="text" name="author_abbrevs" value="{{ author.abbrev }}" placeholder="Abbrev" style="flex: 1;">
+          <button type="button" class="remove-author"
+                  style="background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 1.25rem; line-height: 1; padding: 0 0.25rem;">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <sl-button id="add-author" type="button" variant="text" size="small">+ Add author</sl-button>
+    </div>
+
+    <div class="form-actions">
+      <sl-button type="submit" variant="primary">Save</sl-button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const list = document.getElementById('authors-list');
+
+  list.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-author')) {
+      e.target.closest('.author-row').remove();
+    }
+  });
+
+  document.getElementById('add-author').addEventListener('click', () => {
+    const row = document.createElement('div');
+    row.className = 'author-row';
+    row.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;';
+    row.innerHTML =
+      '<input type="text" name="author_names" placeholder="Full name" style="flex: 2;">'
+      + '<input type="text" name="author_abbrevs" placeholder="Abbrev" style="flex: 1;">'
+      + '<button type="button" class="remove-author"'
+      + ' style="background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 1.25rem; line-height: 1; padding: 0 0.25rem;">×</button>';
+    list.appendChild(row);
+  });
+</script>
+{% endblock %}
