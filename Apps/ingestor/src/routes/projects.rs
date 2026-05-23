@@ -1,9 +1,10 @@
 use axum::{
-    Form, Json,
+    Json,
     extract::{Path, State},
     http::StatusCode,
     response::{Html, IntoResponse, Redirect},
 };
+use axum_extra::extract::Form;
 use minijinja::context;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -41,31 +42,10 @@ pub struct MetadataForm {
     pub description: String,
     #[serde(default)]
     pub published: String,
-    #[serde(default, deserialize_with = "str_or_vec")]
+    #[serde(default)]
     pub author_names: Vec<String>,
-    #[serde(default, deserialize_with = "str_or_vec")]
+    #[serde(default)]
     pub author_abbrevs: Vec<String>,
-}
-
-// serde_urlencoded passes a bare string for a single occurrence of a key
-// and a sequence for multiple occurrences. This deserializer handles both.
-fn str_or_vec<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
-    struct V;
-    impl<'de> serde::de::Visitor<'de> for V {
-        type Value = Vec<String>;
-        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            f.write_str("string or sequence of strings")
-        }
-        fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-            Ok(vec![v.to_owned()])
-        }
-        fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-            let mut out = Vec::new();
-            while let Some(v) = seq.next_element()? { out.push(v); }
-            Ok(out)
-        }
-    }
-    d.deserialize_any(V)
 }
 
 // HTML handlers

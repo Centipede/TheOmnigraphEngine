@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8"
+axum-extra = { version = "0.10", features = ["form"] }
 tokio = { version = "1", features = ["full"] }
 rust-embed = "8"
 mime_guess = "2"
