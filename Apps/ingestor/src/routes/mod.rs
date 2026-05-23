@@ -40,6 +40,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(|| async { Redirect::to("/projects") }))
         .route("/projects", get(projects::projects_page).post(projects::create_project_form))
+        .route("/projects/:machine_name", get(projects::project_page))
         .route("/settings", get(pages::settings_get).post(pages::settings_post))
         .nest("/api", api)
         .fallback(static_handler)

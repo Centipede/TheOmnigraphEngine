@@ -1,6 +1,6 @@
 use axum::{
     Form, Json,
-    extract::State,
+    extract::{Path, State},
     http::StatusCode,
     response::{Html, IntoResponse, Redirect},
 };
@@ -65,8 +65,24 @@ pub async fn create_project_form(
     Redirect::to("/projects").into_response()
 }
 
-pub async fn project_page(State(_state): State<AppState>) -> impl IntoResponse {
-    StatusCode::OK
+pub async fn project_page(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/show.html").unwrap()
+        .render(context! { project }).unwrap();
+    Html(html).into_response()
 }
 
 // JSON API handlers
