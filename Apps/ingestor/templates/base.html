@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}OmniGraph Ingestor{% endblock %}</title>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/light.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/dark.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/shoelace-autoloader.js"></script>
+  <link rel="stylesheet" href="/shoelace.css">
+  <script type="module" src="/shoelace.js"></script>
 
   <!-- Runs synchronously to avoid flash of wrong theme -->
   <script>
@@ -20,6 +19,15 @@
   </script>
 
   <style>
+    /* Hide custom elements until their JS registers them, preventing
+       a flash of unstyled components on each page load. */
+    :not(:defined) { visibility: hidden; }
+
+    /* ── Layout and sizes ───────────────────────────────────────── */
+    :root {
+      --header-height: 56px;
+    }
+
     /* ── Color tokens ───────────────────────────────────────────── */
     :root,
     [data-theme="light"] {
@@ -114,6 +122,7 @@
     header {
       background: var(--color-surface);
       border-bottom: 1px solid var(--color-border);
+      height: var(--header-height);
     }
     nav {
       display: flex;
