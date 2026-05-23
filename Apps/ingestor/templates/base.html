@@ -148,7 +148,12 @@
 <body>
   <header>
     <nav>
-      <a href="/projects" class="nav-brand">OmniGraph Ingestor</a>
+      <a href="/projects" class="nav-brand">OmniGraph</a>
+      <div class="nav-start">
+        {% block navigation_items %}
+        {% endblock %}
+      </div>
+
       <div class="nav-end">
         <sl-button href="/projects" variant="text">Home</sl-button>
         <sl-button href="/settings" variant="text">Settings</sl-button>

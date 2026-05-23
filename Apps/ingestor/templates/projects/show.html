@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="text">Pages</sl-button>
+{% endblock %}
+
+
+{% block content %}
+<div style="max-width: 48rem; margin: 2rem auto; padding: 0 1rem;">
+  <a href="/projects" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← Projects</a>
+  <h2 style="margin-top: 0.5rem;">{{ project.name }}</h2>
+
+  <dl style="display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.5rem; margin: 1.5rem 0;">
+    <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Machine name</dt>
+    <dd style="margin: 0;"><code>{{ project.machine_name }}</code></dd>
+
+    {% if project.abbrev %}
+    <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Abbreviation</dt>
+    <dd style="margin: 0;">{{ project.abbrev }}</dd>
+    {% endif %}
+
+    {% if project.description %}
+    <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Description</dt>
+    <dd style="margin: 0;">{{ project.description }}</dd>
+    {% endif %}
+
+    {% if project.published %}
+    <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Published</dt>
+    <dd style="margin: 0;">{{ project.published }}</dd>
+    {% endif %}
+
+    {% if project.authors %}
+    <dt style="color: var(--color-text-muted); font-size: 0.875rem;">Authors</dt>
+    <dd style="margin: 0;">
+      {% for author in project.authors %}{{ author.full_name }}{% if author.abbrev %} ({{ author.abbrev }}){% endif %}{%
+      if not loop.last %}, {% endif %}{% endfor %}
+    </dd>
+    {% endif %}
+  </dl>
+
+  <h3>Pages</h3>
+  <p style="color: var(--color-text-muted);">
+  {% if pages %}
+    Pages: {{ pages|length }}
+  {% else %}
+  No pages yet.
+  {% endif %}
+  </p>
+</div>
+{% endblock %}
