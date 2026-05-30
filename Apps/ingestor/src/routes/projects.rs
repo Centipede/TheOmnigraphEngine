@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Multipart, Path, State},
     http::StatusCode,
     response::{Html, IntoResponse, Redirect},
 };
@@ -226,6 +226,55 @@ pub async fn project_metadata_post(
     }
 
     Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
+}
+
+pub async fn ingest_images_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/ingest.html").unwrap()
+        .render(context! { project }).unwrap();
+    Html(html).into_response()
+}
+
+pub async fn ingest_images_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    let pages_dir = state.projects_dir.join(&machine_name).join("pages");
+    if !pages_dir.exists() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let filename = match field.file_name() {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => continue,
+        };
+        let ext = std::path::Path::new(&filename)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase());
+        if !matches!(ext.as_deref(), Some("jpg") | Some("jpeg") | Some("png") | Some("tif") | Some("tiff") | Some("webp")) {
+            continue;
+        }
+        let Ok(data) = field.bytes().await else { continue; };
+        let _ = fs::write(pages_dir.join(&filename), data);
+    }
+
+    Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
 
 // JSON API handlers

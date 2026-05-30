@@ -42,6 +42,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects", get(projects::projects_page).post(projects::create_project_form))
         .route("/projects/{machine_name}", get(projects::project_page))
         .route("/projects/{machine_name}/metadata", get(projects::project_metadata_get).post(projects::project_metadata_post))
+        .route("/projects/{machine_name}/pages/ingest", get(projects::ingest_images_get).post(projects::ingest_images_post))
         .route("/settings", get(pages::settings_get).post(pages::settings_post))
         .nest("/api", api)
         .fallback(static_handler)
