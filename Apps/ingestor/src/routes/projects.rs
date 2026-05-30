@@ -85,11 +85,15 @@ pub struct CreateProject {
     pub machine_name: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Page {
     pub index: usize,
     pub name: String,
     pub scan: String,
+    pub scan_width: u32,
+    pub scan_height: u32,
+    pub thumb_width: u32,
+    pub thumb_height: u32,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -299,7 +303,8 @@ pub async fn ingest_images_post(
         return StatusCode::NOT_FOUND.into_response();
     }
     let scans_dir = pages_dir.join("scans");
-    if fs::create_dir_all(&scans_dir).is_err() {
+    let thumbs_dir = pages_dir.join("thumbs");
+    if fs::create_dir_all(&scans_dir).is_err() || fs::create_dir_all(&thumbs_dir).is_err() {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
@@ -320,9 +325,15 @@ pub async fn ingest_images_post(
         }
         let Ok(data) = field.bytes().await else { continue; };
         let final_name = resolve_scan_filename(&scans_dir, &filename);
-        if fs::write(scans_dir.join(&final_name), data).is_ok() {
-            add_page(&mut pagedb, final_name);
+        if fs::write(scans_dir.join(&final_name), &data).is_err() {
+            continue;
         }
+        let stem = std::path::Path::new(&final_name)
+            .file_stem().and_then(|s| s.to_str()).unwrap_or(&final_name);
+        let thumb_name = format!("{stem}.jpg");
+        let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
+            .unwrap_or((0, 0, 0, 0));
+        add_page(&mut pagedb, final_name, sw, sh, tw, th);
     }
 
     sort_and_reindex(&mut pagedb);
@@ -408,8 +419,8 @@ pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> 
     fs::write(path, json)
 }
 
-pub fn add_page(db: &mut PageDb, scan: String) {
-    db.pages.push(Page { index: 0, name: String::new(), scan });
+pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb_width: u32, thumb_height: u32) {
+    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb_width, thumb_height });
 }
 
 pub fn remove_page(db: &mut PageDb, index: usize) {
@@ -428,6 +439,17 @@ pub fn sort_and_reindex(db: &mut PageDb) {
     for (i, page) in db.pages.iter_mut().enumerate() {
         page.index = i;
     }
+}
+
+// Decode `data`, produce a ≤500×500 JPEG thumbnail at `dest`, return
+// (scan_width, scan_height, thumb_width, thumb_height) on success.
+fn generate_thumb(data: &[u8], dest: &std::path::Path) -> Option<(u32, u32, u32, u32)> {
+    let img = image::load_from_memory(data).ok()?;
+    let (sw, sh) = (img.width(), img.height());
+    let thumb = img.thumbnail(500, 500);
+    let (tw, th) = (thumb.width(), thumb.height());
+    thumb.save(dest).ok()?;
+    Some((sw, sh, tw, th))
 }
 
 // If `filename` already exists in `scans_dir`, generate a new name that sorts

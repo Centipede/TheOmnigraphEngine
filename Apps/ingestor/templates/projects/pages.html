@@ -27,6 +27,41 @@
         color: var(--color-text-muted);
     }
 
+
+    .page-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 0.75rem;
+    }
+
+    .page-list li {
+        display: grid;
+        grid-template-columns: 8rem 1fr;
+        gap: 0.5rem;
+        align-items: baseline;
+        width: 18rem;
+        padding: 0.25rem 0;
+    }
+
+    .page-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .page-name-empty,
+    .page-scan {
+        color: var(--color-text-muted);
+    }
+
+    .page-scan {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 </style>
 {% endblock %}
 
@@ -35,18 +70,36 @@
 <div class="pagearea">
 
   <div class="sidebar">
-    <p class="lead">Pages:</p>
+    <p class="lead">Pages: {{ pagedb.pages|length }}</p>
+
+    {% if pagedb.pages %}
+    <ul class="page-list">
+      {% for page in pagedb.pages %}
+      <li>
+        {% if page.name %}
+        <span class="page-name">{{ page.name }}</span>
+        {% else %}
+        <span class="page-name page-name-empty">[No name]</span>
+        {% endif %}
+        <span class="page-scan">{{ page.scan }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No pages yet.</p>
+    {% endif %}
 
   </div>
 
   <div class="workarea">
-    <h3>Pages</h3>
     <p style="color: var(--color-text-muted);">
-      {% if pagedb.pages %}
-      Pages: {{ pagedb.pages|length }}
-      {% else %}
-      No pages yet.
-      {% endif %}
+
+      {% for page in pagedb.pages %}
+        <div class="page-preview">
+          <img width="{{ page.thumb_width }}" height="{{ page.thumb_height }}" src="{{ page.scan }}" alt="Page preview" class="page-preview-image">
+        </div>
+      {% endfor %}
+
     </p>
   </div>
 
