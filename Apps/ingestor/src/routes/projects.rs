@@ -1,7 +1,7 @@
 use axum::{
     Json,
     extract::{Multipart, Path, State},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::{Html, IntoResponse, Redirect},
 };
 use axum_extra::extract::Form;
@@ -92,6 +92,8 @@ pub struct Page {
     pub scan: String,
     pub scan_width: u32,
     pub scan_height: u32,
+    #[serde(default)]
+    pub thumb: String,
     pub thumb_width: u32,
     pub thumb_height: u32,
 }
@@ -333,13 +335,31 @@ pub async fn ingest_images_post(
         let thumb_name = format!("{stem}.jpg");
         let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
             .unwrap_or((0, 0, 0, 0));
-        add_page(&mut pagedb, final_name, sw, sh, tw, th);
+        add_page(&mut pagedb, final_name, sw, sh, thumb_name, tw, th);
     }
 
     sort_and_reindex(&mut pagedb);
     let _ = save_page_db(&pagedb_path, &pagedb);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
+}
+
+pub async fn serve_thumb(
+    State(state): State<AppState>,
+    Path((machine_name, filename)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("thumbs")
+        .join(&filename);
+    match fs::read(&path) {
+        Ok(data) => {
+            let mime = mime_guess::from_path(&filename).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref().to_string())], data).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 // JSON API handlers
@@ -419,8 +439,8 @@ pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> 
     fs::write(path, json)
 }
 
-pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb_width: u32, thumb_height: u32) {
-    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb_width, thumb_height });
+pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32) {
+    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height });
 }
 
 pub fn remove_page(db: &mut PageDb, index: usize) {

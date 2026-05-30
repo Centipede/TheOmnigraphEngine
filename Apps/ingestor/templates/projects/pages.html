@@ -96,7 +96,7 @@
 
       {% for page in pagedb.pages %}
         <div class="page-preview">
-          <img width="{{ page.thumb_width }}" height="{{ page.thumb_height }}" src="{{ page.scan }}" alt="Page preview" class="page-preview-image">
+          <img width="{{ page.thumb_width }}" height="{{ page.thumb_height }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
         </div>
       {% endfor %}
 
