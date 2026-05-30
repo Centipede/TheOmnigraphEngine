@@ -10,6 +10,57 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::state::AppState;
 
+mod optional_date {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use time::{Date, Month};
+
+    pub fn serialize<S>(date: &Option<Date>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match date {
+            Some(date) => serializer.serialize_str(&format!(
+                "{:04}-{:02}-{:02}",
+                date.year(),
+                date.month() as u8,
+                date.day()
+            )),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let Some(s) = Option::<String>::deserialize(deserializer)? else {
+            return Ok(None);
+        };
+
+        let mut parts = s.splitn(3, '-');
+        let year: i32 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing year"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let month: u8 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing month"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let day: u8 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing day"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+
+        let month = Month::try_from(month).map_err(serde::de::Error::custom)?;
+        let date = Date::from_calendar_date(year, month, day).map_err(serde::de::Error::custom)?;
+
+        Ok(Some(date))
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Author {
     pub full_name: String,
@@ -24,6 +75,7 @@ pub struct Project {
     pub description: Option<String>,
     #[serde(default)]
     pub authors: Vec<Author>,
+    #[serde(default, with = "optional_date")]
     pub published: Option<time::Date>,
 }
 
@@ -95,6 +147,7 @@ pub async fn project_page(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
+    println!("Published: {:?} --- ", project.published);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/show.html").unwrap()
         .render(context! { project }).unwrap();
