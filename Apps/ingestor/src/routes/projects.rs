@@ -85,6 +85,18 @@ pub struct CreateProject {
     pub machine_name: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Page {
+    pub index: usize,
+    pub name: String,
+    pub scan: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct PageDb {
+    pub pages: Vec<Page>,
+}
+
 #[derive(Deserialize)]
 pub struct MetadataForm {
     pub name: String,
@@ -279,6 +291,13 @@ pub async fn ingest_images_post(
     if !pages_dir.exists() {
         return StatusCode::NOT_FOUND.into_response();
     }
+    let scans_dir = pages_dir.join("scans");
+    if fs::create_dir_all(&scans_dir).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    let db_path = pages_dir.join("pagedata.json");
+    let mut db = load_page_db(&db_path);
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let filename = match field.file_name() {
@@ -293,8 +312,14 @@ pub async fn ingest_images_post(
             continue;
         }
         let Ok(data) = field.bytes().await else { continue; };
-        let _ = fs::write(pages_dir.join(&filename), data);
+        let final_name = resolve_scan_filename(&scans_dir, &filename);
+        if fs::write(scans_dir.join(&final_name), data).is_ok() {
+            add_page(&mut db, final_name);
+        }
     }
+
+    sort_and_reindex(&mut db);
+    let _ = save_page_db(&db_path, &db);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
@@ -359,6 +384,62 @@ fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) -> s
     let toml_str = toml::to_string(&project)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     fs::write(project_dir.join("metadata").join("project.toml"), toml_str)
+}
+
+// Page database helpers
+
+pub fn load_page_db(path: &std::path::Path) -> PageDb {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> {
+    let json = serde_json::to_string_pretty(db)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    fs::write(path, json)
+}
+
+pub fn add_page(db: &mut PageDb, scan: String) {
+    db.pages.push(Page { index: 0, name: String::new(), scan });
+}
+
+pub fn remove_page(db: &mut PageDb, index: usize) {
+    db.pages.retain(|p| p.index != index);
+    sort_and_reindex(db);
+}
+
+pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
+    if let Some(page) = db.pages.iter_mut().find(|p| p.index == index) {
+        page.name = name;
+    }
+}
+
+pub fn sort_and_reindex(db: &mut PageDb) {
+    db.pages.sort_by(|a, b| a.scan.cmp(&b.scan));
+    for (i, page) in db.pages.iter_mut().enumerate() {
+        page.index = i;
+    }
+}
+
+// If `filename` already exists in `scans_dir`, generate a new name that sorts
+// immediately after it by appending 'b'..'z' before the extension.
+fn resolve_scan_filename(scans_dir: &std::path::Path, filename: &str) -> String {
+    if !scans_dir.join(filename).exists() {
+        return filename.to_string();
+    }
+    let p = std::path::Path::new(filename);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or(filename);
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let dot_ext = if ext.is_empty() { String::new() } else { format!(".{ext}") };
+    for c in b'b'..=b'z' {
+        let candidate = format!("{stem}{}{dot_ext}", c as char);
+        if !scans_dir.join(&candidate).exists() {
+            return candidate;
+        }
+    }
+    format!("{stem}_dup{dot_ext}")
 }
 
 fn read_projects(state: &AppState) -> Vec<Project> {
