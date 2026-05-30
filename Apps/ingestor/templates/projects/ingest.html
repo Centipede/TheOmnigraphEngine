@@ -3,8 +3,9 @@
 {% block title %}{{ project.name }} — Append images — OmniGraph{% endblock %}
 
 {% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/pages" variant="text">Pages</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
 {% endblock %}
 
 {% block content %}

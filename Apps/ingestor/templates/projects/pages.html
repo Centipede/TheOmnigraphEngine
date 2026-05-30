@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="primary">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
+{% endblock %}
+
+{% block head %}
+<style>
+    .pagearea {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 20rem 1fr 20rem;
+    }
+
+    .sidebar, .tools {
+        width: 20rem;
+    }
+
+    .lead {
+        font-size: 1.25rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: var(--color-text-muted);
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="pagearea">
+
+  <div class="sidebar">
+    <p class="lead">Pages:</p>
+
+  </div>
+
+  <div class="workarea">
+    <h3>Pages</h3>
+    <p style="color: var(--color-text-muted);">
+      {% if pages %}
+      Pages: {{ pages|length }}
+      {% else %}
+      No pages yet.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="tools">
+    <p class="lead">Tools:</p>
+    <sl-button href="/projects/{{ project.machine_name }}/pages/ingest" variant="default">Append images</sl-button>
+  </div>
+</div>
+{% endblock %}
