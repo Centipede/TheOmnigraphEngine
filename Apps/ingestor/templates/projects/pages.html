@@ -3,7 +3,7 @@
 {% block title %}{{ project.name }} — OmniGraph{% endblock %}
 
 {% block navigation_items %}
-<sl-button href="/projects/{{ project.machine_name }}" variant="primary">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
 {% endblock %}
@@ -42,8 +42,8 @@
   <div class="workarea">
     <h3>Pages</h3>
     <p style="color: var(--color-text-muted);">
-      {% if pages %}
-      Pages: {{ pages|length }}
+      {% if pagedb.pages %}
+      Pages: {{ pagedb.pages|length }}
       {% else %}
       No pages yet.
       {% endif %}

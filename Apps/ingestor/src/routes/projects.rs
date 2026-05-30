@@ -112,6 +112,7 @@ pub struct MetadataForm {
     pub author_abbrevs: Vec<String>,
 }
 
+
 // HTML handlers
 
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
@@ -249,15 +250,21 @@ pub async fn project_pages_get(
         .join(&machine_name)
         .join("metadata")
         .join("project.toml");
+    let pagedb_path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
+
     let Ok(contents) = fs::read_to_string(&toml_path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
+    let mut pagedb = load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/pages.html").unwrap()
-        .render(context! { project }).unwrap();
+        .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
 
@@ -296,8 +303,8 @@ pub async fn ingest_images_post(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    let db_path = pages_dir.join("pagedata.json");
-    let mut db = load_page_db(&db_path);
+    let pagedb_path = pages_dir.join("pagedata.json");
+    let mut pagedb = load_page_db(&pagedb_path);
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let filename = match field.file_name() {
@@ -314,12 +321,12 @@ pub async fn ingest_images_post(
         let Ok(data) = field.bytes().await else { continue; };
         let final_name = resolve_scan_filename(&scans_dir, &filename);
         if fs::write(scans_dir.join(&final_name), data).is_ok() {
-            add_page(&mut db, final_name);
+            add_page(&mut pagedb, final_name);
         }
     }
 
-    sort_and_reindex(&mut db);
-    let _ = save_page_db(&db_path, &db);
+    sort_and_reindex(&mut pagedb);
+    let _ = save_page_db(&pagedb_path, &pagedb);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
