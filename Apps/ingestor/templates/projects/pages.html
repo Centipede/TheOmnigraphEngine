@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
+{% endblock %}
+
+{% block head %}
+<style>
+    .pagearea {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 20rem 1fr 20rem;
+    }
+
+    .sidebar, .tools {
+        width: 10rem;
+    }
+
+    .lead {
+        font-size: 1.25rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: var(--color-text-muted);
+    }
+
+
+    .page-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        font-size: 0.75rem;
+    }
+
+    .page-list li {
+        display: grid;
+        grid-template-columns: 8rem 1fr;
+        gap: 0.5rem;
+        align-items: baseline;
+        width: 18rem;
+        padding: 0.25rem 0;
+    }
+
+    .page-list li.selected {
+        background-color: var(--color-bg-selected);
+    }
+
+    .page-list .page-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .page-list .page-name-empty,
+    .page-list .page-scan {
+        color: var(--color-text-muted);
+    }
+
+    .page-list .page-scan {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .thumbs-and-zoom-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        height: calc(100vh - 12rem);
+        min-height: 0;
+    }
+
+    .thumbs-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .zoom-container {
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    .page-preview img {
+        padding: 0.3rem;
+    }
+
+    .page-preview.selected {
+        background-color: var(--color-bg-selected);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- NOTE: Beware that indices can change between page reloads
+     or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
+<div class="pagearea"
+     x-data="{
+            selectedIndices: [],
+            zoomSrc: '',
+
+            selectPage(pageIndex, scanUrl) {
+                this.selectedIndices = [pageIndex];
+                this.zoomSrc = scanUrl;
+            },
+
+            selectFromList(pageIndex, scanUrl) {
+                this.selectPage(pageIndex, scanUrl);
+                this.scrollPreviewIntoView(pageIndex);
+            },
+
+            selectFromPreview(pageIndex, scanUrl) {
+                this.selectPage(pageIndex, scanUrl);
+                this.scrollPageListItemIntoView(pageIndex);
+            },
+
+            scrollPageListItemIntoView(pageIndex) {
+                this.$nextTick(() => {
+                    document
+                        .querySelector(`.page-list li[data-page-index='${pageIndex}']`)
+                        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                });
+            },
+
+            scrollPreviewIntoView(pageIndex) {
+                this.$nextTick(() => {
+                    document
+                        .querySelector(`.thumbs-container .page-preview[data-page-index='${pageIndex}']`)
+                        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                });
+            }
+        }">
+
+  <div class="sidebar">
+    <p class="lead">Pages: {{ pagedb.pages|length }}</p>
+
+    {% if pagedb.pages %}
+    <ul class="page-list">
+      {% for page in pagedb.pages %}
+      <li data-page-index="{{ page.index }}"
+          :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+          @click="selectFromList({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
+        {% if page.name %}
+        <span class="page-name">{{ page.name }}</span>
+        {% else %}
+        <span class="page-name page-name-empty">[No name]</span>
+        {% endif %}
+        <span class="page-scan">{{ page.scan }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No pages yet.</p>
+    {% endif %}
+
+  </div>
+
+  <div class="workarea">
+
+    <div class="thumbs-and-zoom-container">
+
+      <div class="thumbs-container">
+
+        {% for page in pagedb.pages %}
+        <div class="page-preview"
+             data-page-index="{{ page.index }}"
+             :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+             @click="selectFromPreview({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
+          <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="zoom-container">
+        <img :src="zoomSrc" x-show="zoomSrc !== ''" style="max-width: 100%; height: auto;">
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tools">
+    <p class="lead">Tools:</p>
+    <sl-button href="/projects/{{ project.machine_name }}/pages/ingest" variant="default">Append images</sl-button>
+  </div>
+</div>
+{% endblock %}

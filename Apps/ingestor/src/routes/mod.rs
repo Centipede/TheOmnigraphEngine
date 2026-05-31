@@ -1,8 +1,9 @@
-pub mod pages;
+pub mod settings;
 pub mod projects;
 
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     routing::get,
     http::{StatusCode, header},
     response::{IntoResponse, Redirect},
@@ -40,9 +41,13 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(|| async { Redirect::to("/projects") }))
         .route("/projects", get(projects::projects_page).post(projects::create_project_form))
-        .route("/projects/{machine_name}", get(projects::project_page))
+        .route("/projects/{machine_name}", get(projects::project_overview_get))
         .route("/projects/{machine_name}/metadata", get(projects::project_metadata_get).post(projects::project_metadata_post))
-        .route("/settings", get(pages::settings_get).post(pages::settings_post))
+        .route("/projects/{machine_name}/pages", get(projects::project_pages_get))
+        .route("/projects/{machine_name}/pages/ingest", get(projects::ingest_images_get).post(projects::ingest_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/thumbs/{filename}", get(projects::serve_thumb))
+        .route("/projects/{machine_name}/pages/scans/{filename}", get(projects::serve_scan))
+        .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .nest("/api", api)
         .fallback(static_handler)
         .with_state(state)

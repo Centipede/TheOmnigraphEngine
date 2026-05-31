@@ -1,7 +1,7 @@
 use axum::{
     Json,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{Multipart, Path, State},
+    http::{StatusCode, header},
     response::{Html, IntoResponse, Redirect},
 };
 use axum_extra::extract::Form;
@@ -9,6 +9,57 @@ use minijinja::context;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use crate::state::AppState;
+
+mod optional_date {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use time::{Date, Month};
+
+    pub fn serialize<S>(date: &Option<Date>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match date {
+            Some(date) => serializer.serialize_str(&format!(
+                "{:04}-{:02}-{:02}",
+                date.year(),
+                date.month() as u8,
+                date.day()
+            )),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let Some(s) = Option::<String>::deserialize(deserializer)? else {
+            return Ok(None);
+        };
+
+        let mut parts = s.splitn(3, '-');
+        let year: i32 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing year"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let month: u8 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing month"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+        let day: u8 = parts
+            .next()
+            .ok_or_else(|| serde::de::Error::custom("missing day"))?
+            .parse()
+            .map_err(serde::de::Error::custom)?;
+
+        let month = Month::try_from(month).map_err(serde::de::Error::custom)?;
+        let date = Date::from_calendar_date(year, month, day).map_err(serde::de::Error::custom)?;
+
+        Ok(Some(date))
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Author {
@@ -24,6 +75,7 @@ pub struct Project {
     pub description: Option<String>,
     #[serde(default)]
     pub authors: Vec<Author>,
+    #[serde(default, with = "optional_date")]
     pub published: Option<time::Date>,
 }
 
@@ -31,6 +83,24 @@ pub struct Project {
 pub struct CreateProject {
     pub name: String,
     pub machine_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct Page {
+    pub index: usize,
+    pub name: String,
+    pub scan: String,
+    pub scan_width: u32,
+    pub scan_height: u32,
+    #[serde(default)]
+    pub thumb: String,
+    pub thumb_width: u32,
+    pub thumb_height: u32,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct PageDb {
+    pub pages: Vec<Page>,
 }
 
 #[derive(Deserialize)]
@@ -47,6 +117,7 @@ pub struct MetadataForm {
     #[serde(default)]
     pub author_abbrevs: Vec<String>,
 }
+
 
 // HTML handlers
 
@@ -81,7 +152,7 @@ pub async fn create_project_form(
     Redirect::to("/projects").into_response()
 }
 
-pub async fn project_page(
+pub async fn project_overview_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
@@ -95,6 +166,7 @@ pub async fn project_page(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
+    println!("Published: {:?} --- ", project.published);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/show.html").unwrap()
         .render(context! { project }).unwrap();
@@ -175,6 +247,139 @@ pub async fn project_metadata_post(
     Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
 }
 
+
+pub async fn project_pages_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let pagedb_path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
+
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let mut pagedb = load_page_db(&pagedb_path);
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/pages.html").unwrap()
+        .render(context! { project, pagedb }).unwrap();
+    Html(html).into_response()
+}
+
+
+pub async fn ingest_images_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/ingest.html").unwrap()
+        .render(context! { project }).unwrap();
+    Html(html).into_response()
+}
+
+pub async fn ingest_images_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    let pages_dir = state.projects_dir.join(&machine_name).join("pages");
+    if !pages_dir.exists() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let scans_dir = pages_dir.join("scans");
+    let thumbs_dir = pages_dir.join("thumbs");
+    if fs::create_dir_all(&scans_dir).is_err() || fs::create_dir_all(&thumbs_dir).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    let pagedb_path = pages_dir.join("pagedata.json");
+    let mut pagedb = load_page_db(&pagedb_path);
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let filename = match field.file_name() {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => continue,
+        };
+        let ext = std::path::Path::new(&filename)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase());
+        if !matches!(ext.as_deref(), Some("jpg") | Some("jpeg") | Some("png") | Some("tif") | Some("tiff") | Some("webp")) {
+            continue;
+        }
+        let Ok(data) = field.bytes().await else { continue; };
+        let final_name = resolve_scan_filename(&scans_dir, &filename);
+        if fs::write(scans_dir.join(&final_name), &data).is_err() {
+            continue;
+        }
+        let stem = std::path::Path::new(&final_name)
+            .file_stem().and_then(|s| s.to_str()).unwrap_or(&final_name);
+        let thumb_name = format!("{stem}.jpg");
+        let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
+            .unwrap_or((0, 0, 0, 0));
+        add_page(&mut pagedb, final_name, sw, sh, thumb_name, tw, th);
+    }
+
+    sort_and_reindex(&mut pagedb);
+    let _ = save_page_db(&pagedb_path, &pagedb);
+
+    Redirect::to(&format!("/projects/{}", machine_name)).into_response()
+}
+
+pub async fn serve_thumb(
+    State(state): State<AppState>,
+    Path((machine_name, filename)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("thumbs")
+        .join(&filename);
+    match fs::read(&path) {
+        Ok(data) => {
+            let mime = mime_guess::from_path(&filename).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref().to_string())], data).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+pub async fn serve_scan(
+    State(state): State<AppState>,
+    Path((machine_name, filename)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("scans")
+        .join(&filename);
+    match fs::read(&path) {
+        Ok(data) => {
+            let mime = mime_guess::from_path(&filename).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref().to_string())], data).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 // JSON API handlers
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
@@ -235,6 +440,73 @@ fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) -> s
     let toml_str = toml::to_string(&project)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     fs::write(project_dir.join("metadata").join("project.toml"), toml_str)
+}
+
+// Page database helpers
+
+pub fn load_page_db(path: &std::path::Path) -> PageDb {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> {
+    let json = serde_json::to_string_pretty(db)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    fs::write(path, json)
+}
+
+pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32) {
+    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height });
+}
+
+pub fn remove_page(db: &mut PageDb, index: usize) {
+    db.pages.retain(|p| p.index != index);
+    sort_and_reindex(db);
+}
+
+pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
+    if let Some(page) = db.pages.iter_mut().find(|p| p.index == index) {
+        page.name = name;
+    }
+}
+
+pub fn sort_and_reindex(db: &mut PageDb) {
+    db.pages.sort_by(|a, b| a.scan.cmp(&b.scan));
+    for (i, page) in db.pages.iter_mut().enumerate() {
+        page.index = i;
+    }
+}
+
+// Decode `data`, produce a ≤500×500 JPEG thumbnail at `dest`, return
+// (scan_width, scan_height, thumb_width, thumb_height) on success.
+fn generate_thumb(data: &[u8], dest: &std::path::Path) -> Option<(u32, u32, u32, u32)> {
+    let img = image::load_from_memory(data).ok()?;
+    let (sw, sh) = (img.width(), img.height());
+    let thumb = img.thumbnail(300, 500);
+    let (tw, th) = (thumb.width(), thumb.height());
+    thumb.save(dest).ok()?;
+    Some((sw, sh, tw, th))
+}
+
+// If `filename` already exists in `scans_dir`, generate a new name that sorts
+// immediately after it by appending 'b'..'z' before the extension.
+fn resolve_scan_filename(scans_dir: &std::path::Path, filename: &str) -> String {
+    if !scans_dir.join(filename).exists() {
+        return filename.to_string();
+    }
+    let p = std::path::Path::new(filename);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or(filename);
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let dot_ext = if ext.is_empty() { String::new() } else { format!(".{ext}") };
+    for c in b'b'..=b'z' {
+        let candidate = format!("{stem}{}{dot_ext}", c as char);
+        if !scans_dir.join(&candidate).exists() {
+            return candidate;
+        }
+    }
+    format!("{stem}_dup{dot_ext}")
 }
 
 fn read_projects(state: &AppState) -> Vec<Project> {

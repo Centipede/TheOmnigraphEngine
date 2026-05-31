@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — Append images — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 36rem; margin: 2rem auto; padding: 0 1rem;">
+  <a href="/projects/{{ project.machine_name }}" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← {{ project.name }}</a>
+  <h2 style="margin-top: 0.5rem;">Append images</h2>
+
+  <form method="post"
+        action="/projects/{{ project.machine_name }}/pages/ingest"
+        enctype="multipart/form-data"
+        class="form-grid">
+    <label for="images">Image files<small>jpg, png, tif, webp</small></label>
+    <input type="file" id="images" name="images" multiple accept=".jpg,.jpeg,.png,.tif,.tiff,.webp">
+
+    <div class="form-actions">
+      <sl-button type="submit" variant="primary">Upload</sl-button>
+    </div>
+  </form>
+</div>
+{% endblock %}
