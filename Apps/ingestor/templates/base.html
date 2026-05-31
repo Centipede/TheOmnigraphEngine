@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}OmniGraph Ingestor{% endblock %}</title>
 
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+
+  <!-- Alpine -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/intersect@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+  <!-- Shoelace -->
   <link rel="stylesheet" href="/shoelace.css">
   <script type="module" src="/shoelace.js"></script>
 
@@ -38,6 +47,7 @@
       --color-text-muted:   #6c757d;
       --color-accent:       #2563eb;
       --color-accent-hover: #1d4ed8;
+      --color-bg-selected:  #8397aa;
     }
 
     [data-theme="dark"] {
@@ -48,6 +58,7 @@
       --color-text-muted:   #868e96;
       --color-accent:       #60a5fa;
       --color-accent-hover: #93c5fd;
+      --color-bg-selected:  #424a53;
     }
 
     /* ── Font-size tokens ───────────────────────────────────────── */
