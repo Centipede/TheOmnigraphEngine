@@ -362,6 +362,24 @@ pub async fn serve_thumb(
     }
 }
 
+pub async fn serve_scan(
+    State(state): State<AppState>,
+    Path((machine_name, filename)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let path = state.projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("scans")
+        .join(&filename);
+    match fs::read(&path) {
+        Ok(data) => {
+            let mime = mime_guess::from_path(&filename).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref().to_string())], data).into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 // JSON API handlers
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
@@ -466,7 +484,7 @@ pub fn sort_and_reindex(db: &mut PageDb) {
 fn generate_thumb(data: &[u8], dest: &std::path::Path) -> Option<(u32, u32, u32, u32)> {
     let img = image::load_from_memory(data).ok()?;
     let (sw, sh) = (img.width(), img.height());
-    let thumb = img.thumbnail(500, 500);
+    let thumb = img.thumbnail(300, 500);
     let (tw, th) = (thumb.width(), thumb.height());
     thumb.save(dest).ok()?;
     Some((sw, sh, tw, th))

@@ -46,6 +46,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages", get(projects::project_pages_get))
         .route("/projects/{machine_name}/pages/ingest", get(projects::ingest_images_get).post(projects::ingest_images_post).layer(DefaultBodyLimit::disable()))
         .route("/projects/{machine_name}/pages/thumbs/{filename}", get(projects::serve_thumb))
+        .route("/projects/{machine_name}/pages/scans/{filename}", get(projects::serve_scan))
         .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .nest("/api", api)
         .fallback(static_handler)

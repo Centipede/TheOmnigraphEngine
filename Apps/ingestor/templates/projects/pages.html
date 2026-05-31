@@ -17,7 +17,7 @@
     }
 
     .sidebar, .tools {
-        width: 20rem;
+        width: 10rem;
     }
 
     .lead {
@@ -44,30 +44,61 @@
         padding: 0.25rem 0;
     }
 
-    .page-name {
+    .page-list li.selected {
+        background-color: var(--color-bg-selected);
+    }
+
+    .page-list .page-name {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .page-name-empty,
-    .page-scan {
+    .page-list .page-name-empty,
+    .page-list .page-scan {
         color: var(--color-text-muted);
     }
 
-    .page-scan {
+    .page-list .page-scan {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .thumbs-and-zoom-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .thumbs-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .page-preview img {
+      padding: 0.3rem;
+    }
+
+    .page-preview.selected {
+        background-color: var(--color-bg-selected);
     }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="pagearea">
+<div class="pagearea"
+     x-data="{
+            selectedIndices: [],
+            zoomSrc: '',
+            selectPage(pageIndex, scanUrl) {
+                this.selectedIndices = [pageIndex];
+                this.zoomSrc = scanUrl;
+            }
+        }">
 
   <div class="sidebar">
     <p class="lead">Pages: {{ pagedb.pages|length }}</p>
@@ -75,7 +106,8 @@
     {% if pagedb.pages %}
     <ul class="page-list">
       {% for page in pagedb.pages %}
-      <li>
+      <li :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+          @click="selectPage({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
         {% if page.name %}
         <span class="page-name">{{ page.name }}</span>
         {% else %}
@@ -92,15 +124,25 @@
   </div>
 
   <div class="workarea">
-    <p style="color: var(--color-text-muted);">
 
-      {% for page in pagedb.pages %}
-        <div class="page-preview">
-          <img width="{{ page.thumb_width }}" height="{{ page.thumb_height }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
+    <div class="thumbs-and-zoom-container">
+
+      <div class="thumbs-container">
+
+        {% for page in pagedb.pages %}
+        <div class="page-preview"
+             :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+             @click="selectPage({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
+          <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
         </div>
-      {% endfor %}
+        {% endfor %}
+      </div>
 
-    </p>
+      <div class="zoom-container">
+        <img :src="zoomSrc" x-show="zoomSrc !== ''" style="max-width: 100%; height: auto;">
+      </div>
+    </div>
+
   </div>
 
   <div class="tools">
