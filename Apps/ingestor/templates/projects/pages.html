@@ -37,7 +37,7 @@
 
     .page-list li {
         display: grid;
-        grid-template-columns: 8rem 1fr;
+        grid-template-columns:  2rem 2rem 6rem 1fr;
         gap: 0.5rem;
         align-items: baseline;
         width: 18rem;
@@ -67,6 +67,10 @@
     .page-list .header b {
         color: var(--color-text-muted);
         text-transform: uppercase;
+    }
+
+    .page-list .row * {
+        color: var(--color-text-muted);
     }
 
     .page-list .page-scan {
@@ -194,13 +198,18 @@
     {% if pagedb.pages %}
     <ul class="page-list">
       <li class="header">
+        <b class="page-index">Idx</b>
+        <b class="page-batch">Bat</b>
         <b class="page-name">Name</b>
         <b class="page-scan">Scan</b>
       </li>
       {% for page in pagedb.pages %}
-      <li data-page-index="{{ page.index }}"
+      <li class="row"
+          data-page-index="{{ page.index }}"
           :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
           @click="selectFromList({{ page.index }}, $event)">
+        <span class="page-index">{{ page.index }}</span>
+        <span class="page-batch">{{ page.batch }}</span>
         {% if page.name %}
         <span class="page-name">{{ page.name }}</span>
         {% else %}
