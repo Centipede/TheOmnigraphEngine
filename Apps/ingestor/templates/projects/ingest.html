@@ -15,7 +15,7 @@
   {% if is_insert %}
   <h2 style="margin-top: 0.5rem;">Insert images</h2>
   <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
-    {% if after_index %}
+    {% if after_index is not none %}
     After page {{ after_index }}{% if anchor_page %}: <code>{{ anchor_page.scan }}</code>{% if anchor_page.name %} ({{ anchor_page.name }}){% endif %}{% endif %}
     {% else %}
     Before page {{ before_index }}{% if anchor_page %}: <code>{{ anchor_page.scan }}</code>{% if anchor_page.name %} ({{ anchor_page.name }}){% endif %}{% endif %}
