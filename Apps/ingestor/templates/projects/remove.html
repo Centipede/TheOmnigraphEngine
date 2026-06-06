@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — Remove pages — OmniGraph{% endblock %}
+
+{% block navigation_items %}
+<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 36rem; margin: 2rem auto; padding: 0 1rem;">
+  <a href="/projects/{{ project.machine_name }}/pages" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← Pages</a>
+  <h2 style="margin-top: 0.5rem;">Remove {{ pages_to_remove|length }} page{% if pages_to_remove|length != 1 %}s{% endif %}</h2>
+
+  <ul style="list-style: none; padding: 0; margin: 1rem 0 1.5rem; font-size: 0.875rem;">
+    {% for page in pages_to_remove %}
+    <li style="padding: 0.2rem 0; color: var(--color-text-muted);">
+      <span style="display: inline-block; width: 3rem; text-align: right; margin-right: 0.75rem; font-variant-numeric: tabular-nums;">{{ page.index }}</span>
+      {% if page.name %}<strong>{{ page.name }}</strong> — {% endif %}<code>{{ page.scan }}</code>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+    This removes the entries from the page list. The scan files on disk are not deleted.
+  </p>
+
+  <form method="post" action="/projects/{{ project.machine_name }}/pages/remove">
+    <input type="hidden" name="indices" value="{{ indices_str }}">
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <sl-button type="submit" variant="danger">Remove</sl-button>
+      <sl-button href="/projects/{{ project.machine_name }}/pages" variant="text">Cancel</sl-button>
+    </div>
+  </form>
+</div>
+{% endblock %}

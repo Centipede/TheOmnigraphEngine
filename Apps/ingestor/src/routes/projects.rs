@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     http::{StatusCode, header},
     response::{Html, IntoResponse, Redirect},
 };
@@ -124,6 +124,21 @@ pub struct MetadataForm {
     pub author_names: Vec<String>,
     #[serde(default)]
     pub author_abbrevs: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct IngestQuery {
+    pub after: Option<usize>,
+}
+
+#[derive(Deserialize)]
+pub struct RemoveQuery {
+    pub indices: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct RemoveForm {
+    pub indices: String,
 }
 
 
@@ -286,6 +301,7 @@ pub async fn project_pages_get(
 pub async fn ingest_images_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
+    Query(query): Query<IngestQuery>,
 ) -> impl IntoResponse {
     let toml_path = state.projects_dir
         .join(&machine_name)
@@ -297,15 +313,21 @@ pub async fn ingest_images_get(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
+    let is_insert = query.after.is_some();
+    let after_page = query.after.and_then(|idx| {
+        let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+        load_page_db(&db_path).pages.into_iter().find(|p| p.index == idx)
+    });
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/ingest.html").unwrap()
-        .render(context! { project }).unwrap();
+        .render(context! { project, is_insert, after_index => query.after, after_page }).unwrap();
     Html(html).into_response()
 }
 
 pub async fn ingest_images_post(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
+    Query(query): Query<IngestQuery>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
     let pages_dir = state.projects_dir.join(&machine_name).join("pages");
@@ -346,6 +368,7 @@ pub async fn ingest_images_post(
     let base_import_order = pagedb.pages.iter().map(|p| p.import_order).max()
         .map_or(0, |max| max + IMPORT_ORDER_GAP);
 
+    let mut new_pages: Vec<Page> = Vec::new();
     for (i, (filename, data)) in incoming.into_iter().enumerate() {
         let final_name = resolve_scan_filename(&scans_dir, &filename);
         if fs::write(scans_dir.join(&final_name), &data).is_err() {
@@ -357,13 +380,67 @@ pub async fn ingest_images_post(
         let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
             .unwrap_or((0, 0, 0, 0));
         let import_order = base_import_order + (i as u32) * IMPORT_ORDER_GAP;
-        add_page(&mut pagedb, final_name, sw, sh, thumb_name, tw, th, batch, import_order);
+        new_pages.push(Page { index: 0, name: String::new(), scan: final_name, scan_width: sw, scan_height: sh, thumb: thumb_name, thumb_width: tw, thumb_height: th, batch, import_order });
+    }
+
+    match query.after {
+        None => pagedb.pages.extend(new_pages),
+        Some(after) => {
+            let insert_pos = (after + 1).min(pagedb.pages.len());
+            for (i, page) in new_pages.into_iter().enumerate() {
+                pagedb.pages.insert(insert_pos + i, page);
+            }
+        }
     }
 
     reindex(&mut pagedb);
     let _ = save_page_db(&pagedb_path, &pagedb);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
+}
+
+pub async fn remove_images_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Query(query): Query<RemoveQuery>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let indices_str = query.indices.unwrap_or_default();
+    if indices_str.is_empty() {
+        return Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response();
+    }
+    let indices: Vec<usize> = indices_str.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let db = load_page_db(&db_path);
+    let pages_to_remove: Vec<Page> = indices.iter()
+        .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
+        .collect();
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/remove.html").unwrap()
+        .render(context! { project, pages_to_remove, indices_str }).unwrap();
+    Html(html).into_response()
+}
+
+pub async fn remove_images_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Form(form): Form<RemoveForm>,
+) -> impl IntoResponse {
+    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let mut db = load_page_db(&db_path);
+    let to_remove: std::collections::HashSet<usize> = form.indices.split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    db.pages.retain(|p| !to_remove.contains(&p.index));
+    reindex(&mut db);
+    let _ = save_page_db(&db_path, &db);
+    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
 }
 
 pub async fn serve_thumb(
