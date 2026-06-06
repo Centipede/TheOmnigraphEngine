@@ -252,7 +252,25 @@
 
   <div class="tools">
     <p class="lead">Tools:</p>
-    <sl-button href="/projects/{{ project.machine_name }}/pages/ingest" variant="default">Append images</sl-button>
+    <sl-button href="/projects/{{ project.machine_name }}/pages/append" variant="default">Append images</sl-button>
+    <sl-button
+        x-show="selectedIndices.length === 1"
+        :href="'/projects/{{ project.machine_name }}/pages/insert?after=' + selectedIndices.at(-1)"
+        variant="default"
+        x-text="'Insert after: ' + selectedIndices.at(-1)">
+    </sl-button>
+    <sl-button
+        x-show="selectedIndices.length === 1"
+        :href="'/projects/{{ project.machine_name }}/pages/insert?before=' + selectedIndices.at(-1)"
+        variant="default"
+        x-text="'Insert before: ' + selectedIndices.at(-1)">
+    </sl-button>
+    <sl-button
+        x-show="selectedIndices.length > 0"
+        :href="'/projects/{{ project.machine_name }}/pages/remove?indices=' + selectedIndices.join(',')"
+        variant="default"
+        x-text="'Remove ' + selectedIndices.length + (selectedIndices.length === 1 ? ' page' : ' pages')">
+    </sl-button>
   </div>
 </div>
 {% endblock %}

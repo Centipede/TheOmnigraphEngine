@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ project.name }} — Append images — OmniGraph{% endblock %}
+{% block title %}{{ project.name }} — {% if is_insert %}Insert images{% else %}Append images{% endif %} — OmniGraph{% endblock %}
 
 {% block navigation_items %}
 <sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
@@ -10,11 +10,22 @@
 
 {% block content %}
 <div style="max-width: 36rem; margin: 2rem auto; padding: 0 1rem;">
-  <a href="/projects/{{ project.machine_name }}" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← {{ project.name }}</a>
+  <a href="/projects/{{ project.machine_name }}/pages" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← Pages</a>
+
+  {% if is_insert %}
+  <h2 style="margin-top: 0.5rem;">Insert images</h2>
+  <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+    {% if after_index is not none %}
+    After page {{ after_index }}{% if anchor_page %}: <code>{{ anchor_page.scan }}</code>{% if anchor_page.name %} ({{ anchor_page.name }}){% endif %}{% endif %}
+    {% else %}
+    Before page {{ before_index }}{% if anchor_page %}: <code>{{ anchor_page.scan }}</code>{% if anchor_page.name %} ({{ anchor_page.name }}){% endif %}{% endif %}
+    {% endif %}
+  </p>
+  {% else %}
   <h2 style="margin-top: 0.5rem;">Append images</h2>
+  {% endif %}
 
   <form method="post"
-        action="/projects/{{ project.machine_name }}/pages/ingest"
         enctype="multipart/form-data"
         class="form-grid">
     <label for="images">Image files<small>jpg, png, tif, webp</small></label>
