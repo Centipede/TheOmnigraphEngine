@@ -60,6 +60,15 @@
         color: var(--color-text-muted);
     }
 
+    .page-list .header {
+        background-color: var(--color-bg-muted);
+    }
+
+    .page-list .header b {
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+    }
+
     .page-list .page-scan {
         min-width: 0;
         overflow: hidden;
@@ -70,7 +79,7 @@
     .thumbs-and-zoom-container {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        height: calc(100vh - 12rem);
+        height: calc(100vh - 12rem - 2rem);
         min-height: 0;
     }
 
@@ -94,6 +103,20 @@
     .page-preview.selected {
         background-color: var(--color-bg-selected);
     }
+
+    .selection-info-bar {
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        padding: 0 0.75rem;
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
+        border-bottom: 1px solid var(--color-border);
+        flex-shrink: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 {% endblock %}
 
@@ -103,36 +126,63 @@
      or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
 <div class="pagearea"
      x-data="{
+            pages: [
+                {% for page in pagedb.pages %}
+                { index: {{ page.index }}, name: '{{ page.name }}', scan: '{{ page.scan }}', scanUrl: '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}' },
+                {% endfor %}
+            ],
             selectedIndices: [],
+            rangeAnchor: null,
             zoomSrc: '',
 
-            selectPage(pageIndex, scanUrl) {
+            selectSingle(pageIndex) {
                 this.selectedIndices = [pageIndex];
-                this.zoomSrc = scanUrl;
+                this.rangeAnchor = pageIndex;
+                this.zoomSrc = this.pages[pageIndex]?.scanUrl ?? '';
             },
 
-            selectFromList(pageIndex, scanUrl) {
-                this.selectPage(pageIndex, scanUrl);
+            selectRange(pageIndex) {
+                if (this.rangeAnchor === null) { this.selectSingle(pageIndex); return; }
+                const lo = Math.min(this.rangeAnchor, pageIndex);
+                const hi = Math.max(this.rangeAnchor, pageIndex);
+                this.selectedIndices = Array.from({length: hi - lo + 1}, (_, i) => lo + i);
+                this.zoomSrc = this.pages[pageIndex]?.scanUrl ?? '';
+            },
+
+            selectFromList(pageIndex, event) {
+                (event.metaKey || event.ctrlKey) ? this.selectRange(pageIndex) : this.selectSingle(pageIndex);
                 this.scrollPreviewIntoView(pageIndex);
             },
 
-            selectFromPreview(pageIndex, scanUrl) {
-                this.selectPage(pageIndex, scanUrl);
+            selectFromPreview(pageIndex, event) {
+                (event.metaKey || event.ctrlKey) ? this.selectRange(pageIndex) : this.selectSingle(pageIndex);
                 this.scrollPageListItemIntoView(pageIndex);
+            },
+
+            selectionInfo() {
+                const n = this.selectedIndices.length;
+                if (n === 0) return '';
+                if (n === 1) {
+                    const p = this.pages[this.selectedIndices[0]];
+                    return p ? (p.name || p.scan) : '';
+                }
+                const sorted = [...this.selectedIndices].sort((a, b) => a - b);
+                const first = this.pages[sorted[0]];
+                const last  = this.pages[sorted[sorted.length - 1]];
+                if (!first || !last) return `${n} pages selected`;
+                return `${first.name || first.scan} – ${last.name || last.scan}`;
             },
 
             scrollPageListItemIntoView(pageIndex) {
                 this.$nextTick(() => {
-                    document
-                        .querySelector(`.page-list li[data-page-index='${pageIndex}']`)
+                    document.querySelector(`.page-list li[data-page-index='${pageIndex}']`)
                         ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 });
             },
 
             scrollPreviewIntoView(pageIndex) {
                 this.$nextTick(() => {
-                    document
-                        .querySelector(`.thumbs-container .page-preview[data-page-index='${pageIndex}']`)
+                    document.querySelector(`.thumbs-container .page-preview[data-page-index='${pageIndex}']`)
                         ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
                 });
             }
@@ -143,10 +193,14 @@
 
     {% if pagedb.pages %}
     <ul class="page-list">
+      <li class="header">
+        <b class="page-name">Name</b>
+        <b class="page-scan">Scan</b>
+      </li>
       {% for page in pagedb.pages %}
       <li data-page-index="{{ page.index }}"
           :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
-          @click="selectFromList({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
+          @click="selectFromList({{ page.index }}, $event)">
         {% if page.name %}
         <span class="page-name">{{ page.name }}</span>
         {% else %}
@@ -164,6 +218,8 @@
 
   <div class="workarea">
 
+    <div class="selection-info-bar" x-text="selectionInfo()"></div>
+
     <div class="thumbs-and-zoom-container">
 
       <div class="thumbs-container">
@@ -172,7 +228,7 @@
         <div class="page-preview"
              data-page-index="{{ page.index }}"
              :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
-             @click="selectFromPreview({{ page.index }}, '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}')">
+             @click="selectFromPreview({{ page.index }}, $event)">
           <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
         </div>
         {% endfor %}
