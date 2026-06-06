@@ -99,7 +99,7 @@ pub struct Page {
     #[serde(default)]
     pub batch: u32,
     #[serde(default)]
-    pub order: u32,
+    pub import_order: u32,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -109,7 +109,7 @@ pub struct PageDb {
     pub next_batch: u32,
 }
 
-const ORDER_GAP: u32 = 1000;
+const IMPORT_ORDER_GAP: u32 = 1000;
 
 #[derive(Deserialize)]
 pub struct MetadataForm {
@@ -343,8 +343,8 @@ pub async fn ingest_images_post(
 
     let batch = pagedb.next_batch;
     pagedb.next_batch += 1;
-    let base_order = pagedb.pages.iter().map(|p| p.order).max()
-        .map_or(0, |max| max + ORDER_GAP);
+    let base_import_order = pagedb.pages.iter().map(|p| p.import_order).max()
+        .map_or(0, |max| max + IMPORT_ORDER_GAP);
 
     for (i, (filename, data)) in incoming.into_iter().enumerate() {
         let final_name = resolve_scan_filename(&scans_dir, &filename);
@@ -356,11 +356,11 @@ pub async fn ingest_images_post(
         let thumb_name = format!("{stem}.jpg");
         let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
             .unwrap_or((0, 0, 0, 0));
-        let order = base_order + (i as u32) * ORDER_GAP;
-        add_page(&mut pagedb, final_name, sw, sh, thumb_name, tw, th, batch, order);
+        let import_order = base_import_order + (i as u32) * IMPORT_ORDER_GAP;
+        add_page(&mut pagedb, final_name, sw, sh, thumb_name, tw, th, batch, import_order);
     }
 
-    sort_and_reindex(&mut pagedb);
+    reindex(&mut pagedb);
     let _ = save_page_db(&pagedb_path, &pagedb);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
@@ -479,13 +479,13 @@ pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> 
     fs::write(path, json)
 }
 
-pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32, batch: u32, order: u32) {
-    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, order });
+pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32, batch: u32, import_order: u32) {
+    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, import_order });
 }
 
 pub fn remove_page(db: &mut PageDb, index: usize) {
     db.pages.retain(|p| p.index != index);
-    sort_and_reindex(db);
+    reindex(db);
 }
 
 pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
@@ -494,14 +494,20 @@ pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
     }
 }
 
-pub fn sort_and_reindex(db: &mut PageDb) {
-    db.pages.sort_by(|a, b| a.order.cmp(&b.order).then_with(|| a.scan.cmp(&b.scan)));
+// Reassign consecutive indices from current Vec order. Call after any mutation.
+pub fn reindex(db: &mut PageDb) {
     for (i, page) in db.pages.iter_mut().enumerate() {
         page.index = i;
     }
 }
 
-// Decode `data`, produce a ≤500×500 JPEG thumbnail at `dest`, return
+// Reset display order to the original import sequence, then reindex.
+pub fn sort_by_import_order(db: &mut PageDb) {
+    db.pages.sort_by(|a, b| a.import_order.cmp(&b.import_order).then_with(|| a.scan.cmp(&b.scan)));
+    reindex(db);
+}
+
+// Decode `data`, produce a ≤300×500 JPEG thumbnail at `dest`, return
 // (scan_width, scan_height, thumb_width, thumb_height) on success.
 fn generate_thumb(data: &[u8], dest: &std::path::Path) -> Option<(u32, u32, u32, u32)> {
     let img = image::load_from_memory(data).ok()?;
