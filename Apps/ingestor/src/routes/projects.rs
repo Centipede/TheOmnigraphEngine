@@ -129,6 +129,7 @@ pub struct MetadataForm {
 #[derive(Deserialize)]
 pub struct IngestQuery {
     pub after: Option<usize>,
+    pub before: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -290,7 +291,7 @@ pub async fn project_pages_get(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
-    let mut pagedb = load_page_db(&pagedb_path);
+    let pagedb = load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/pages.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
@@ -313,14 +314,16 @@ pub async fn ingest_images_get(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
-    let is_insert = query.after.is_some();
-    let after_page = query.after.and_then(|idx| {
+    let is_insert = query.after.is_some() || query.before.is_some();
+    let anchor_page = query.after.or(query.before);
+    let anchor_page = anchor_page.and_then(|idx| {
         let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
         load_page_db(&db_path).pages.into_iter().find(|p| p.index == idx)
     });
+
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/ingest.html").unwrap()
-        .render(context! { project, is_insert, after_index => query.after, after_page }).unwrap();
+        .render(context! { project, is_insert, after_index => query.after, before_index => query.before, anchor_page }).unwrap();
     Html(html).into_response()
 }
 
@@ -383,10 +386,21 @@ pub async fn ingest_images_post(
         new_pages.push(Page { index: 0, name: String::new(), scan: final_name, scan_width: sw, scan_height: sh, thumb: thumb_name, thumb_width: tw, thumb_height: th, batch, import_order });
     }
 
-    match query.after {
-        None => pagedb.pages.extend(new_pages),
-        Some(after) => {
+    match (query.after, query.before) {
+        (Some(_), Some(_)) => {
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+        (None, None) => {
+            pagedb.pages.extend(new_pages);
+        }
+        (Some(after), None) => {
             let insert_pos = (after + 1).min(pagedb.pages.len());
+            for (i, page) in new_pages.into_iter().enumerate() {
+                pagedb.pages.insert(insert_pos + i, page);
+            }
+        }
+        (None, Some(before)) => {
+            let insert_pos = before.min(pagedb.pages.len());
             for (i, page) in new_pages.into_iter().enumerate() {
                 pagedb.pages.insert(insert_pos + i, page);
             }

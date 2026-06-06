@@ -260,6 +260,12 @@
         x-text="'Insert after: ' + selectedIndices.at(-1)">
     </sl-button>
     <sl-button
+        x-show="selectedIndices.length === 1"
+        :href="'/projects/{{ project.machine_name }}/pages/insert?before=' + selectedIndices.at(-1)"
+        variant="default"
+        x-text="'Insert before: ' + selectedIndices.at(-1)">
+    </sl-button>
+    <sl-button
         x-show="selectedIndices.length > 0"
         :href="'/projects/{{ project.machine_name }}/pages/remove?indices=' + selectedIndices.join(',')"
         variant="default"
