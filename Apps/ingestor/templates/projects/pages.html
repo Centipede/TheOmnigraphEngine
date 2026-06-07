@@ -122,19 +122,26 @@
         text-overflow: ellipsis;
     }
 </style>
-{% endblock %}
+<script>
+    const rawPages = {
+    {
+        pagedb.pages | tojson
+    }
+    }
+    ;
+    const projectMachineName = {
+    {
+        project.machine_name | tojson
+    }
+    }
+    ;
 
-{% block content %}
-
-<!-- NOTE: Beware that indices can change between page reloads
-     or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
-<div class="pagearea"
-     x-data="{
-            pages: [
-                {% for page in pagedb.pages %}
-                { index: {{ page.index }}, name: '{{ page.name }}', scan: '{{ page.scan }}', scanUrl: '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}' },
-                {% endfor %}
-            ],
+    function pagesView() {
+        return {
+            pages: rawPages.map(page => ({
+                ...page,
+                scanUrl: `/projects/${projectMachineName}/pages/scans/${page.scan}`
+            })),
             selectedIndices: [],
             rangeAnchor: null,
             zoomSrc: '',
@@ -143,10 +150,14 @@
                 this.selectedIndices = [pageIndex];
                 this.rangeAnchor = pageIndex;
                 this.zoomSrc = this.pages[pageIndex]?.scanUrl ?? '';
+                console.log(`Selected single page ${pageIndex} zoomSrc: ${this.zoomSrc}`);
             },
 
             selectRange(pageIndex) {
-                if (this.rangeAnchor === null) { this.selectSingle(pageIndex); return; }
+                if (this.rangeAnchor === null) {
+                    this.selectSingle(pageIndex);
+                    return;
+                }
                 const lo = Math.min(this.rangeAnchor, pageIndex);
                 const hi = Math.max(this.rangeAnchor, pageIndex);
                 this.selectedIndices = Array.from({length: hi - lo + 1}, (_, i) => lo + i);
@@ -172,7 +183,7 @@
                 }
                 const sorted = [...this.selectedIndices].sort((a, b) => a - b);
                 const first = this.pages[sorted[0]];
-                const last  = this.pages[sorted[sorted.length - 1]];
+                const last = this.pages[sorted[sorted.length - 1]];
                 if (!first || !last) return `${n} pages selected`;
                 return `${first.name || first.scan} – ${last.name || last.scan}`;
             },
@@ -180,17 +191,27 @@
             scrollPageListItemIntoView(pageIndex) {
                 this.$nextTick(() => {
                     document.querySelector(`.page-list li[data-page-index='${pageIndex}']`)
-                        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
                 });
             },
 
             scrollPreviewIntoView(pageIndex) {
                 this.$nextTick(() => {
                     document.querySelector(`.thumbs-container .page-preview[data-page-index='${pageIndex}']`)
-                        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
                 });
             }
-        }">
+        }
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+
+<!-- NOTE: Beware that indices can change between page reloads
+     or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
+<div class="pagearea"
+     x-data="pagesView()">
 
   <div class="sidebar">
     <p class="lead">Pages: {{ pagedb.pages|length }}</p>
@@ -232,13 +253,13 @@
     <div class="thumbs-and-zoom-container">
 
       <div class="thumbs-container">
-
         {% for page in pagedb.pages %}
         <div class="page-preview"
              data-page-index="{{ page.index }}"
              :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
              @click="selectFromPreview({{ page.index }}, $event)">
           <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
+          {{ page.name }}
         </div>
         {% endfor %}
       </div>

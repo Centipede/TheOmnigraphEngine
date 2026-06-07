@@ -1,6 +1,5 @@
 pub mod settings;
 pub mod projects;
-pub mod pages;
 
 use axum::{
     extract::DefaultBodyLimit,
