@@ -55,9 +55,11 @@
         white-space: nowrap;
     }
 
-    .page-list .page-name-empty,
-    .page-list .page-scan {
+    .page-list .page-name-empty {
         color: var(--color-text-muted);
+    }
+    .page-list .page-info {
+        color: var(--color-text-dimmed);
     }
 
     .page-list .header {
@@ -67,10 +69,6 @@
     .page-list .header b {
         color: var(--color-text-muted);
         text-transform: uppercase;
-    }
-
-    .page-list .row * {
-        color: var(--color-text-muted);
     }
 
     .page-list .page-scan {
@@ -90,22 +88,56 @@
     .thumbs-container {
         display: flex;
         flex-wrap: wrap;
+        align-items: flex-start;
+        align-content: flex-start;
         gap: 0.5rem;
         overflow-y: auto;
         min-height: 0;
     }
 
-    .zoom-container {
-        overflow: hidden;
-        min-height: 0;
+    .page-preview {
+        display: inline-flex;
+        flex-direction: column;
+        padding: 0.35rem;
+        width: max-content;
+        cursor: pointer;
+    }
+
+    .page-preview-image-frame {
+        width: 150px;
+        height: 250px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .page-preview img {
-        padding: 0.3rem;
+        display: block;
+        max-width: 150px;
+        max-height: 250px;
+    }
+
+    .page-preview-info {
+        margin-top: 0.35rem;
+        font-size: 0.75rem;
+        line-height: 1.25;
+        color: var(--color-text-muted);
+    }
+
+    .page-preview-info {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .page-preview.selected {
         background-color: var(--color-bg-selected);
+    }
+
+    .zoom-container {
+        overflow: hidden;
+        min-height: 0;
     }
 
     .selection-info-bar {
@@ -123,18 +155,8 @@
     }
 </style>
 <script>
-    const rawPages = {
-    {
-        pagedb.pages | tojson
-    }
-    }
-    ;
-    const projectMachineName = {
-    {
-        project.machine_name | tojson
-    }
-    }
-    ;
+    const rawPages = {{ pagedb.pages | tojson}};
+    const projectMachineName = {{ project.machine_name | tojson }};
 
     function pagesView() {
         return {
@@ -144,13 +166,17 @@
             })),
             selectedIndices: [],
             rangeAnchor: null,
-            zoomSrc: '',
+            currentPageImgSrc: '',
+            currentPageIndex: 10,
+            currentPageName: '10',
 
             selectSingle(pageIndex) {
                 this.selectedIndices = [pageIndex];
                 this.rangeAnchor = pageIndex;
-                this.zoomSrc = this.pages[pageIndex]?.scanUrl ?? '';
-                console.log(`Selected single page ${pageIndex} zoomSrc: ${this.zoomSrc}`);
+                this.currentPageImgSrc = this.pages[pageIndex]?.scanUrl ?? '';
+                this.currentPageIndex = pageIndex;
+                this.currentPageName = this.pages[pageIndex]?.name ?? null;
+                console.log(`Selected single page ${pageIndex} currentPageImgSrc: ${this.currentPageImgSrc}`);
             },
 
             selectRange(pageIndex) {
@@ -161,7 +187,9 @@
                 const lo = Math.min(this.rangeAnchor, pageIndex);
                 const hi = Math.max(this.rangeAnchor, pageIndex);
                 this.selectedIndices = Array.from({length: hi - lo + 1}, (_, i) => lo + i);
-                this.zoomSrc = this.pages[pageIndex]?.scanUrl ?? '';
+                this.currentPageImgSrc = this.pages[pageIndex]?.scanUrl ?? '';
+                this.currentPageIndex = pageIndex;
+                this.currentPageName = this.pages[pageIndex]?.name ?? null;
             },
 
             selectFromList(pageIndex, event) {
@@ -219,24 +247,24 @@
     {% if pagedb.pages %}
     <ul class="page-list">
       <li class="header">
-        <b class="page-index">Idx</b>
-        <b class="page-batch">Bat</b>
+        <b class="page-info">Idx</b>
+        <b class="page-info">Bat</b>
         <b class="page-name">Name</b>
-        <b class="page-scan">Scan</b>
+        <b class="page-info">Scan</b>
       </li>
       {% for page in pagedb.pages %}
       <li class="row"
           data-page-index="{{ page.index }}"
           :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
           @click="selectFromList({{ page.index }}, $event)">
-        <span class="page-index">{{ page.index }}</span>
-        <span class="page-batch">{{ page.batch }}</span>
+        <span class="page-info">({{ page.index }})</span>
+        <span class="page-info">{{ page.batch }}</span>
         {% if page.name %}
-        <span class="page-name">{{ page.name }}</span>
+        <span class="page-info">{{ page.name }}</span>
         {% else %}
         <span class="page-name page-name-empty">[No name]</span>
         {% endif %}
-        <span class="page-scan">{{ page.scan }}</span>
+        <span class="page-info">{{ page.scan }}</span>
       </li>
       {% endfor %}
     </ul>
@@ -258,14 +286,25 @@
              data-page-index="{{ page.index }}"
              :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
              @click="selectFromPreview({{ page.index }}, $event)">
-          <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
-          {{ page.name }}
+          <div class="page-preview-image-frame">
+            <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}" src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview" class="page-preview-image">
+          </div>
+          <div class="page-preview-info">
+            <div><span style="color: var(--color-text-dimmed); font-size: 80%">({{ page.index }})</span>  {% if page.name %} {{ page.name }} {% else %} [No name] {% endif %}</div>
+          </div>
         </div>
         {% endfor %}
       </div>
 
       <div class="zoom-container">
-        <img :src="zoomSrc" x-show="zoomSrc !== ''" style="max-width: 100%; height: auto;">
+        <img :src="currentPageImgSrc" x-show="currentPageImgSrc !== ''" style="max-width: 100%; height: auto;">
+        <div class="page-preview-info" x-show="currentPageImgSrc !== ''">
+          <div>
+            <span style="color: var(--color-text-dimmed); font-size: 80%" x-text="'(' + currentPageIndex + ')'"></span>
+            <span x-text="currentPageName || '[No name]'"></span>
+          </div>
+        </div>
+
       </div>
     </div>
 
