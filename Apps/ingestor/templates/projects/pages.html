@@ -192,6 +192,48 @@
                 this.currentPageName = this.pages[pageIndex]?.name ?? null;
             },
 
+            selectAdjacent(direction, event) {
+                if (this.pages.length === 0) return;
+
+                // Ignore if typing in an input, textarea, select, or contenteditable element
+                const active = document.activeElement;
+                const isTyping =
+                    active &&
+                    (
+                        active.tagName === 'INPUT' ||
+                        active.tagName === 'TEXTAREA' ||
+                        active.tagName === 'SELECT' ||
+                        active.isContentEditable
+                    );
+
+                if (isTyping) return;
+
+                event.preventDefault();
+
+                const currentIndex =
+                    this.currentPageIndex !== null
+                        ? this.currentPageIndex
+                        : this.selectedIndices.at(-1);
+
+                const currentPosition = this.pages.findIndex(page => page.index === currentIndex);
+
+                let nextPosition;
+                if (currentPosition === -1) {
+                    nextPosition = direction > 0 ? 0 : this.pages.length - 1;
+                } else {
+                    nextPosition = Math.max(
+                        0,
+                        Math.min(this.pages.length - 1, currentPosition + direction)
+                    );
+                }
+
+                const nextIndex = this.pages[nextPosition].index;
+                this.selectSingle(nextIndex);
+                this.scrollPreviewIntoView(nextIndex);
+                this.scrollPageListItemIntoView(nextIndex);
+            },
+
+
             selectFromList(pageIndex, event) {
                 (event.metaKey || event.ctrlKey) ? this.selectRange(pageIndex) : this.selectSingle(pageIndex);
                 this.scrollPreviewIntoView(pageIndex);
@@ -239,7 +281,10 @@
 <!-- NOTE: Beware that indices can change between page reloads
      or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
 <div class="pagearea"
-     x-data="pagesView()">
+     x-data="pagesView()"
+     @keydown.window.arrow-left="selectAdjacent(-1, $event)"
+     @keydown.window.arrow-right="selectAdjacent(1, $event)"
+>
 
   <div class="sidebar">
     <p class="lead">Pages: {{ pagedb.pages|length }}</p>
