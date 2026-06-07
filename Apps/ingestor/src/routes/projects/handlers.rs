@@ -6,7 +6,7 @@ use axum_extra::extract::Form;
 use axum::http::{header, StatusCode};
 use axum::Json;
 use crate::routes::projects;
-use crate::routes::projects::forms::{CreateProject, IngestQuery, MetadataForm, RemoveForm, RemoveQuery};
+use crate::routes::projects::forms::{CreateProject, IngestQuery, MetadataForm, RemoveForm, RemoveQuery, RenameForm};
 use crate::routes::projects::models::{Author, Page, Project, IMPORT_ORDER_GAP};
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
@@ -355,6 +355,79 @@ pub async fn serve_scan(
         }
         Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
+}
+
+pub async fn rename_pages_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Form(form): Form<RenameForm>,
+) -> impl IntoResponse {
+    if form.indices.is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut sorted_indices: Vec<usize> = form.indices.split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    sorted_indices.sort();
+    sorted_indices.dedup();
+
+    let scheme = form.scheme.as_deref().unwrap_or("1");
+    let first_page = form.first_page.as_deref().unwrap_or("1").trim();
+
+    let names: Vec<String> = match scheme {
+        "1" => {
+            let start: u32 = first_page.parse().unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| (start + i as u32).to_string()).collect()
+        }
+        "2" => {
+            let start = parse_roman(first_page).unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32).to_lowercase()).collect()
+        }
+        "3" => {
+            let start = parse_roman(first_page).unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32)).collect()
+        }
+        _ => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let mut db = storage::load_page_db(&db_path);
+
+    for (idx, name) in sorted_indices.into_iter().zip(names) {
+        storage::assign_name(&mut db, idx, name);
+    }
+
+    let _ = storage::save_page_db(&db_path, &db);
+    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+}
+
+fn parse_roman(s: &str) -> Option<u32> {
+    let mut total: i32 = 0;
+    let mut prev = 0i32;
+    for c in s.to_uppercase().chars().rev() {
+        let val = match c {
+            'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
+            'C' => 100, 'D' => 500, 'M' => 1000,
+            _ => return None,
+        };
+        if val < prev { total -= val; } else { total += val; }
+        prev = val;
+    }
+    if total > 0 { Some(total as u32) } else { None }
+}
+
+fn to_roman(mut n: u32) -> String {
+    const VALS: &[(u32, &str)] = &[
+        (1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),
+        (100,"C"),(90,"XC"),(50,"L"),(40,"XL"),
+        (10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I"),
+    ];
+    let mut out = String::new();
+    for &(val, sym) in VALS {
+        while n >= val { out.push_str(sym); n -= val; }
+    }
+    out
 }
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {

@@ -36,3 +36,10 @@ pub struct RemoveQuery {
 pub struct RemoveForm {
     pub indices: String,
 }
+
+#[derive(Deserialize)]
+pub struct RenameForm {
+    pub indices: String,
+    pub scheme: Option<String>,
+    pub first_page: Option<String>,
+}

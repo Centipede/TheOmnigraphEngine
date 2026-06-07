@@ -5,7 +5,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, StatusCode},
     response::{IntoResponse, Redirect},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use rust_embed::RustEmbed;
@@ -47,9 +47,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages", get(handlers::project_pages_get))
         .route("/projects/{machine_name}/pages/append", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
         .route("/projects/{machine_name}/pages/insert", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/pages/remove", get(handlers::remove_images_get).post(handlers::remove_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/remove", get(handlers::remove_images_get).post(handlers::remove_images_post))
         .route("/projects/{machine_name}/pages/thumbs/{filename}", get(handlers::serve_thumb))
         .route("/projects/{machine_name}/pages/scans/{filename}", get(handlers::serve_scan))
+        .route("/projects/{machine_name}/pages/rename", post(handlers::rename_pages_post))
         .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .nest("/api", api)
         .fallback(static_handler)

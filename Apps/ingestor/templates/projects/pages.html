@@ -167,8 +167,8 @@
             selectedIndices: [],
             rangeAnchor: null,
             currentPageImgSrc: '',
-            currentPageIndex: 10,
-            currentPageName: '10',
+            currentPageIndex: null,
+            currentPageName: null,
 
             selectSingle(pageIndex) {
                 this.selectedIndices = [pageIndex];
@@ -312,6 +312,18 @@
 
   <div class="tools">
     <p class="lead">Tools:</p>
+    <form action="/projects/{{ project.machine_name }}/pages/rename" method="post"
+          x-show="selectedIndices.length > 0">
+      <input type="hidden" name="indices" :value="selectedIndices.join(',')">
+      <sl-button type="submit" variant="default">Rename pages</sl-button>
+      <sl-radio-group name="scheme" value="1" label="Scheme" help-text="Naming method">
+        <sl-radio-button value="1">1,2,3,...</sl-radio-button>
+        <sl-radio-button value="2">i,ii,iii,iv,...</sl-radio-button>
+        <sl-radio-button value="3">I,II,III,IV,...</sl-radio-button>
+      </sl-radio-group>
+      <sl-input name="first_page" placeholder="First page name" clearable></sl-input>
+    </form>
+
     <sl-button href="/projects/{{ project.machine_name }}/pages/append" variant="default">Append images</sl-button>
     <sl-button
         x-show="selectedIndices.length === 1"
