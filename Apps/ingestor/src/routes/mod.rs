@@ -2,13 +2,14 @@ pub mod settings;
 pub mod projects;
 
 use axum::{
-    Router,
     extract::DefaultBodyLimit,
-    routing::get,
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::{IntoResponse, Redirect},
+    routing::{get, post},
+    Router,
 };
 use rust_embed::RustEmbed;
+use projects::handlers;
 use crate::state::AppState;
 
 #[derive(RustEmbed)]
@@ -36,19 +37,20 @@ async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
 
 pub fn build_router(state: AppState) -> Router {
     let api = Router::new()
-        .route("/projects", get(projects::list_projects).post(projects::create_project));
+        .route("/projects", get(handlers::list_projects).post(handlers::create_project));
 
     Router::new()
         .route("/", get(|| async { Redirect::to("/projects") }))
-        .route("/projects", get(projects::projects_page).post(projects::create_project_form))
-        .route("/projects/{machine_name}", get(projects::project_overview_get))
-        .route("/projects/{machine_name}/metadata", get(projects::project_metadata_get).post(projects::project_metadata_post))
-        .route("/projects/{machine_name}/pages", get(projects::project_pages_get))
-        .route("/projects/{machine_name}/pages/append", get(projects::ingest_images_get).post(projects::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/pages/insert", get(projects::ingest_images_get).post(projects::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/pages/remove", get(projects::remove_images_get).post(projects::remove_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/pages/thumbs/{filename}", get(projects::serve_thumb))
-        .route("/projects/{machine_name}/pages/scans/{filename}", get(projects::serve_scan))
+        .route("/projects", get(handlers::projects_page).post(handlers::create_project_form))
+        .route("/projects/{machine_name}", get(handlers::project_overview_get))
+        .route("/projects/{machine_name}/metadata", get(handlers::project_metadata_get).post(handlers::project_metadata_post))
+        .route("/projects/{machine_name}/pages", get(handlers::project_pages_get))
+        .route("/projects/{machine_name}/pages/append", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/insert", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/remove", get(handlers::remove_images_get).post(handlers::remove_images_post))
+        .route("/projects/{machine_name}/pages/thumbs/{filename}", get(handlers::serve_thumb))
+        .route("/projects/{machine_name}/pages/scans/{filename}", get(handlers::serve_scan))
+        .route("/projects/{machine_name}/pages/rename", post(handlers::rename_pages_post))
         .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .nest("/api", api)
         .fallback(static_handler)

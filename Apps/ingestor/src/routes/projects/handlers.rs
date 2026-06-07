@@ -1,152 +1,18 @@
-use axum::{
-    Json,
-    extract::{Multipart, Path, Query, State},
-    http::{StatusCode, header},
-    response::{Html, IntoResponse, Redirect},
-};
-use axum_extra::extract::Form;
-use minijinja::context;
-use serde::{Deserialize, Serialize};
 use std::fs;
+use axum::extract::{Multipart, Path, Query, State};
+use axum::response::{Html, IntoResponse, Redirect};
+use minijinja::context;
+use axum_extra::extract::Form;
+use axum::http::{header, StatusCode};
+use axum::Json;
+use crate::routes::projects;
+use crate::routes::projects::forms::{CreateProject, IngestQuery, MetadataForm, RemoveForm, RemoveQuery, RenameForm};
+use crate::routes::projects::models::{Author, Page, Project, IMPORT_ORDER_GAP};
+use crate::routes::projects::{images, storage};
 use crate::state::AppState;
 
-mod optional_date {
-    use serde::{Deserialize, Deserializer, Serializer};
-    use time::{Date, Month};
-
-    pub fn serialize<S>(date: &Option<Date>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match date {
-            Some(date) => serializer.serialize_str(&format!(
-                "{:04}-{:02}-{:02}",
-                date.year(),
-                date.month() as u8,
-                date.day()
-            )),
-            None => serializer.serialize_none(),
-        }
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let Some(s) = Option::<String>::deserialize(deserializer)? else {
-            return Ok(None);
-        };
-
-        let mut parts = s.splitn(3, '-');
-        let year: i32 = parts
-            .next()
-            .ok_or_else(|| serde::de::Error::custom("missing year"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-        let month: u8 = parts
-            .next()
-            .ok_or_else(|| serde::de::Error::custom("missing month"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-        let day: u8 = parts
-            .next()
-            .ok_or_else(|| serde::de::Error::custom("missing day"))?
-            .parse()
-            .map_err(serde::de::Error::custom)?;
-
-        let month = Month::try_from(month).map_err(serde::de::Error::custom)?;
-        let date = Date::from_calendar_date(year, month, day).map_err(serde::de::Error::custom)?;
-
-        Ok(Some(date))
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Author {
-    pub full_name: String,
-    pub abbrev: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Project {
-    pub name: String,
-    pub machine_name: String,
-    pub abbrev: Option<String>,
-    pub description: Option<String>,
-    #[serde(default)]
-    pub authors: Vec<Author>,
-    #[serde(default, with = "optional_date")]
-    pub published: Option<time::Date>,
-}
-
-#[derive(Deserialize)]
-pub struct CreateProject {
-    pub name: String,
-    pub machine_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct Page {
-    pub index: usize,
-    pub name: String,
-    pub scan: String,
-    pub scan_width: u32,
-    pub scan_height: u32,
-    #[serde(default)]
-    pub thumb: String,
-    pub thumb_width: u32,
-    pub thumb_height: u32,
-    #[serde(default)]
-    pub batch: u32,
-    #[serde(default)]
-    pub import_order: u32,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-pub struct PageDb {
-    pub pages: Vec<Page>,
-    #[serde(default)]
-    pub next_batch: u32,
-}
-
-const IMPORT_ORDER_GAP: u32 = 1000;
-
-#[derive(Deserialize)]
-pub struct MetadataForm {
-    pub name: String,
-    #[serde(default)]
-    pub abbrev: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub published: String,
-    #[serde(default)]
-    pub author_names: Vec<String>,
-    #[serde(default)]
-    pub author_abbrevs: Vec<String>,
-}
-
-#[derive(Deserialize)]
-pub struct IngestQuery {
-    pub after: Option<usize>,
-    pub before: Option<usize>,
-}
-
-#[derive(Deserialize)]
-pub struct RemoveQuery {
-    pub indices: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct RemoveForm {
-    pub indices: String,
-}
-
-
-// HTML handlers
-
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
-    let projects = read_projects(&state);
+    let projects = storage::read_projects(&state);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/index.html").unwrap()
         .render(context! { projects }).unwrap();
@@ -160,7 +26,7 @@ pub async fn create_project_form(
     let machine_name = payload.machine_name.trim().to_string();
     let name = payload.name.trim().to_string();
 
-    if !is_valid_machine_name(&machine_name) || name.is_empty() {
+    if !storage::is_valid_machine_name(&machine_name) || name.is_empty() {
         return Redirect::to("/projects").into_response();
     }
 
@@ -169,7 +35,7 @@ pub async fn create_project_form(
         return Redirect::to("/projects").into_response();
     }
 
-    if let Err(_) = create_project_on_disk(&state, &name, &machine_name) {
+    if let Err(_) = storage::create_project_on_disk(&state, &name, &machine_name) {
         return Redirect::to("/projects").into_response();
     }
 
@@ -258,7 +124,7 @@ pub async fn project_metadata_post(
         abbrev: opt(form.abbrev),
         description: opt(form.description),
         authors,
-        published: opt(form.published).and_then(|s| parse_date(&s)),
+        published: opt(form.published).and_then(|s| projects::parse_date(&s)),
     };
 
     let Ok(toml_str) = toml::to_string(&project) else {
@@ -270,7 +136,6 @@ pub async fn project_metadata_post(
 
     Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
 }
-
 
 pub async fn project_pages_get(
     State(state): State<AppState>,
@@ -291,13 +156,12 @@ pub async fn project_pages_get(
     let Ok(project) = toml::from_str::<Project>(&contents) else {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     };
-    let pagedb = load_page_db(&pagedb_path);
+    let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
     let html = env.get_template("projects/pages.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
-
 
 pub async fn ingest_images_get(
     State(state): State<AppState>,
@@ -318,7 +182,7 @@ pub async fn ingest_images_get(
     let anchor_page = query.after.or(query.before);
     let anchor_page = anchor_page.and_then(|idx| {
         let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
-        load_page_db(&db_path).pages.into_iter().find(|p| p.index == idx)
+        storage::load_page_db(&db_path).pages.into_iter().find(|p| p.index == idx)
     });
 
     let env = state.templates.acquire_env().unwrap();
@@ -344,7 +208,7 @@ pub async fn ingest_images_post(
     }
 
     let pagedb_path = pages_dir.join("pagedata.json");
-    let mut pagedb = load_page_db(&pagedb_path);
+    let mut pagedb = storage::load_page_db(&pagedb_path);
 
     // Collect and validate all files before writing anything, so we can sort
     // by filename and assign contiguous order keys within the batch.
@@ -373,14 +237,14 @@ pub async fn ingest_images_post(
 
     let mut new_pages: Vec<Page> = Vec::new();
     for (i, (filename, data)) in incoming.into_iter().enumerate() {
-        let final_name = resolve_scan_filename(&scans_dir, &filename);
+        let final_name = images::resolve_scan_filename(&scans_dir, &filename);
         if fs::write(scans_dir.join(&final_name), &data).is_err() {
             continue;
         }
         let stem = std::path::Path::new(&final_name)
             .file_stem().and_then(|s| s.to_str()).unwrap_or(&final_name);
         let thumb_name = format!("{stem}.jpg");
-        let (sw, sh, tw, th) = generate_thumb(&data, &thumbs_dir.join(&thumb_name))
+        let (sw, sh, tw, th) = images::generate_thumb(&data, &thumbs_dir.join(&thumb_name))
             .unwrap_or((0, 0, 0, 0));
         let import_order = base_import_order + (i as u32) * IMPORT_ORDER_GAP;
         new_pages.push(Page { index: 0, name: String::new(), scan: final_name, scan_width: sw, scan_height: sh, thumb: thumb_name, thumb_width: tw, thumb_height: th, batch, import_order });
@@ -407,8 +271,8 @@ pub async fn ingest_images_post(
         }
     }
 
-    reindex(&mut pagedb);
-    let _ = save_page_db(&pagedb_path, &pagedb);
+    storage::reindex(&mut pagedb);
+    let _ = storage::save_page_db(&pagedb_path, &pagedb);
 
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
@@ -431,7 +295,7 @@ pub async fn remove_images_get(
     }
     let indices: Vec<usize> = indices_str.split(',').filter_map(|s| s.trim().parse().ok()).collect();
     let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
-    let db = load_page_db(&db_path);
+    let db = storage::load_page_db(&db_path);
     let pages_to_remove: Vec<Page> = indices.iter()
         .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
         .collect();
@@ -447,13 +311,13 @@ pub async fn remove_images_post(
     Form(form): Form<RemoveForm>,
 ) -> impl IntoResponse {
     let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
-    let mut db = load_page_db(&db_path);
+    let mut db = storage::load_page_db(&db_path);
     let to_remove: std::collections::HashSet<usize> = form.indices.split(',')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
     db.pages.retain(|p| !to_remove.contains(&p.index));
-    reindex(&mut db);
-    let _ = save_page_db(&db_path, &db);
+    storage::reindex(&mut db);
+    let _ = storage::save_page_db(&db_path, &db);
     Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
 }
 
@@ -493,10 +357,81 @@ pub async fn serve_scan(
     }
 }
 
-// JSON API handlers
+pub async fn rename_pages_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Form(form): Form<RenameForm>,
+) -> impl IntoResponse {
+    if form.indices.is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut sorted_indices: Vec<usize> = form.indices.split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    sorted_indices.sort();
+    sorted_indices.dedup();
+
+    let scheme = form.scheme.as_deref().unwrap_or("1");
+    let first_page = form.first_page.as_deref().unwrap_or("1").trim();
+
+    let names: Vec<String> = match scheme {
+        "1" => {
+            let start: u32 = first_page.parse().unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| (start + i as u32).to_string()).collect()
+        }
+        "2" => {
+            let start = parse_roman(first_page).unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32).to_lowercase()).collect()
+        }
+        "3" => {
+            let start = parse_roman(first_page).unwrap_or(1);
+            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32)).collect()
+        }
+        _ => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let mut db = storage::load_page_db(&db_path);
+
+    for (idx, name) in sorted_indices.into_iter().zip(names) {
+        storage::assign_name(&mut db, idx, name);
+    }
+
+    let _ = storage::save_page_db(&db_path, &db);
+    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+}
+
+fn parse_roman(s: &str) -> Option<u32> {
+    let mut total: i32 = 0;
+    let mut prev = 0i32;
+    for c in s.to_uppercase().chars().rev() {
+        let val = match c {
+            'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
+            'C' => 100, 'D' => 500, 'M' => 1000,
+            _ => return None,
+        };
+        if val < prev { total -= val; } else { total += val; }
+        prev = val;
+    }
+    if total > 0 { Some(total as u32) } else { None }
+}
+
+fn to_roman(mut n: u32) -> String {
+    const VALS: &[(u32, &str)] = &[
+        (1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),
+        (100,"C"),(90,"XC"),(50,"L"),(40,"XL"),
+        (10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I"),
+    ];
+    let mut out = String::new();
+    for &(val, sym) in VALS {
+        while n >= val { out.push_str(sym); n -= val; }
+    }
+    out
+}
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
-    Json(read_projects(&state))
+    Json(storage::read_projects(&state))
 }
 
 pub async fn create_project(
@@ -506,7 +441,7 @@ pub async fn create_project(
     let machine_name = payload.machine_name.trim().to_string();
     let name = payload.name.trim().to_string();
 
-    if !is_valid_machine_name(&machine_name) || name.is_empty() {
+    if !storage::is_valid_machine_name(&machine_name) || name.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "invalid name"}))).into_response();
     }
 
@@ -515,130 +450,8 @@ pub async fn create_project(
         return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "project already exists"}))).into_response();
     }
 
-    match create_project_on_disk(&state, &name, &machine_name) {
+    match storage::create_project_on_disk(&state, &name, &machine_name) {
         Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"machine_name": machine_name}))).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
     }
-}
-
-// Shared helpers
-
-fn parse_date(s: &str) -> Option<time::Date> {
-    let mut parts = s.splitn(3, '-');
-    let year: i32 = parts.next()?.parse().ok()?;
-    let month: u8 = parts.next()?.parse().ok()?;
-    let day: u8 = parts.next()?.parse().ok()?;
-    let month = time::Month::try_from(month).ok()?;
-    time::Date::from_calendar_date(year, month, day).ok()
-}
-
-fn is_valid_machine_name(s: &str) -> bool {
-    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-}
-
-fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) -> std::io::Result<()> {
-    let project_dir = state.projects_dir.join(machine_name);
-    fs::create_dir_all(project_dir.join("metadata"))?;
-    fs::create_dir_all(project_dir.join("pages"))?;
-
-    let project = Project {
-        name: name.to_string(),
-        machine_name: machine_name.to_string(),
-        abbrev: None,
-        description: None,
-        authors: vec![],
-        published: None,
-    };
-
-    let toml_str = toml::to_string(&project)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    fs::write(project_dir.join("metadata").join("project.toml"), toml_str)
-}
-
-// Page database helpers
-
-pub fn load_page_db(path: &std::path::Path) -> PageDb {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
-}
-
-pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> {
-    let json = serde_json::to_string_pretty(db)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    fs::write(path, json)
-}
-
-pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32, batch: u32, import_order: u32) {
-    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, import_order });
-}
-
-pub fn remove_page(db: &mut PageDb, index: usize) {
-    db.pages.retain(|p| p.index != index);
-    reindex(db);
-}
-
-pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
-    if let Some(page) = db.pages.iter_mut().find(|p| p.index == index) {
-        page.name = name;
-    }
-}
-
-// Reassign consecutive indices from current Vec order. Call after any mutation.
-pub fn reindex(db: &mut PageDb) {
-    for (i, page) in db.pages.iter_mut().enumerate() {
-        page.index = i;
-    }
-}
-
-// Reset display order to the original import sequence, then reindex.
-pub fn sort_by_import_order(db: &mut PageDb) {
-    db.pages.sort_by(|a, b| a.import_order.cmp(&b.import_order).then_with(|| a.scan.cmp(&b.scan)));
-    reindex(db);
-}
-
-// Decode `data`, produce a ≤300×500 JPEG thumbnail at `dest`, return
-// (scan_width, scan_height, thumb_width, thumb_height) on success.
-fn generate_thumb(data: &[u8], dest: &std::path::Path) -> Option<(u32, u32, u32, u32)> {
-    let img = image::load_from_memory(data).ok()?;
-    let (sw, sh) = (img.width(), img.height());
-    let thumb = img.thumbnail(300, 500);
-    let (tw, th) = (thumb.width(), thumb.height());
-    thumb.save(dest).ok()?;
-    Some((sw, sh, tw, th))
-}
-
-// If `filename` already exists in `scans_dir`, generate a new name that sorts
-// immediately after it by appending 'b'..'z' before the extension.
-fn resolve_scan_filename(scans_dir: &std::path::Path, filename: &str) -> String {
-    if !scans_dir.join(filename).exists() {
-        return filename.to_string();
-    }
-    let p = std::path::Path::new(filename);
-    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or(filename);
-    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let dot_ext = if ext.is_empty() { String::new() } else { format!(".{ext}") };
-    for c in b'b'..=b'z' {
-        let candidate = format!("{stem}{}{dot_ext}", c as char);
-        if !scans_dir.join(&candidate).exists() {
-            return candidate;
-        }
-    }
-    format!("{stem}_dup{dot_ext}")
-}
-
-fn read_projects(state: &AppState) -> Vec<Project> {
-    let Ok(entries) = fs::read_dir(state.projects_dir.as_ref()) else {
-        return vec![];
-    };
-    entries
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
-        .filter_map(|e| {
-            let toml_path = e.path().join("metadata").join("project.toml");
-            let contents = fs::read_to_string(toml_path).ok()?;
-            toml::from_str(&contents).ok()
-        })
-        .collect()
 }
