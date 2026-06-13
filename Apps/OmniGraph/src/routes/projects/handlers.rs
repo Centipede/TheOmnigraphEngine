@@ -158,7 +158,7 @@ pub async fn project_pages_get(
     };
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/pages.html").unwrap()
+    let html = env.get_template("projects/ingestor/pages.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
@@ -186,7 +186,7 @@ pub async fn ingest_images_get(
     });
 
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/ingest.html").unwrap()
+    let html = env.get_template("projects/ingestor/ingest.html").unwrap()
         .render(context! { project, is_insert, after_index => query.after, before_index => query.before, anchor_page }).unwrap();
     Html(html).into_response()
 }
@@ -291,7 +291,7 @@ pub async fn remove_images_get(
     };
     let indices_str = query.indices.unwrap_or_default();
     if indices_str.is_empty() {
-        return Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response();
+        return Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response();
     }
     let indices: Vec<usize> = indices_str.split(',').filter_map(|s| s.trim().parse().ok()).collect();
     let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
@@ -300,7 +300,7 @@ pub async fn remove_images_get(
         .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
         .collect();
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/remove.html").unwrap()
+    let html = env.get_template("projects/ingestor/remove.html").unwrap()
         .render(context! { project, pages_to_remove, indices_str }).unwrap();
     Html(html).into_response()
 }
@@ -318,7 +318,7 @@ pub async fn remove_images_post(
     db.pages.retain(|p| !to_remove.contains(&p.index));
     storage::reindex(&mut db);
     let _ = storage::save_page_db(&db_path, &db);
-    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
 pub async fn serve_thumb(
@@ -399,7 +399,7 @@ pub async fn rename_pages_post(
     }
 
     let _ = storage::save_page_db(&db_path, &db);
-    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
 fn parse_roman(s: &str) -> Option<u32> {

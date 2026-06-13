@@ -5,12 +5,12 @@
 {% block navigation_items %}
 <sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
+<sl-button href="/projects/{{ project.machine_name }}/ingestor" variant="primary">Ingestor</sl-button>
 {% endblock %}
 
 {% block content %}
 <div style="max-width: 36rem; margin: 2rem auto; padding: 0 1rem;">
-  <a href="/projects/{{ project.machine_name }}/pages" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← Pages</a>
+  <a href="/projects/{{ project.machine_name }}/ingestor" style="color: var(--color-text-muted); text-decoration: none; font-size: 0.875rem;">← Pages</a>
 
   {% if is_insert %}
   <h2 style="margin-top: 0.5rem;">Insert images</h2>
