@@ -137,6 +137,25 @@ pub async fn project_metadata_post(
     Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
 }
 
+pub async fn folios_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
+    let pagedb_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let pagedb = storage::load_page_db(&pagedb_path);
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("projects/folios.html").unwrap()
+        .render(context! { project, pagedb }).unwrap();
+    Html(html).into_response()
+}
+
 pub async fn project_pages_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
