@@ -1,12 +1,6 @@
-{% extends "base.html" %}
+{% extends "ingestor/base.html" %}
 
 {% block title %}{{ project.name }} — OmniGraph{% endblock %}
-
-{% block navigation_items %}
-<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/pages" variant="primary">Pages</sl-button>
-{% endblock %}
 
 {% block head %}
 <style>
@@ -357,7 +351,7 @@
 
   <div class="tools">
     <p class="lead">Tools:</p>
-    <form action="/projects/{{ project.machine_name }}/pages/rename" method="post"
+    <form action="/projects/{{ project.machine_name }}/ingestor/rename" method="post"
           x-show="selectedIndices.length > 0">
       <input type="hidden" name="indices" :value="selectedIndices.join(',')">
       <sl-button type="submit" variant="default">Rename pages</sl-button>
@@ -369,22 +363,22 @@
       <sl-input name="first_page" placeholder="First page name" clearable></sl-input>
     </form>
 
-    <sl-button href="/projects/{{ project.machine_name }}/pages/append" variant="default">Append images</sl-button>
+    <sl-button href="/projects/{{ project.machine_name }}/ingestor/append" variant="default">Append images</sl-button>
     <sl-button
         x-show="selectedIndices.length === 1"
-        :href="'/projects/{{ project.machine_name }}/pages/insert?after=' + selectedIndices.at(-1)"
+        :href="'/projects/{{ project.machine_name }}/ingestor/insert?after=' + selectedIndices.at(-1)"
         variant="default"
         x-text="'Insert after: ' + selectedIndices.at(-1)">
     </sl-button>
     <sl-button
         x-show="selectedIndices.length === 1"
-        :href="'/projects/{{ project.machine_name }}/pages/insert?before=' + selectedIndices.at(-1)"
+        :href="'/projects/{{ project.machine_name }}/ingestor/insert?before=' + selectedIndices.at(-1)"
         variant="default"
         x-text="'Insert before: ' + selectedIndices.at(-1)">
     </sl-button>
     <sl-button
         x-show="selectedIndices.length > 0"
-        :href="'/projects/{{ project.machine_name }}/pages/remove?indices=' + selectedIndices.join(',')"
+        :href="'/projects/{{ project.machine_name }}/ingestor/remove?indices=' + selectedIndices.join(',')"
         variant="default"
         x-text="'Remove ' + selectedIndices.length + (selectedIndices.length === 1 ? ' page' : ' pages')">
     </sl-button>

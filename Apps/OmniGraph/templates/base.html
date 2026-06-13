@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}OmniGraph Ingestor{% endblock %}</title>
+  <title>{% block title %}OmniGraph{% endblock %}</title>
 
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
@@ -163,14 +163,16 @@
 <body>
   <header>
     <nav>
-      <a href="/projects" class="nav-brand">OmniGraph</a>
+      <div class="nav-brand">
+        <sl-button href="/projects" variant="text">Home</sl-button>
+      </div >
+
       <div class="nav-start">
         {% block navigation_items %}
         {% endblock %}
       </div>
 
       <div class="nav-end">
-        <sl-button href="/projects" variant="text">Home</sl-button>
         <sl-button href="/settings" variant="text">Settings</sl-button>
         <sl-dropdown id="theme-picker">
           <sl-icon-button slot="trigger" id="theme-icon" name="circle-half" label="Theme"></sl-icon-button>

@@ -1,13 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ingestor-ui</title>
+    <title>Folios Crop Editor — Dev</title>
+    <!-- Design tokens: mirrors OmniGraph base.html so the app looks
+         correct in standalone Vite dev mode without the Rust server. -->
+    <style>
+      :root, [data-theme="light"] {
+        --color-bg:           #f8f9fa;
+        --color-surface:      #ffffff;
+        --color-border:       #dee2e6;
+        --color-text:         #212529;
+        --color-text-muted:   #6c757d;
+        --color-text-dimmed:  #a2acb6;
+        --color-accent:       #2563eb;
+        --color-accent-hover: #1d4ed8;
+        --color-bg-selected:  #8397aa;
+        --color-bg-muted:     #f1f3f5;
+        --header-height: 0px;
+      }
+      [data-theme="dark"] {
+        --color-bg:           #111317;
+        --color-surface:      #1e2025;
+        --color-border:       #2e3138;
+        --color-text:         #e1e3e8;
+        --color-text-muted:   #868e96;
+        --color-text-dimmed:  #5f646a;
+        --color-accent:       #60a5fa;
+        --color-accent-hover: #93c5fd;
+        --color-bg-selected:  #424a53;
+        --color-bg-muted:     #282c34;
+        --header-height: 0px;
+      }
+      html, body { margin: 0; height: 100%; background: var(--color-bg); }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="folios-crop-app"
+         data-machine-name="dev-project"
+         data-project-name="Dev Project">
+    </div>
+    <script type="module" src="/src/crop/main.ts"></script>
   </body>
 </html>

@@ -91,6 +91,11 @@ pub async fn project_metadata_post(
     Path(machine_name): Path<String>,
     Form(form): Form<MetadataForm>,
 ) -> impl IntoResponse {
+
+    if form.action == "cancel" {
+        return Redirect::to(&format!("/projects/{}", machine_name)).into_response();
+    }
+
     let toml_path = state.projects_dir
         .join(&machine_name)
         .join("metadata")
@@ -134,7 +139,43 @@ pub async fn project_metadata_post(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}", machine_name)).into_response()
+}
+
+pub async fn folios_crop_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("folios/cropmode.html").unwrap()
+        .render(context! { project }).unwrap();
+    Html(html).into_response()
+}
+
+pub async fn folios_get(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
+    let pagedb_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    let pagedb = storage::load_page_db(&pagedb_path);
+    let env = state.templates.acquire_env().unwrap();
+    let html = env.get_template("folios/initial.html").unwrap()
+        .render(context! { project, pagedb }).unwrap();
+    Html(html).into_response()
 }
 
 pub async fn project_pages_get(
@@ -158,7 +199,7 @@ pub async fn project_pages_get(
     };
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/pages.html").unwrap()
+    let html = env.get_template("ingestor/pages.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
@@ -186,7 +227,7 @@ pub async fn ingest_images_get(
     });
 
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/ingest.html").unwrap()
+    let html = env.get_template("ingestor/ingest.html").unwrap()
         .render(context! { project, is_insert, after_index => query.after, before_index => query.before, anchor_page }).unwrap();
     Html(html).into_response()
 }
@@ -291,7 +332,7 @@ pub async fn remove_images_get(
     };
     let indices_str = query.indices.unwrap_or_default();
     if indices_str.is_empty() {
-        return Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response();
+        return Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response();
     }
     let indices: Vec<usize> = indices_str.split(',').filter_map(|s| s.trim().parse().ok()).collect();
     let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
@@ -300,7 +341,7 @@ pub async fn remove_images_get(
         .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
         .collect();
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/remove.html").unwrap()
+    let html = env.get_template("ingestor/remove.html").unwrap()
         .render(context! { project, pages_to_remove, indices_str }).unwrap();
     Html(html).into_response()
 }
@@ -318,7 +359,7 @@ pub async fn remove_images_post(
     db.pages.retain(|p| !to_remove.contains(&p.index));
     storage::reindex(&mut db);
     let _ = storage::save_page_db(&db_path, &db);
-    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
 pub async fn serve_thumb(
@@ -399,7 +440,7 @@ pub async fn rename_pages_post(
     }
 
     let _ = storage::save_page_db(&db_path, &db);
-    Redirect::to(&format!("/projects/{}/pages", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
 fn parse_roman(s: &str) -> Option<u32> {

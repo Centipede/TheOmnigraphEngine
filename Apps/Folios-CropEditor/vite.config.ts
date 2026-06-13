@@ -9,9 +9,13 @@ export default defineConfig({
     outDir: '../OmniGraph/static',
     emptyOutDir: true,
     rollupOptions: {
-      input: resolve(__dirname, 'src/shoelace.ts'),
+      input: {
+        shoelace: resolve(__dirname, 'src/shoelace.ts'),
+        'folios-crop': resolve(__dirname, 'src/crop/main.ts'),
+      },
       output: {
-        entryFileNames: 'shoelace.js',
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name]-[hash].js',
         assetFileNames: '[name][extname]',
       },
     },
