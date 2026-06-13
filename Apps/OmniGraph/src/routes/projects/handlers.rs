@@ -151,7 +151,7 @@ pub async fn folios_get(
     };
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/folios.html").unwrap()
+    let html = env.get_template("folios/initial.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
@@ -177,7 +177,7 @@ pub async fn project_pages_get(
     };
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/ingestor/pages.html").unwrap()
+    let html = env.get_template("ingestor/pages.html").unwrap()
         .render(context! { project, pagedb }).unwrap();
     Html(html).into_response()
 }
@@ -205,7 +205,7 @@ pub async fn ingest_images_get(
     });
 
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/ingestor/ingest.html").unwrap()
+    let html = env.get_template("ingestor/ingest.html").unwrap()
         .render(context! { project, is_insert, after_index => query.after, before_index => query.before, anchor_page }).unwrap();
     Html(html).into_response()
 }
@@ -319,7 +319,7 @@ pub async fn remove_images_get(
         .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
         .collect();
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/ingestor/remove.html").unwrap()
+    let html = env.get_template("ingestor/remove.html").unwrap()
         .render(context! { project, pages_to_remove, indices_str }).unwrap();
     Html(html).into_response()
 }

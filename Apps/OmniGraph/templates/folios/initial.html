@@ -1,13 +1,6 @@
-{% extends "base.html" %}
+{% extends "folios/base.html" %}
 
 {% block title %}{{ project.name }} — Folios — OmniGraph{% endblock %}
-
-{% block navigation_items %}
-<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/ingestor" variant="text">Ingestor</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/folios" variant="primary">Folios</sl-button>
-{% endblock %}
 
 {% block head %}
 <style>
