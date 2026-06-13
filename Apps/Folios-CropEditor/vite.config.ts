@@ -6,7 +6,7 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [vue()],
   build: {
-    outDir: '../ingestor/static',
+    outDir: '../OmniGraph/static',
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, 'src/shoelace.ts'),
