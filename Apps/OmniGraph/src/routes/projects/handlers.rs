@@ -91,6 +91,11 @@ pub async fn project_metadata_post(
     Path(machine_name): Path<String>,
     Form(form): Form<MetadataForm>,
 ) -> impl IntoResponse {
+
+    if form.action == "cancel" {
+        return Redirect::to(&format!("/projects/{}", machine_name)).into_response();
+    }
+
     let toml_path = state.projects_dir
         .join(&machine_name)
         .join("metadata")
@@ -134,7 +139,7 @@ pub async fn project_metadata_post(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response()
+    Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
 
 pub async fn folios_crop_get(

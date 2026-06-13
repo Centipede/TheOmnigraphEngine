@@ -19,6 +19,8 @@ pub struct MetadataForm {
     pub author_names: Vec<String>,
     #[serde(default)]
     pub author_abbrevs: Vec<String>,
+    #[serde(default)]
+    pub action: String,
 }
 
 #[derive(Deserialize)]

@@ -4,12 +4,12 @@
 
 {% block navigation_items %}
 <sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="text">Metadata</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/ingestor" variant="text">Ingestor</sl-button>
 <sl-button href="/projects/{{ project.machine_name }}/folios" variant="primary">Folios</sl-button>
 {% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="/folios-crop.css">
 <style>
   .folios-area {
     width: 100%;
@@ -110,7 +110,6 @@
   .folios-zoom img { max-width: 100%; height: auto; }
 
   .folios-tools {
-    padding: 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;

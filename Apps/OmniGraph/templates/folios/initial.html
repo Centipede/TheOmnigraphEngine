@@ -56,7 +56,7 @@
     <ul class="folio-page-list">
       {% for page in pagedb.pages %}
       <li data-page-index="{{ page.index }}"
-          :class="{ selected: selectedIndices.includes({{ page.index }}), named: {{ page.name | tojson }} !== '' }"
+          :class="{ selected: selectedIndices.includes({{ page.index }}) }"
           @click="handleClick({{ page.index }}, $event)">
         {% if page.name %}{{ page.name }}{% else %}<em style="color:var(--color-text-dimmed)">[{{ page.scan }}]</em>{% endif %}
       </li>
@@ -97,7 +97,7 @@
 
   <!-- Tools -->
   <div class="folios-tools">
-    <div class="sidebar-lead" style="margin: -0.75rem -0.75rem 0.5rem; padding: 0.6rem 0.75rem 0.4rem;">Tools</div>
+    <div class="sidebar-lead">Tools</div>
     <sl-button variant="default" disabled>Crop</sl-button>
   </div>
 

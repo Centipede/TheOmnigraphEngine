@@ -1,13 +1,6 @@
-{% extends "base.html" %}
+{% extends "projects/base.html" %}
 
 {% block title %}{{ project.name }} — Metadata — OmniGraph{% endblock %}
-
-{% block navigation_items %}
-<sl-button href="/projects/{{ project.machine_name }}" variant="text">Overview</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/metadata" variant="primary">Metadata</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/ingestor" variant="text">Ingestor</sl-button>
-<sl-button href="/projects/{{ project.machine_name }}/folios" variant="text">Folios</sl-button>
-{% endblock %}
 
 {% block content %}
 <div style="max-width: 48rem; margin: 2rem auto; padding: 0 1rem;">
@@ -43,7 +36,8 @@
     </div>
 
     <div class="form-actions">
-      <sl-button type="submit" variant="primary">Save</sl-button>
+      <sl-button type="submit" variant="primary" name="action" value="cancel">Cancel</sl-button>
+      <sl-button type="submit" variant="primary" name="actino" value="save">Save</sl-button>
     </div>
   </form>
 </div>
