@@ -44,6 +44,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects", get(handlers::projects_page).post(handlers::create_project_form))
         .route("/projects/{machine_name}", get(handlers::project_overview_get))
         .route("/projects/{machine_name}/folios", get(handlers::folios_get))
+        .route("/projects/{machine_name}/folios/crop", get(handlers::folios_crop_get))
         .route("/projects/{machine_name}/metadata", get(handlers::project_metadata_get).post(handlers::project_metadata_post))
         .route("/projects/{machine_name}/pages/thumbs/{filename}", get(handlers::serve_thumb))
         .route("/projects/{machine_name}/pages/scans/{filename}", get(handlers::serve_scan))

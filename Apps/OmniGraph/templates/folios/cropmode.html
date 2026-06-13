@@ -1,0 +1,13 @@
+{% extends "folios/base.html" %}
+
+{% block title %}{{ project.name }} — Crop — OmniGraph{% endblock %}
+
+{% block head %}{{ super() }}{% endblock %}
+
+{% block content %}
+<div id="folios-crop-app"
+     data-machine-name="{{ project.machine_name }}"
+     data-project-name="{{ project.name }}">
+</div>
+<script type="module" src="/folios-crop.js"></script>
+{% endblock %}
