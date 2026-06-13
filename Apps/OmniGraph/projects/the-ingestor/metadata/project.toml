@@ -1,0 +1,13 @@
+name = "The Ingestor"
+machine_name = "the-ingestor"
+abbrev = "TI"
+description = "none"
+published = "2022-06-07"
+
+[[authors]]
+full_name = "Test"
+abbrev = "t"
+
+[[authors]]
+full_name = "Test2"
+abbrev = "t2"

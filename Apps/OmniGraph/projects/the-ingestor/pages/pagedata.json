@@ -1,0 +1,89 @@
+{
+  "pages": [
+    {
+      "index": 0,
+      "name": "0",
+      "scan": "side-000b.jpg",
+      "scan_width": 2400,
+      "scan_height": 3145,
+      "thumb": "side-000b.jpg",
+      "thumb_width": 300,
+      "thumb_height": 393,
+      "batch": 3,
+      "import_order": 4000
+    },
+    {
+      "index": 1,
+      "name": "1",
+      "scan": "side-001b.jpg",
+      "scan_width": 2501,
+      "scan_height": 3145,
+      "thumb": "side-001b.jpg",
+      "thumb_width": 300,
+      "thumb_height": 377,
+      "batch": 4,
+      "import_order": 5000
+    },
+    {
+      "index": 2,
+      "name": "2",
+      "scan": "side-002b.jpg",
+      "scan_width": 2369,
+      "scan_height": 3140,
+      "thumb": "side-002b.jpg",
+      "thumb_width": 300,
+      "thumb_height": 398,
+      "batch": 4,
+      "import_order": 6000
+    },
+    {
+      "index": 3,
+      "name": "3",
+      "scan": "side-003.jpg",
+      "scan_width": 2500,
+      "scan_height": 3140,
+      "thumb": "side-003.jpg",
+      "thumb_width": 300,
+      "thumb_height": 377,
+      "batch": 0,
+      "import_order": 0
+    },
+    {
+      "index": 4,
+      "name": "4",
+      "scan": "side-004.jpg",
+      "scan_width": 2429,
+      "scan_height": 3143,
+      "thumb": "side-004.jpg",
+      "thumb_width": 300,
+      "thumb_height": 388,
+      "batch": 0,
+      "import_order": 1000
+    },
+    {
+      "index": 5,
+      "name": "5",
+      "scan": "side-005.jpg",
+      "scan_width": 2498,
+      "scan_height": 3143,
+      "thumb": "side-005.jpg",
+      "thumb_width": 300,
+      "thumb_height": 377,
+      "batch": 0,
+      "import_order": 2000
+    },
+    {
+      "index": 6,
+      "name": "6",
+      "scan": "side-006.jpg",
+      "scan_width": 2453,
+      "scan_height": 3131,
+      "thumb": "side-006.jpg",
+      "thumb_width": 300,
+      "thumb_height": 383,
+      "batch": 0,
+      "import_order": 3000
+    }
+  ],
+  "next_batch": 5
+}
