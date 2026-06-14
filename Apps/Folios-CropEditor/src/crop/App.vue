@@ -315,49 +315,20 @@ function onKeyDown(e: KeyboardEvent) {
       return;  // Shift+.
   }
 
-  // Arrow key edge adjustment — Single Adjust tool only, no modifiers
-  if (tool.value !== 'singleadjust' || shift || alt) return;
+  // Arrow key edge adjustment — Single Adjust tool only, not when Alt is held.
+  // Plain arrow = step small; Shift+arrow = step large.
+  if (tool.value !== 'singleadjust' || alt) return;
 
-  if (edge.value === 'top' && e.key === 'ArrowDown') {
-    e.preventDefault();
-    adjustEdge('top', 1);
-    return;
-  }
-  if (edge.value === 'top' && e.key === 'ArrowUp') {
-    e.preventDefault();
-    adjustEdge('top', -1);
-    return;
-  }
-  if (edge.value === 'bottom' && e.key === 'ArrowDown') {
-    e.preventDefault();
-    adjustEdge('bottom', 1);
-    return;
-  }
-  if (edge.value === 'bottom' && e.key === 'ArrowUp') {
-    e.preventDefault();
-    adjustEdge('bottom', -1);
-    return;
-  }
-  if (edge.value === 'left' && e.key === 'ArrowRight') {
-    e.preventDefault();
-    adjustEdge('left', 1);
-    return;
-  }
-  if (edge.value === 'left' && e.key === 'ArrowLeft') {
-    e.preventDefault();
-    adjustEdge('left', -1);
-    return;
-  }
-  if (edge.value === 'right' && e.key === 'ArrowRight') {
-    e.preventDefault();
-    adjustEdge('right', 1);
-    return;
-  }
-  if (edge.value === 'right' && e.key === 'ArrowLeft') {
-    e.preventDefault();
-    adjustEdge('right', -1);
-    return;
-  }
+  const step = shift ? adjust_step_large.value : adjust_step_small.value;
+
+  if (edge.value === 'top'    && e.key === 'ArrowDown')  { e.preventDefault(); adjustEdge('top',    step);  return; }
+  if (edge.value === 'top'    && e.key === 'ArrowUp')    { e.preventDefault(); adjustEdge('top',   -step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustEdge('bottom', step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustEdge('bottom',-step);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowRight') { e.preventDefault(); adjustEdge('left',   step);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowLeft')  { e.preventDefault(); adjustEdge('left',  -step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustEdge('right',  step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustEdge('right', -step);  return; }
 }
 
 onMounted(async () => {
