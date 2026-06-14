@@ -19,7 +19,9 @@
           :page="page"
           :edge="edge"
           :thumbBaseUrl="thumbBaseUrl"
-          :fraction="VIEW_FRACTION"
+          :fraction="viewPercent / 100"
+          :showOverlay="mode === 'crop'"
+          :crop="defaultCrop"
         />
       </div>
     </div>
@@ -27,6 +29,14 @@
     <div class="crop-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
+
+        <sl-range
+          :label="`View: ${viewPercent}%`"
+          min="10" max="75" step="5" :value="viewPercent"
+          @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+        />
+
+        <br>
 
         <sl-radio-group label="Mode" name="mode" :value="mode"
           @sl-change="mode = ($event.target as HTMLInputElement).value">
@@ -71,20 +81,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import PageStrip from './PageStrip.vue';
-import type { Page, PageDb } from './types';
+import type { Page, PageDb, CropEdges } from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode       = ref('none');
-const tool       = ref('singleadjust');
-const edge       = ref('none');
-const wide_width = ref(100);
-const pages      = ref<Page[]>([]);
+const mode        = ref('none');
+const tool        = ref('singleadjust');
+const edge        = ref('none');
+const wide_width  = ref(100);
+const viewPercent = ref(25);
+const pages       = ref<Page[]>([]);
 
-// 25% of the thumbnail shown in strip mode
-const VIEW_FRACTION = 0.25;
+// Default crop — 20 scan pixels on every edge as a visible starting point.
+// Will be replaced by per-page storage in a later issue.
+const defaultCrop = reactive<CropEdges>({ left: 20, top: 20, right: 20, bottom: 20 });
 
 const thumbBaseUrl = computed(
   () => `/projects/${props.machineName}/pages/thumbs/`
@@ -155,7 +167,5 @@ onMounted(async () => {
   align-content: flex-start;
 }
 
-.crop-tools {
-  padding: 0;
-}
+.crop-tools { padding: 0; }
 </style>
