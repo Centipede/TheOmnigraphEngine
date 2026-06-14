@@ -42,7 +42,7 @@ pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> 
 }
 
 pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32, batch: u32, import_order: u32) {
-    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, import_order });
+    db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, import_order, ..Page::default() });
 }
 
 pub fn remove_page(db: &mut PageDb, index: usize) {

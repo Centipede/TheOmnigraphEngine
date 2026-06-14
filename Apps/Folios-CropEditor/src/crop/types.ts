@@ -9,6 +9,7 @@ export interface Page {
   thumb_height: number;
   batch: number;
   import_order: number;
+  crop_edges: CropEdges;
 }
 
 export interface PageDb {
