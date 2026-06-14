@@ -4,7 +4,13 @@ import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue({
+    template: {
+      compilerOptions: {
+        isCustomElement: tag => tag.startsWith('sl-')
+      }
+    }
+  })],
   build: {
     outDir: '../OmniGraph/static',
     emptyOutDir: true,
@@ -23,6 +29,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+      '/projects': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },

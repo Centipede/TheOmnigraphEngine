@@ -2,11 +2,12 @@ pub mod models;
 pub mod forms;
 pub mod storage;
 pub mod images;
-pub mod handlers;
+pub mod handlers_web;
+pub mod handlers_api;
 
 use axum::response::IntoResponse;
 
-pub use handlers::*;
+pub use handlers_web::*;
 
 fn parse_date(s: &str) -> Option<time::Date> {
     let mut parts = s.splitn(3, '-');

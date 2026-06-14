@@ -1,4 +1,7 @@
 use std::fs;
+use std::path::PathBuf;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
 
@@ -79,4 +82,19 @@ pub fn read_projects(state: &AppState) -> Vec<Project> {
             toml::from_str(&contents).ok()
         })
         .collect()
+}
+
+pub fn read_project(projects_dir: &PathBuf, machine_name: &str) -> Result<Project, StatusCode> {
+    let toml_path = projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+    let Ok(contents) = fs::read_to_string(&toml_path) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    let Ok(project) = toml::from_str::<Project>(&contents) else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+
+    Ok(project)
 }

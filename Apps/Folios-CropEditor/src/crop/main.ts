@@ -8,4 +8,6 @@ const mountEl = document.getElementById('folios-crop-app');
 const machineName = mountEl?.dataset.machineName ?? '';
 const projectName = mountEl?.dataset.projectName ?? '';
 
-createApp(App, { machineName, projectName }).mount('#folios-crop-app');
+const app = createApp(App, { machineName, projectName });
+app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('sl-');
+app.mount('#folios-crop-app');
