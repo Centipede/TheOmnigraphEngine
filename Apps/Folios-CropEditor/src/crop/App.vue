@@ -3,34 +3,71 @@
 
     <div class="crop-sidebar-pages">
       <div class="sidebar-lead">Pages</div>
-      <p class="placeholder">Page list</p>
+      <div class="sidebar-content">Page list</div>
     </div>
 
     <div class="crop-sidebar-sections">
       <div class="sidebar-lead">Sections</div>
-      <p class="placeholder">Section list</p>
+      <div class="sidebar-content">Section list</div>
     </div>
 
     <div class="crop-workarea">
-      <p class="placeholder">Crop editor — {{ projectName }}</p>
+      <div class="sidebar-content">Crop editor — {{ projectName }}</div>
     </div>
 
     <div class="crop-tools">
       <div class="sidebar-lead">Tools</div>
+      <div class="sidebar-content">
+
+        <sl-radio-group label="Mode" name="mode" :value="mode" @sl-change="mode = ($event.target as HTMLInputElement).value">
+          <sl-radio-button value="none">None</sl-radio-button>
+          <sl-radio-button value="crop">Crop</sl-radio-button>
+        </sl-radio-group>
+
+        <br>
+
+        <sl-radio-group label="Tool" name="tool" :value="tool" v-show="mode === 'crop'"  @sl-change="tool = ($event.target as HTMLInputElement).value">
+          <sl-radio-button value="singleadjust">Single Adjust</sl-radio-button>
+          <sl-radio-button value="wideadjust">Wide Adjust</sl-radio-button>
+        </sl-radio-group>
+
+        <br>
+
+        <sl-range :label="`Width: ${wide_width}`" min="1" max="200" step="1" :value="wide_width" v-show="mode === 'crop' && tool === 'wideadjust'" @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"></sl-range>
+
+
+        <br>
+
+        <sl-radio-group label="Edge" name="edge" size="small" :value="edge" v-show="mode === 'crop'"  @sl-change="edge = ($event.target as HTMLInputElement).value">
+          <sl-radio-button value="none">None</sl-radio-button>
+          <sl-radio-button value="left">Left</sl-radio-button>
+          <sl-radio-button value="top">Top</sl-radio-button>
+          <sl-radio-button value="bottom">Bottom</sl-radio-button>
+          <sl-radio-button value="right">Right</sl-radio-button>
+        </sl-radio-group>
+
+      </div>
     </div>
 
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ machineName: string; projectName: string }>();
+  import {ref} from "vue";
+
+  defineProps<{ machineName: string; projectName: string }>();
+  const mode = ref('none')
+  const tool = ref('singleadjust')
+  const edge = ref('none')
+  const wide_width = ref(100)
+
 </script>
 
 <style>
 .crop-area {
   width: 100%;
   display: grid;
-  grid-template-columns: 10rem 18rem 1fr 12rem;
+  grid-template-columns: 10rem 18rem 1fr 20rem;
   height: calc(100vh - var(--header-height, 0px));
   overflow: hidden;
   font-family: var(--sl-font-sans, sans-serif);
@@ -43,7 +80,10 @@ defineProps<{ machineName: string; projectName: string }>();
   overflow-y: auto;
   min-height: 0;
 }
-.crop-area > div:last-child { border-right: none; }
+
+.crop-area > div:last-child {
+  border-right: none;
+}
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -59,7 +99,7 @@ defineProps<{ machineName: string; projectName: string }>();
   z-index: 1;
 }
 
-.placeholder {
+.sidebar-content {
   padding: 0.75rem;
   font-size: 0.875rem;
   color: var(--color-text-muted, #6c757d);

@@ -4,7 +4,13 @@ import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue({
+    template: {
+      compilerOptions: {
+        isCustomElement: tag => tag.startsWith('sl-')
+      }
+    }
+  })],
   build: {
     outDir: '../OmniGraph/static',
     emptyOutDir: true,
