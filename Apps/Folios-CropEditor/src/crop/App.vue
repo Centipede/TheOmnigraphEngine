@@ -112,6 +112,21 @@
             <sl-radio-button value="bottom">Bottom</sl-radio-button>
             <sl-radio-button value="right">Right</sl-radio-button>
           </sl-radio-group>
+          <br><br>
+
+          <div class="session-buttons">
+            <sl-button
+              variant="danger"
+              :disabled="!hasChanges"
+              @click="abandonCrop"
+            >Abandon</sl-button>
+            <sl-button
+              variant="primary"
+              :disabled="!hasChanges"
+              @click="commitCrops"
+            >Commit</sl-button>
+          </div>
+
         </template>
 
       </div>
@@ -121,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, computed, watch, nextTick, onMounted, onUnmounted} from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import PageStrip from './PageStrip.vue';
 import type {Page, PageDb, CropEdges} from './types';
 
@@ -140,8 +155,23 @@ const pages             = ref<Page[]>([]);
 const currentPageIndex  = ref<number | null>(null);
 
 // Per-page crop state — populated from API, modified client-side until saved.
-const pageCrops = reactive(new Map<number, CropEdges>());
+const pageCrops    = reactive(new Map<number, CropEdges>());
+// Snapshot of server state — used for change detection and abandon.
+const originalCrops = new Map<number, CropEdges>();
+let   storedNextBatch = 0;
+
 const pageListRef = ref<HTMLElement | null>(null);
+
+const hasChanges = computed(() => {
+  for (const page of pages.value) {
+    const orig = originalCrops.get(page.index);
+    const curr = pageCrops.get(page.index);
+    if (!orig || !curr) continue;
+    if (orig.left !== curr.left || orig.top !== curr.top ||
+        orig.right !== curr.right || orig.bottom !== curr.bottom) return true;
+  }
+  return false;
+});
 
 // Keep the selected page visible in the sidebar when navigating by keyboard.
 watch(currentPageIndex, async (idx) => {
@@ -186,6 +216,42 @@ function applyWideAdjust(sign: 1 | -1) {
       const crop = pageCrops.get(page.index);
       if (crop) crop[edgeKey] = Math.max(0, crop[edgeKey] + delta);
     }
+  }
+}
+
+// ── Crop session: abandon / commit ──────────────────────────────────
+
+function abandonCrop() {
+  pageCrops.clear();
+  for (const [idx, crop] of originalCrops) {
+    pageCrops.set(idx, { ...crop });
+  }
+}
+
+async function commitCrops() {
+  const updatedPageDb = {
+    next_batch: storedNextBatch,
+    pages: pages.value.map(page => ({
+      ...page,
+      crop_edges: pageCrops.get(page.index) ?? page.crop_edges,
+    })),
+  };
+  try {
+    const res = await fetch(`/api/projects/${props.machineName}/pages`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedPageDb),
+    });
+    if (res.ok) {
+      // Advance the snapshot so hasChanges resets to false.
+      for (const [idx, crop] of pageCrops) {
+        originalCrops.set(idx, { ...crop });
+      }
+    } else {
+      console.error('Commit failed:', res.status, await res.text());
+    }
+  } catch (e) {
+    console.error('Commit error:', e);
   }
 }
 
@@ -300,8 +366,11 @@ onMounted(async () => {
     const res = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
     pages.value = data.pages;
+    storedNextBatch = data.next_batch;
     for (const page of data.pages) {
-      pageCrops.set(page.index, { ...page.crop_edges });
+      const crop = { ...page.crop_edges };
+      pageCrops.set(page.index, crop);
+      originalCrops.set(page.index, { ...crop });
     }
     if (data.pages.length > 0) currentPageIndex.value = 0;
   } catch (e) {
@@ -410,5 +479,12 @@ onUnmounted(() => {
 .page-nav-unnamed {
   color: var(--color-text-dimmed, #a2acb6);
   font-style: italic;
+}
+
+.session-buttons {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-border, #dee2e6);
 }
 </style>
