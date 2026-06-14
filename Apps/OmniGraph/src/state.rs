@@ -2,7 +2,7 @@ use crate::secrets::AppSecrets;
 use minijinja::{Environment, Value};
 use minijinja_autoreload::AutoReloader;
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
@@ -11,6 +11,26 @@ pub struct AppState {
     pub projects_dir: Arc<PathBuf>,
     pub templates: Arc<AutoReloader>,
     pub secrets: Arc<RwLock<AppSecrets>>,
+}
+
+impl AppState {
+    pub fn projects_dir(&self) -> PathBuf {
+        self.projects_dir.as_ref().clone()
+    }
+
+    pub fn projects_toml_path(&self, machine_name: &str) -> PathBuf {
+        self.projects_dir
+            .join(machine_name)
+            .join("metadata")
+            .join("project.toml")
+    }
+
+    pub fn project_pagesdb_path(&self, machine_name: &str) -> PathBuf {
+        self.projects_dir
+            .join(machine_name)
+            .join("pages")
+            .join("pagedata.json")
+    }
 }
 
 fn date_filter(value: Value, format: &str) -> Result<String, minijinja::Error> {

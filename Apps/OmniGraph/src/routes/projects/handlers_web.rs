@@ -1,21 +1,26 @@
-use std::fs;
-use axum::extract::{Multipart, Path, Query, State};
-use axum::response::{Html, IntoResponse, Redirect};
-use minijinja::context;
-use axum_extra::extract::Form;
-use axum::http::{header, StatusCode};
-use axum::Json;
 use crate::routes::projects;
-use crate::routes::projects::forms::{CreateProject, IngestQuery, MetadataForm, RemoveForm, RemoveQuery, RenameForm};
-use crate::routes::projects::models::{Author, Page, Project, IMPORT_ORDER_GAP};
+use crate::routes::projects::forms::{
+    CreateProject, IngestQuery, MetadataForm, RemoveForm, RemoveQuery, RenameForm,
+};
+use crate::routes::projects::models::{Author, IMPORT_ORDER_GAP, Page, Project};
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
+use axum::Json;
+use axum::extract::{Multipart, Path, Query, State};
+use axum::http::{StatusCode, header};
+use axum::response::{Html, IntoResponse, Redirect};
+use axum_extra::extract::Form;
+use minijinja::context;
+use std::fs;
 
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
     let projects = storage::read_projects(&state);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/index.html").unwrap()
-        .render(context! { projects }).unwrap();
+    let html = env
+        .get_template("projects/index.html")
+        .unwrap()
+        .render(context! { projects })
+        .unwrap();
     Html(html)
 }
 
@@ -46,20 +51,17 @@ pub async fn project_overview_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir
-        .join(&machine_name)
-        .join("metadata")
-        .join("project.toml");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    println!("Published: {:?} --- ", project.published);
+
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/show.html").unwrap()
-        .render(context! { project }).unwrap();
+    let html = env
+        .get_template("projects/show.html")
+        .unwrap()
+        .render(context! { project })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -67,22 +69,19 @@ pub async fn project_metadata_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir
-        .join(&machine_name)
-        .join("metadata")
-        .join("project.toml");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-    let published_str = project.published.map(|d| {
-        format!("{:04}-{:02}-{:02}", d.year(), d.month() as u8, d.day())
-    });
+    let published_str = project
+        .published
+        .map(|d| format!("{:04}-{:02}-{:02}", d.year(), d.month() as u8, d.day()));
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("projects/metadata.html").unwrap()
-        .render(context! { project, published_str }).unwrap();
+    let html = env
+        .get_template("projects/metadata.html")
+        .unwrap()
+        .render(context! { project, published_str })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -91,25 +90,23 @@ pub async fn project_metadata_post(
     Path(machine_name): Path<String>,
     Form(form): Form<MetadataForm>,
 ) -> impl IntoResponse {
-
     if form.action == "cancel" {
         return Redirect::to(&format!("/projects/{}", machine_name)).into_response();
     }
 
-    let toml_path = state.projects_dir
-        .join(&machine_name)
-        .join("metadata")
-        .join("project.toml");
-    if !toml_path.exists() {
-        return StatusCode::NOT_FOUND.into_response();
+    if let Err(status) = storage::read_project(&state.projects_dir, &machine_name) {
+        return status.into_response();
     }
 
+    let toml_path = state.projects_toml_path(&machine_name);
     let name = form.name.trim().to_string();
     if name.is_empty() {
         return Redirect::to(&format!("/projects/{}/metadata", machine_name)).into_response();
     }
 
-    let authors: Vec<Author> = form.author_names.iter()
+    let authors: Vec<Author> = form
+        .author_names
+        .iter()
         .zip(form.author_abbrevs.iter())
         .filter(|(n, _)| !n.trim().is_empty())
         .map(|(n, a)| Author {
@@ -146,16 +143,16 @@ pub async fn folios_crop_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("folios/cropmode.html").unwrap()
-        .render(context! { project }).unwrap();
+    let html = env
+        .get_template("folios/cropmode.html")
+        .unwrap()
+        .render(context! { project })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -163,18 +160,18 @@ pub async fn folios_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
-    let pagedb_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
+    let pagedb_path = state.project_pagesdb_path(&machine_name);
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("folios/initial.html").unwrap()
-        .render(context! { project, pagedb }).unwrap();
+    let html = env
+        .get_template("folios/initial.html")
+        .unwrap()
+        .render(context! { project, pagedb })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -182,25 +179,18 @@ pub async fn project_pages_get(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir
-        .join(&machine_name)
-        .join("metadata")
-        .join("project.toml");
-    let pagedb_path = state.projects_dir
-        .join(&machine_name)
-        .join("pages")
-        .join("pagedata.json");
-
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
+    let pagedb_path = state.project_pagesdb_path(&machine_name);
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("ingestor/pages.html").unwrap()
-        .render(context! { project, pagedb }).unwrap();
+    let html = env
+        .get_template("ingestor/pages.html")
+        .unwrap()
+        .render(context! { project, pagedb })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -209,21 +199,22 @@ pub async fn ingest_images_get(
     Path(machine_name): Path<String>,
     Query(query): Query<IngestQuery>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir
-        .join(&machine_name)
-        .join("metadata")
-        .join("project.toml");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
     let is_insert = query.after.is_some() || query.before.is_some();
     let anchor_page = query.after.or(query.before);
     let anchor_page = anchor_page.and_then(|idx| {
-        let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
-        storage::load_page_db(&db_path).pages.into_iter().find(|p| p.index == idx)
+        let db_path = state
+            .projects_dir
+            .join(&machine_name)
+            .join("pages")
+            .join("pagedata.json");
+        storage::load_page_db(&db_path)
+            .pages
+            .into_iter()
+            .find(|p| p.index == idx)
     });
 
     let env = state.templates.acquire_env().unwrap();
@@ -263,17 +254,26 @@ pub async fn ingest_images_post(
             .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase());
-        if !matches!(ext.as_deref(), Some("jpg") | Some("jpeg") | Some("png") | Some("tif") | Some("tiff") | Some("webp")) {
+        if !matches!(
+            ext.as_deref(),
+            Some("jpg") | Some("jpeg") | Some("png") | Some("tif") | Some("tiff") | Some("webp")
+        ) {
             continue;
         }
-        let Ok(data) = field.bytes().await else { continue; };
+        let Ok(data) = field.bytes().await else {
+            continue;
+        };
         incoming.push((filename, data));
     }
     incoming.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     let batch = pagedb.next_batch;
     pagedb.next_batch += 1;
-    let base_import_order = pagedb.pages.iter().map(|p| p.import_order).max()
+    let base_import_order = pagedb
+        .pages
+        .iter()
+        .map(|p| p.import_order)
+        .max()
         .map_or(0, |max| max + IMPORT_ORDER_GAP);
 
     let mut new_pages: Vec<Page> = Vec::new();
@@ -283,12 +283,25 @@ pub async fn ingest_images_post(
             continue;
         }
         let stem = std::path::Path::new(&final_name)
-            .file_stem().and_then(|s| s.to_str()).unwrap_or(&final_name);
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&final_name);
         let thumb_name = format!("{stem}.jpg");
-        let (sw, sh, tw, th) = images::generate_thumb(&data, &thumbs_dir.join(&thumb_name))
-            .unwrap_or((0, 0, 0, 0));
+        let (sw, sh, tw, th) =
+            images::generate_thumb(&data, &thumbs_dir.join(&thumb_name)).unwrap_or((0, 0, 0, 0));
         let import_order = base_import_order + (i as u32) * IMPORT_ORDER_GAP;
-        new_pages.push(Page { index: 0, name: String::new(), scan: final_name, scan_width: sw, scan_height: sh, thumb: thumb_name, thumb_width: tw, thumb_height: th, batch, import_order });
+        new_pages.push(Page {
+            index: 0,
+            name: String::new(),
+            scan: final_name,
+            scan_width: sw,
+            scan_height: sh,
+            thumb: thumb_name,
+            thumb_width: tw,
+            thumb_height: th,
+            batch,
+            import_order,
+        });
     }
 
     match (query.after, query.before) {
@@ -323,26 +336,34 @@ pub async fn remove_images_get(
     Path(machine_name): Path<String>,
     Query(query): Query<RemoveQuery>,
 ) -> impl IntoResponse {
-    let toml_path = state.projects_dir.join(&machine_name).join("metadata").join("project.toml");
-    let Ok(contents) = fs::read_to_string(&toml_path) else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    let Ok(project) = toml::from_str::<Project>(&contents) else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(project) => project,
+        Err(status) => return status.into_response(),
     };
     let indices_str = query.indices.unwrap_or_default();
     if indices_str.is_empty() {
         return Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response();
     }
-    let indices: Vec<usize> = indices_str.split(',').filter_map(|s| s.trim().parse().ok()).collect();
-    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let indices: Vec<usize> = indices_str
+        .split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    let db_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
     let db = storage::load_page_db(&db_path);
-    let pages_to_remove: Vec<Page> = indices.iter()
+    let pages_to_remove: Vec<Page> = indices
+        .iter()
         .filter_map(|&i| db.pages.iter().find(|p| p.index == i).cloned())
         .collect();
     let env = state.templates.acquire_env().unwrap();
-    let html = env.get_template("ingestor/remove.html").unwrap()
-        .render(context! { project, pages_to_remove, indices_str }).unwrap();
+    let html = env
+        .get_template("ingestor/remove.html")
+        .unwrap()
+        .render(context! { project, pages_to_remove, indices_str })
+        .unwrap();
     Html(html).into_response()
 }
 
@@ -351,9 +372,15 @@ pub async fn remove_images_post(
     Path(machine_name): Path<String>,
     Form(form): Form<RemoveForm>,
 ) -> impl IntoResponse {
-    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let db_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
     let mut db = storage::load_page_db(&db_path);
-    let to_remove: std::collections::HashSet<usize> = form.indices.split(',')
+    let to_remove: std::collections::HashSet<usize> = form
+        .indices
+        .split(',')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
     db.pages.retain(|p| !to_remove.contains(&p.index));
@@ -366,7 +393,8 @@ pub async fn serve_thumb(
     State(state): State<AppState>,
     Path((machine_name, filename)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let path = state.projects_dir
+    let path = state
+        .projects_dir
         .join(&machine_name)
         .join("pages")
         .join("thumbs")
@@ -384,7 +412,8 @@ pub async fn serve_scan(
     State(state): State<AppState>,
     Path((machine_name, filename)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let path = state.projects_dir
+    let path = state
+        .projects_dir
         .join(&machine_name)
         .join("pages")
         .join("scans")
@@ -407,7 +436,9 @@ pub async fn rename_pages_post(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    let mut sorted_indices: Vec<usize> = form.indices.split(',')
+    let mut sorted_indices: Vec<usize> = form
+        .indices
+        .split(',')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
     sorted_indices.sort();
@@ -419,20 +450,30 @@ pub async fn rename_pages_post(
     let names: Vec<String> = match scheme {
         "1" => {
             let start: u32 = first_page.parse().unwrap_or(1);
-            (0..sorted_indices.len()).map(|i| (start + i as u32).to_string()).collect()
+            (0..sorted_indices.len())
+                .map(|i| (start + i as u32).to_string())
+                .collect()
         }
         "2" => {
             let start = parse_roman(first_page).unwrap_or(1);
-            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32).to_lowercase()).collect()
+            (0..sorted_indices.len())
+                .map(|i| to_roman(start + i as u32).to_lowercase())
+                .collect()
         }
         "3" => {
             let start = parse_roman(first_page).unwrap_or(1);
-            (0..sorted_indices.len()).map(|i| to_roman(start + i as u32)).collect()
+            (0..sorted_indices.len())
+                .map(|i| to_roman(start + i as u32))
+                .collect()
         }
         _ => return StatusCode::BAD_REQUEST.into_response(),
     };
 
-    let db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let db_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
     let mut db = storage::load_page_db(&db_path);
 
     for (idx, name) in sorted_indices.into_iter().zip(names) {
@@ -443,38 +484,6 @@ pub async fn rename_pages_post(
     Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
-fn parse_roman(s: &str) -> Option<u32> {
-    let mut total: i32 = 0;
-    let mut prev = 0i32;
-    for c in s.to_uppercase().chars().rev() {
-        let val = match c {
-            'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
-            'C' => 100, 'D' => 500, 'M' => 1000,
-            _ => return None,
-        };
-        if val < prev { total -= val; } else { total += val; }
-        prev = val;
-    }
-    if total > 0 { Some(total as u32) } else { None }
-}
-
-fn to_roman(mut n: u32) -> String {
-    const VALS: &[(u32, &str)] = &[
-        (1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),
-        (100,"C"),(90,"XC"),(50,"L"),(40,"XL"),
-        (10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I"),
-    ];
-    let mut out = String::new();
-    for &(val, sym) in VALS {
-        while n >= val { out.push_str(sym); n -= val; }
-    }
-    out
-}
-
-pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
-    Json(storage::read_projects(&state))
-}
-
 pub async fn create_project(
     State(state): State<AppState>,
     Json(payload): Json<CreateProject>,
@@ -483,16 +492,82 @@ pub async fn create_project(
     let name = payload.name.trim().to_string();
 
     if !storage::is_valid_machine_name(&machine_name) || name.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "invalid name"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "invalid name"})),
+        )
+            .into_response();
     }
 
     let project_dir = state.projects_dir.join(&machine_name);
     if project_dir.exists() {
-        return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "project already exists"}))).into_response();
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({"error": "project already exists"})),
+        )
+            .into_response();
     }
 
     match storage::create_project_on_disk(&state, &name, &machine_name) {
-        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({"machine_name": machine_name}))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        Ok(_) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({"machine_name": machine_name})),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
+}
+
+fn parse_roman(s: &str) -> Option<u32> {
+    let mut total: i32 = 0;
+    let mut prev = 0i32;
+    for c in s.to_uppercase().chars().rev() {
+        let val = match c {
+            'I' => 1,
+            'V' => 5,
+            'X' => 10,
+            'L' => 50,
+            'C' => 100,
+            'D' => 500,
+            'M' => 1000,
+            _ => return None,
+        };
+        if val < prev {
+            total -= val;
+        } else {
+            total += val;
+        }
+        prev = val;
+    }
+    if total > 0 { Some(total as u32) } else { None }
+}
+
+fn to_roman(mut n: u32) -> String {
+    const VALS: &[(u32, &str)] = &[
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut out = String::new();
+    for &(val, sym) in VALS {
+        while n >= val {
+            out.push_str(sym);
+            n -= val;
+        }
+    }
+    out
 }

@@ -9,7 +9,7 @@ use axum::{
     Router,
 };
 use rust_embed::RustEmbed;
-use projects::handlers;
+use projects::{handlers_api, handlers_web};
 use crate::state::AppState;
 
 #[derive(RustEmbed)]
@@ -37,22 +37,25 @@ async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
 
 pub fn build_router(state: AppState) -> Router {
     let api = Router::new()
-        .route("/projects", get(handlers::list_projects).post(handlers::create_project));
+        .route("/projects", get(handlers_api::list_projects).post(handlers_web::create_project))
+        .route("/projects/{machine_name}", get(handlers_api::get_project_metadata))
+        .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb))
+    ;
 
     Router::new()
         .route("/", get(|| async { Redirect::to("/projects") }))
-        .route("/projects", get(handlers::projects_page).post(handlers::create_project_form))
-        .route("/projects/{machine_name}", get(handlers::project_overview_get))
-        .route("/projects/{machine_name}/folios", get(handlers::folios_get))
-        .route("/projects/{machine_name}/folios/crop", get(handlers::folios_crop_get))
-        .route("/projects/{machine_name}/metadata", get(handlers::project_metadata_get).post(handlers::project_metadata_post))
-        .route("/projects/{machine_name}/pages/thumbs/{filename}", get(handlers::serve_thumb))
-        .route("/projects/{machine_name}/pages/scans/{filename}", get(handlers::serve_scan))
-        .route("/projects/{machine_name}/ingestor", get(handlers::project_pages_get))
-        .route("/projects/{machine_name}/ingestor/append", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/ingestor/insert", get(handlers::ingest_images_get).post(handlers::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/projects/{machine_name}/ingestor/remove", get(handlers::remove_images_get).post(handlers::remove_images_post))
-        .route("/projects/{machine_name}/ingestor/rename", post(handlers::rename_pages_post))
+        .route("/projects", get(handlers_web::projects_page).post(handlers_web::create_project_form))
+        .route("/projects/{machine_name}", get(handlers_web::project_overview_get))
+        .route("/projects/{machine_name}/folios", get(handlers_web::folios_get))
+        .route("/projects/{machine_name}/folios/crop", get(handlers_web::folios_crop_get))
+        .route("/projects/{machine_name}/metadata", get(handlers_web::project_metadata_get).post(handlers_web::project_metadata_post))
+        .route("/projects/{machine_name}/pages/thumbs/{filename}", get(handlers_web::serve_thumb))
+        .route("/projects/{machine_name}/pages/scans/{filename}", get(handlers_web::serve_scan))
+        .route("/projects/{machine_name}/ingestor", get(handlers_web::project_pages_get))
+        .route("/projects/{machine_name}/ingestor/append", get(handlers_web::ingest_images_get).post(handlers_web::ingest_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/ingestor/insert", get(handlers_web::ingest_images_get).post(handlers_web::ingest_images_post).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/ingestor/remove", get(handlers_web::remove_images_get).post(handlers_web::remove_images_post))
+        .route("/projects/{machine_name}/ingestor/rename", post(handlers_web::rename_pages_post))
         .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .nest("/api", api)
         .fallback(static_handler)
