@@ -301,6 +301,7 @@ pub async fn ingest_images_post(
             thumb_height: th,
             batch,
             import_order,
+            ..Page::default()
         });
     }
 

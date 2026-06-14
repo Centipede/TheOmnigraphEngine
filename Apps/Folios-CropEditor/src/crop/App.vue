@@ -35,7 +35,7 @@
             :thumbBaseUrl="thumbBaseUrl"
             :fraction="viewPercent / 100"
             :showOverlay="mode === 'crop'"
-            :crop="defaultCrop"
+            :crop="pageCrops.get(page.index) ?? page.crop_edges"
             :selected="page.index === currentPageIndex"
             @click="currentPageIndex = page.index"
         />
@@ -82,14 +82,22 @@
           <template v-if="tool === 'wideadjust'">
             <br>
             <sl-range
-                :label="`Width: ${wide_width}`"
+                :label="`Width: ${wide_width} pages`"
                 min="1" max="200" step="1" :value="wide_width"
                 @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"
             />
             <br>
+            <sl-input
+                label="Adjust (scan px)"
+                type="number"
+                min="1"
+                :value="wide_value"
+                @sl-input="wide_value = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
+            />
+            <br>
             <sl-button-group>
-              <sl-button>Apply</sl-button>
-              <sl-button>Unapply</sl-button>
+              <sl-button @click="applyWideAdjust(1)">Apply</sl-button>
+              <sl-button @click="applyWideAdjust(-1)">Unapply</sl-button>
             </sl-button-group>
           </template>
 
@@ -124,13 +132,15 @@ const tool = ref('singleadjust');
 const edge = ref('none');
 const adjust_step_small = ref(25);
 const adjust_step_large = ref(100);
-const wide_width = ref(100);
-const viewPercent = ref(25);
-const viewMode = ref<'windowed' | 'full'>('windowed');
-const pages = ref<Page[]>([]);
-const currentPageIndex = ref<number | null>(null);
+const wide_width        = ref(100);
+const wide_value        = ref(5);
+const viewPercent       = ref(25);
+const viewMode          = ref<'windowed' | 'full'>('windowed');
+const pages             = ref<Page[]>([]);
+const currentPageIndex  = ref<number | null>(null);
 
-const defaultCrop = reactive<CropEdges>({left: 0, top: 0, right: 0, bottom: 0});
+// Per-page crop state — populated from API, modified client-side until saved.
+const pageCrops = reactive(new Map<number, CropEdges>());
 const pageListRef = ref<HTMLElement | null>(null);
 
 // Keep the selected page visible in the sidebar when navigating by keyboard.
@@ -155,10 +165,28 @@ function navigatePage(delta: number) {
   currentPageIndex.value = next;
 }
 
-// ── Edge adjustment (Single Adjust tool) ────────────────────────────
+// ── Edge adjustment (Single Adjust — current page only) ─────────────
 
 function adjustEdge(which: keyof CropEdges, delta: number) {
-  defaultCrop[which] = Math.max(0, defaultCrop[which] + delta);
+  if (currentPageIndex.value === null) return;
+  const crop = pageCrops.get(currentPageIndex.value);
+  if (crop) crop[which] = Math.max(0, crop[which] + delta);
+}
+
+// ── Wide Adjust — apply delta to all pages within ±wide_width ────────
+
+function applyWideAdjust(sign: 1 | -1) {
+  if (currentPageIndex.value === null || edge.value === 'none') return;
+  const center  = currentPageIndex.value;
+  const radius  = wide_width.value;
+  const delta   = sign * wide_value.value;
+  const edgeKey = edge.value as keyof CropEdges;
+  for (const page of pages.value) {
+    if (Math.abs(page.index - center) <= radius) {
+      const crop = pageCrops.get(page.index);
+      if (crop) crop[edgeKey] = Math.max(0, crop[edgeKey] + delta);
+    }
+  }
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
@@ -272,6 +300,9 @@ onMounted(async () => {
     const res = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
     pages.value = data.pages;
+    for (const page of data.pages) {
+      pageCrops.set(page.index, { ...page.crop_edges });
+    }
     if (data.pages.length > 0) currentPageIndex.value = 0;
   } catch (e) {
     console.error('Failed to load pages:', e);
