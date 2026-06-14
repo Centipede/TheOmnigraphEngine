@@ -22,6 +22,8 @@
           :fraction="viewPercent / 100"
           :showOverlay="mode === 'crop'"
           :crop="defaultCrop"
+          :selected="page.index === currentPageIndex"
+          @click="currentPageIndex = page.index"
         />
       </div>
     </div>
@@ -81,35 +83,104 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import PageStrip from './PageStrip.vue';
 import type { Page, PageDb, CropEdges } from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode        = ref('none');
-const tool        = ref('singleadjust');
-const edge        = ref('none');
-const wide_width  = ref(100);
-const viewPercent = ref(25);
-const pages       = ref<Page[]>([]);
+const mode             = ref('none');
+const tool             = ref('singleadjust');
+const edge             = ref('none');
+const wide_width       = ref(100);
+const viewPercent      = ref(25);
+const viewMode         = ref<'windowed' | 'full'>('windowed');
+const pages            = ref<Page[]>([]);
+const currentPageIndex = ref<number | null>(null);
 
-// Default crop — 20 scan pixels on every edge as a visible starting point.
-// Will be replaced by per-page storage in a later issue.
 const defaultCrop = reactive<CropEdges>({ left: 20, top: 20, right: 20, bottom: 20 });
 
 const thumbBaseUrl = computed(
   () => `/projects/${props.machineName}/pages/thumbs/`
 );
 
+// ── Page navigation ─────────────────────────────────────────────────
+
+function navigatePage(delta: number) {
+  if (!pages.value.length) return;
+  const cur  = currentPageIndex.value ?? 0;
+  const next = Math.max(0, Math.min(pages.value.length - 1, cur + delta));
+  currentPageIndex.value = next;
+}
+
+// ── Edge adjustment (Single Adjust tool) ────────────────────────────
+
+function adjustEdge(which: keyof CropEdges, delta: number) {
+  defaultCrop[which] = Math.max(0, defaultCrop[which] + delta);
+}
+
+// ── Keyboard shortcuts ───────────────────────────────────────────────
+// Only active when not typing in a form element inside the tools panel.
+
+function onKeyDown(e: KeyboardEvent) {
+  if (mode.value !== 'crop') return;
+
+  const shift = e.shiftKey;
+  const alt   = e.altKey;
+
+  // ⇧⎇ combos — always active in crop mode
+  if (shift && alt) {
+    switch (e.key) {
+      case 'ArrowUp':    e.preventDefault(); edge.value = 'top';    return;
+      case 'ArrowDown':  e.preventDefault(); edge.value = 'bottom'; return;
+      case 'ArrowLeft':  e.preventDefault(); edge.value = 'left';   return;
+      case 'ArrowRight': e.preventDefault(); edge.value = 'right';  return;
+      case 'F': case 'f':
+        e.preventDefault();
+        viewMode.value = viewMode.value === 'full' ? 'windowed' : 'full';
+        return;
+    }
+  }
+
+  // Skip navigation/adjustment keys when focus is inside the tools panel
+  const target = e.target as HTMLElement;
+  if (target.closest?.('.crop-tools')) return;
+
+  // Page navigation: , / .  and  < / >  (Shift+,  Shift+.)
+  switch (e.key) {
+    case ',': e.preventDefault(); navigatePage(-1);  return;
+    case '.': e.preventDefault(); navigatePage(1);   return;
+    case '<': e.preventDefault(); navigatePage(-10); return;  // Shift+,
+    case '>': e.preventDefault(); navigatePage(10);  return;  // Shift+.
+  }
+
+  // Arrow key edge adjustment — Single Adjust tool only, no modifiers
+  if (tool.value !== 'singleadjust' || shift || alt) return;
+
+  if (edge.value === 'top'    && e.key === 'ArrowDown') { e.preventDefault(); adjustEdge('top',    1);  return; }
+  if (edge.value === 'top'    && e.key === 'ArrowUp')   { e.preventDefault(); adjustEdge('top',   -1);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown') { e.preventDefault(); adjustEdge('bottom', 1);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp')   { e.preventDefault(); adjustEdge('bottom',-1);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowRight'){ e.preventDefault(); adjustEdge('left',   1);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowLeft') { e.preventDefault(); adjustEdge('left',  -1);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowRight'){ e.preventDefault(); adjustEdge('right',  1);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowLeft') { e.preventDefault(); adjustEdge('right', -1);  return; }
+}
+
 onMounted(async () => {
+  document.addEventListener('keydown', onKeyDown);
   try {
     const res  = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
     pages.value = data.pages;
+    if (data.pages.length > 0) currentPageIndex.value = 0;
   } catch (e) {
     console.error('Failed to load pages:', e);
   }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeyDown);
 });
 </script>
 

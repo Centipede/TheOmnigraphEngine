@@ -1,5 +1,5 @@
 <template>
-  <div class="strip-container" :style="containerStyle">
+  <div class="strip-container" :class="{ 'strip-selected': selected }" :style="containerStyle">
     <img :src="src" class="strip-img" :style="imgStyle" :alt="label" :title="label" />
     <template v-if="showOverlay">
       <div class="ov-red"   :style="topRedStyle"    />
@@ -22,6 +22,7 @@ const props = defineProps<{
   fraction:    number;
   showOverlay: boolean;
   crop:        CropEdges;
+  selected?:   boolean;
 }>();
 
 const label = computed(() => props.page.name || props.page.scan);
@@ -139,6 +140,10 @@ const rightRedStyle = computed(() => ({
 }
 .strip-container:hover {
   border-color: var(--color-accent, #2563eb);
+}
+.strip-selected {
+  outline: 2px solid var(--color-accent, #2563eb);
+  outline-offset: 1px;
 }
 .strip-img {
   user-select: none;
