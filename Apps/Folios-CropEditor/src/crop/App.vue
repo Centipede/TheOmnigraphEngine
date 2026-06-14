@@ -12,39 +12,57 @@
     </div>
 
     <div class="crop-workarea">
-      <div class="sidebar-content">Crop editor — {{ projectName }}</div>
+      <div class="strip-grid">
+        <PageStrip
+          v-for="page in pages"
+          :key="page.index"
+          :page="page"
+          :edge="edge"
+          :thumbBaseUrl="thumbBaseUrl"
+          :fraction="VIEW_FRACTION"
+        />
+      </div>
     </div>
 
     <div class="crop-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
-        <sl-radio-group label="Mode" name="mode" :value="mode" @sl-change="mode = ($event.target as HTMLInputElement).value">
+        <sl-radio-group label="Mode" name="mode" :value="mode"
+          @sl-change="mode = ($event.target as HTMLInputElement).value">
           <sl-radio-button value="none">None</sl-radio-button>
           <sl-radio-button value="crop">Crop</sl-radio-button>
         </sl-radio-group>
 
-        <br>
+        <template v-if="mode === 'crop'">
+          <br>
 
-        <sl-radio-group label="Tool" name="tool" :value="tool" v-show="mode === 'crop'"  @sl-change="tool = ($event.target as HTMLInputElement).value">
-          <sl-radio-button value="singleadjust">Single Adjust</sl-radio-button>
-          <sl-radio-button value="wideadjust">Wide Adjust</sl-radio-button>
-        </sl-radio-group>
+          <sl-radio-group label="Tool" name="tool" :value="tool"
+            @sl-change="tool = ($event.target as HTMLInputElement).value">
+            <sl-radio-button value="singleadjust">Single Adjust</sl-radio-button>
+            <sl-radio-button value="wideadjust">Wide Adjust</sl-radio-button>
+          </sl-radio-group>
 
-        <br>
+          <template v-if="tool === 'wideadjust'">
+            <br>
+            <sl-range
+              :label="`Width: ${wide_width}`"
+              min="1" max="200" step="1" :value="wide_width"
+              @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"
+            />
+          </template>
 
-        <sl-range :label="`Width: ${wide_width}`" min="1" max="200" step="1" :value="wide_width" v-show="mode === 'crop' && tool === 'wideadjust'" @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"></sl-range>
+          <br>
 
-
-        <br>
-
-        <sl-radio-group label="Edge" name="edge" size="small" :value="edge" v-show="mode === 'crop'"  @sl-change="edge = ($event.target as HTMLInputElement).value">
-          <sl-radio-button value="none">None</sl-radio-button>
-          <sl-radio-button value="left">Left</sl-radio-button>
-          <sl-radio-button value="top">Top</sl-radio-button>
-          <sl-radio-button value="bottom">Bottom</sl-radio-button>
-          <sl-radio-button value="right">Right</sl-radio-button>
-        </sl-radio-group>
+          <sl-radio-group label="Edge" name="edge" size="small" :value="edge"
+            @sl-change="edge = ($event.target as HTMLInputElement).value">
+            <sl-radio-button value="none">None</sl-radio-button>
+            <sl-radio-button value="left">Left</sl-radio-button>
+            <sl-radio-button value="top">Top</sl-radio-button>
+            <sl-radio-button value="bottom">Bottom</sl-radio-button>
+            <sl-radio-button value="right">Right</sl-radio-button>
+          </sl-radio-group>
+        </template>
 
       </div>
     </div>
@@ -53,14 +71,34 @@
 </template>
 
 <script setup lang="ts">
-  import {ref} from "vue";
+import { ref, computed, onMounted } from 'vue';
+import PageStrip from './PageStrip.vue';
+import type { Page, PageDb } from './types';
 
-  defineProps<{ machineName: string; projectName: string }>();
-  const mode = ref('none')
-  const tool = ref('singleadjust')
-  const edge = ref('none')
-  const wide_width = ref(100)
+const props = defineProps<{ machineName: string; projectName: string }>();
 
+const mode       = ref('none');
+const tool       = ref('singleadjust');
+const edge       = ref('none');
+const wide_width = ref(100);
+const pages      = ref<Page[]>([]);
+
+// 25% of the thumbnail shown in strip mode
+const VIEW_FRACTION = 0.25;
+
+const thumbBaseUrl = computed(
+  () => `/projects/${props.machineName}/pages/thumbs/`
+);
+
+onMounted(async () => {
+  try {
+    const res  = await fetch(`/api/projects/${props.machineName}/pages`);
+    const data = (await res.json()) as PageDb;
+    pages.value = data.pages;
+  } catch (e) {
+    console.error('Failed to load pages:', e);
+  }
+});
 </script>
 
 <style>
@@ -80,10 +118,7 @@
   overflow-y: auto;
   min-height: 0;
 }
-
-.crop-area > div:last-child {
-  border-right: none;
-}
+.crop-area > div:last-child { border-right: none; }
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -109,6 +144,15 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.strip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  align-content: flex-start;
 }
 
 .crop-tools {
