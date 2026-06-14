@@ -5,14 +5,14 @@
       <div class="sidebar-lead">Pages ({{ pages.length }})</div>
       <ul class="page-nav-list" ref="pageListRef">
         <li
-          v-for="page in pages"
-          :key="page.index"
-          :data-page-idx="page.index"
-          :class="{
+            v-for="page in pages"
+            :key="page.index"
+            :data-page-idx="page.index"
+            :class="{
             'page-nav-selected': page.index === currentPageIndex,
             'page-nav-named':    !!page.name,
           }"
-          @click="currentPageIndex = page.index"
+            @click="currentPageIndex = page.index"
         >
           <span v-if="page.name">{{ page.name }}</span>
           <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
@@ -28,16 +28,16 @@
     <div class="crop-workarea">
       <div class="strip-grid">
         <PageStrip
-          v-for="page in pages"
-          :key="page.index"
-          :page="page"
-          :edge="edge"
-          :thumbBaseUrl="thumbBaseUrl"
-          :fraction="viewPercent / 100"
-          :showOverlay="mode === 'crop'"
-          :crop="defaultCrop"
-          :selected="page.index === currentPageIndex"
-          @click="currentPageIndex = page.index"
+            v-for="page in pages"
+            :key="page.index"
+            :page="page"
+            :edge="edge"
+            :thumbBaseUrl="thumbBaseUrl"
+            :fraction="viewPercent / 100"
+            :showOverlay="mode === 'crop'"
+            :crop="defaultCrop"
+            :selected="page.index === currentPageIndex"
+            @click="currentPageIndex = page.index"
         />
       </div>
     </div>
@@ -47,15 +47,15 @@
       <div class="sidebar-content">
 
         <sl-range
-          :label="`View: ${viewPercent}%`"
-          min="10" max="75" step="5" :value="viewPercent"
-          @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+            :label="`View: ${viewPercent}%`"
+            min="10" max="75" step="5" :value="viewPercent"
+            @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
         />
 
         <br>
 
         <sl-radio-group label="Mode" name="mode" :value="mode"
-          @sl-change="mode = ($event.target as HTMLInputElement).value">
+                        @sl-change="mode = ($event.target as HTMLInputElement).value">
           <sl-radio-button value="none">None</sl-radio-button>
           <sl-radio-button value="crop">Crop</sl-radio-button>
         </sl-radio-group>
@@ -64,24 +64,40 @@
           <br>
 
           <sl-radio-group label="Tool" name="tool" :value="tool"
-            @sl-change="tool = ($event.target as HTMLInputElement).value">
+                          @sl-change="tool = ($event.target as HTMLInputElement).value">
             <sl-radio-button value="singleadjust">Single Adjust</sl-radio-button>
             <sl-radio-button value="wideadjust">Wide Adjust</sl-radio-button>
           </sl-radio-group>
 
+          <template v-if="tool === 'singleadjust'">
+            <br>
+
+            <sl-input label="Step (small)" :value="adjust_step_small"
+                      @sl-input="adjust_step_small = parseInt(($event.target as HTMLInputElement).value)"></sl-input>
+            <sl-input label="Step (large)" :value="adjust_step_large"
+                      @sl-input="adjust_step_large = parseInt(($event.target as HTMLInputElement).value)"></sl-input>
+
+          </template>
+
           <template v-if="tool === 'wideadjust'">
             <br>
             <sl-range
-              :label="`Width: ${wide_width}`"
-              min="1" max="200" step="1" :value="wide_width"
-              @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"
+                :label="`Width: ${wide_width}`"
+                min="1" max="200" step="1" :value="wide_width"
+                @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"
             />
+            <br>
+            <sl-button-group>
+              <sl-button>Apply</sl-button>
+              <sl-button>Unapply</sl-button>
+            </sl-button-group>
           </template>
 
           <br>
+          <br>
 
           <sl-radio-group label="Edge" name="edge" size="small" :value="edge"
-            @sl-change="edge = ($event.target as HTMLInputElement).value">
+                          @sl-change="edge = ($event.target as HTMLInputElement).value">
             <sl-radio-button value="none">None</sl-radio-button>
             <sl-radio-button value="left">Left</sl-radio-button>
             <sl-radio-button value="top">Top</sl-radio-button>
@@ -97,42 +113,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import {ref, reactive, computed, watch, nextTick, onMounted, onUnmounted} from 'vue';
 import PageStrip from './PageStrip.vue';
-import type { Page, PageDb, CropEdges } from './types';
+import type {Page, PageDb, CropEdges} from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode             = ref('none');
-const tool             = ref('singleadjust');
-const edge             = ref('none');
-const wide_width       = ref(100);
-const viewPercent      = ref(25);
-const viewMode         = ref<'windowed' | 'full'>('windowed');
-const pages            = ref<Page[]>([]);
+const mode = ref('none');
+const tool = ref('singleadjust');
+const edge = ref('none');
+const adjust_step_small = ref(25);
+const adjust_step_large = ref(100);
+const wide_width = ref(100);
+const viewPercent = ref(25);
+const viewMode = ref<'windowed' | 'full'>('windowed');
+const pages = ref<Page[]>([]);
 const currentPageIndex = ref<number | null>(null);
 
-const defaultCrop  = reactive<CropEdges>({ left: 20, top: 20, right: 20, bottom: 20 });
-const pageListRef  = ref<HTMLElement | null>(null);
+const defaultCrop = reactive<CropEdges>({left: 0, top: 0, right: 0, bottom: 0});
+const pageListRef = ref<HTMLElement | null>(null);
 
 // Keep the selected page visible in the sidebar when navigating by keyboard.
 watch(currentPageIndex, async (idx) => {
   if (idx === null) return;
   await nextTick();
   pageListRef.value
-    ?.querySelector<HTMLElement>(`[data-page-idx="${idx}"]`)
-    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      ?.querySelector<HTMLElement>(`[data-page-idx="${idx}"]`)
+      ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
 });
 
 const thumbBaseUrl = computed(
-  () => `/projects/${props.machineName}/pages/thumbs/`
+    () => `/projects/${props.machineName}/pages/thumbs/`
 );
 
 // ── Page navigation ─────────────────────────────────────────────────
 
 function navigatePage(delta: number) {
   if (!pages.value.length) return;
-  const cur  = currentPageIndex.value ?? 0;
+  const cur = currentPageIndex.value ?? 0;
   const next = Math.max(0, Math.min(pages.value.length - 1, cur + delta));
   currentPageIndex.value = next;
 }
@@ -150,16 +168,29 @@ function onKeyDown(e: KeyboardEvent) {
   if (mode.value !== 'crop') return;
 
   const shift = e.shiftKey;
-  const alt   = e.altKey;
+  const alt = e.altKey;
 
   // ⇧⎇ combos — always active in crop mode
   if (shift && alt) {
     switch (e.key) {
-      case 'ArrowUp':    e.preventDefault(); edge.value = 'top';    return;
-      case 'ArrowDown':  e.preventDefault(); edge.value = 'bottom'; return;
-      case 'ArrowLeft':  e.preventDefault(); edge.value = 'left';   return;
-      case 'ArrowRight': e.preventDefault(); edge.value = 'right';  return;
-      case 'F': case 'f':
+      case 'ArrowUp':
+        e.preventDefault();
+        edge.value = 'top';
+        return;
+      case 'ArrowDown':
+        e.preventDefault();
+        edge.value = 'bottom';
+        return;
+      case 'ArrowLeft':
+        e.preventDefault();
+        edge.value = 'left';
+        return;
+      case 'ArrowRight':
+        e.preventDefault();
+        edge.value = 'right';
+        return;
+      case 'F':
+      case 'f':
         e.preventDefault();
         viewMode.value = viewMode.value === 'full' ? 'windowed' : 'full';
         return;
@@ -172,29 +203,73 @@ function onKeyDown(e: KeyboardEvent) {
 
   // Page navigation: , / .  and  < / >  (Shift+,  Shift+.)
   switch (e.key) {
-    case ',': e.preventDefault(); navigatePage(-1);  return;
-    case '.': e.preventDefault(); navigatePage(1);   return;
-    case '<': e.preventDefault(); navigatePage(-10); return;  // Shift+,
-    case '>': e.preventDefault(); navigatePage(10);  return;  // Shift+.
+    case ',':
+      e.preventDefault();
+      navigatePage(-1);
+      return;
+    case '.':
+      e.preventDefault();
+      navigatePage(1);
+      return;
+    case '<':
+      e.preventDefault();
+      navigatePage(-10);
+      return;  // Shift+,
+    case '>':
+      e.preventDefault();
+      navigatePage(10);
+      return;  // Shift+.
   }
 
   // Arrow key edge adjustment — Single Adjust tool only, no modifiers
   if (tool.value !== 'singleadjust' || shift || alt) return;
 
-  if (edge.value === 'top'    && e.key === 'ArrowDown') { e.preventDefault(); adjustEdge('top',    1);  return; }
-  if (edge.value === 'top'    && e.key === 'ArrowUp')   { e.preventDefault(); adjustEdge('top',   -1);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowDown') { e.preventDefault(); adjustEdge('bottom', 1);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowUp')   { e.preventDefault(); adjustEdge('bottom',-1);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowRight'){ e.preventDefault(); adjustEdge('left',   1);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowLeft') { e.preventDefault(); adjustEdge('left',  -1);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowRight'){ e.preventDefault(); adjustEdge('right',  1);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowLeft') { e.preventDefault(); adjustEdge('right', -1);  return; }
+  if (edge.value === 'top' && e.key === 'ArrowDown') {
+    e.preventDefault();
+    adjustEdge('top', 1);
+    return;
+  }
+  if (edge.value === 'top' && e.key === 'ArrowUp') {
+    e.preventDefault();
+    adjustEdge('top', -1);
+    return;
+  }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown') {
+    e.preventDefault();
+    adjustEdge('bottom', 1);
+    return;
+  }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp') {
+    e.preventDefault();
+    adjustEdge('bottom', -1);
+    return;
+  }
+  if (edge.value === 'left' && e.key === 'ArrowRight') {
+    e.preventDefault();
+    adjustEdge('left', 1);
+    return;
+  }
+  if (edge.value === 'left' && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    adjustEdge('left', -1);
+    return;
+  }
+  if (edge.value === 'right' && e.key === 'ArrowRight') {
+    e.preventDefault();
+    adjustEdge('right', 1);
+    return;
+  }
+  if (edge.value === 'right' && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    adjustEdge('right', -1);
+    return;
+  }
 }
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
-    const res  = await fetch(`/api/projects/${props.machineName}/pages`);
+    const res = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
     pages.value = data.pages;
     if (data.pages.length > 0) currentPageIndex.value = 0;
@@ -225,7 +300,10 @@ onUnmounted(() => {
   overflow-y: auto;
   min-height: 0;
 }
-.crop-area > div:last-child { border-right: none; }
+
+.crop-area > div:last-child {
+  border-right: none;
+}
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -262,7 +340,9 @@ onUnmounted(() => {
   align-content: flex-start;
 }
 
-.crop-tools { padding: 0; }
+.crop-tools {
+  padding: 0;
+}
 
 .page-nav-list {
   list-style: none;
@@ -270,6 +350,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 0.75rem;
 }
+
 .page-nav-list li {
   padding: 0.25rem 0.5rem;
   cursor: pointer;
@@ -280,17 +361,21 @@ onUnmounted(() => {
   border-left: 2px solid transparent;
   user-select: none;
 }
+
 .page-nav-list li:hover {
   background: var(--color-bg-muted, #f1f3f5);
 }
+
 .page-nav-named {
   color: var(--color-text, #212529);
 }
+
 .page-nav-selected {
   background: var(--color-bg-selected, #8397aa) !important;
   color: var(--color-text, #212529) !important;
   border-left-color: var(--color-accent, #2563eb) !important;
 }
+
 .page-nav-unnamed {
   color: var(--color-text-dimmed, #a2acb6);
   font-style: italic;

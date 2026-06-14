@@ -19,6 +19,18 @@ pub struct Project {
     pub published: Option<time::Date>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
+pub struct CropEdges {
+    /// Scan pixels from left edge.
+    pub left: u32,
+    /// Scan pixels from top edge.
+    pub top: u32,
+    /// Scan pixels from right edge.
+    pub right: u32,
+    /// Scan pixels from bottom edge.
+    pub bottom: u32,
+}
+
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Page {
     pub index: usize,
@@ -34,6 +46,8 @@ pub struct Page {
     pub batch: u32,
     #[serde(default)]
     pub import_order: u32,
+    #[serde(default)]
+    pub crop_edges: CropEdges,
 }
 
 #[derive(Serialize, Deserialize, Default)]
