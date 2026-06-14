@@ -2,8 +2,22 @@
   <div class="crop-area">
 
     <div class="crop-sidebar-pages">
-      <div class="sidebar-lead">Pages</div>
-      <div class="sidebar-content">Page list</div>
+      <div class="sidebar-lead">Pages ({{ pages.length }})</div>
+      <ul class="page-nav-list" ref="pageListRef">
+        <li
+          v-for="page in pages"
+          :key="page.index"
+          :data-page-idx="page.index"
+          :class="{
+            'page-nav-selected': page.index === currentPageIndex,
+            'page-nav-named':    !!page.name,
+          }"
+          @click="currentPageIndex = page.index"
+        >
+          <span v-if="page.name">{{ page.name }}</span>
+          <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
+        </li>
+      </ul>
     </div>
 
     <div class="crop-sidebar-sections">
@@ -83,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import PageStrip from './PageStrip.vue';
 import type { Page, PageDb, CropEdges } from './types';
 
@@ -98,7 +112,17 @@ const viewMode         = ref<'windowed' | 'full'>('windowed');
 const pages            = ref<Page[]>([]);
 const currentPageIndex = ref<number | null>(null);
 
-const defaultCrop = reactive<CropEdges>({ left: 20, top: 20, right: 20, bottom: 20 });
+const defaultCrop  = reactive<CropEdges>({ left: 20, top: 20, right: 20, bottom: 20 });
+const pageListRef  = ref<HTMLElement | null>(null);
+
+// Keep the selected page visible in the sidebar when navigating by keyboard.
+watch(currentPageIndex, async (idx) => {
+  if (idx === null) return;
+  await nextTick();
+  pageListRef.value
+    ?.querySelector<HTMLElement>(`[data-page-idx="${idx}"]`)
+    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+});
 
 const thumbBaseUrl = computed(
   () => `/projects/${props.machineName}/pages/thumbs/`
@@ -239,4 +263,36 @@ onUnmounted(() => {
 }
 
 .crop-tools { padding: 0; }
+
+.page-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.75rem;
+}
+.page-nav-list li {
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-muted, #6c757d);
+  border-left: 2px solid transparent;
+  user-select: none;
+}
+.page-nav-list li:hover {
+  background: var(--color-bg-muted, #f1f3f5);
+}
+.page-nav-named {
+  color: var(--color-text, #212529);
+}
+.page-nav-selected {
+  background: var(--color-bg-selected, #8397aa) !important;
+  color: var(--color-text, #212529) !important;
+  border-left-color: var(--color-accent, #2563eb) !important;
+}
+.page-nav-unnamed {
+  color: var(--color-text-dimmed, #a2acb6);
+  font-style: italic;
+}
 </style>
