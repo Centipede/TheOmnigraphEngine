@@ -155,9 +155,9 @@ const pages             = ref<Page[]>([]);
 const currentPageIndex  = ref<number | null>(null);
 
 // Per-page crop state — populated from API, modified client-side until saved.
-const pageCrops    = reactive(new Map<number, CropEdges>());
-// Snapshot of server state — used for change detection and abandon.
-const originalCrops = new Map<number, CropEdges>();
+const pageCrops     = reactive(new Map<number, CropEdges>());
+// Snapshot of server state — reactive so hasChanges recomputes when it's updated.
+const originalCrops = reactive(new Map<number, CropEdges>());
 let   storedNextBatch = 0;
 
 const pageListRef = ref<HTMLElement | null>(null);

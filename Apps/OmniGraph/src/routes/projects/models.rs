@@ -36,11 +36,15 @@ pub struct Page {
     pub index: usize,
     pub name: String,
     pub scan: String,
+    #[serde(default)]
     pub scan_width: u32,
+    #[serde(default)]
     pub scan_height: u32,
     #[serde(default)]
     pub thumb: String,
+    #[serde(default)]
     pub thumb_width: u32,
+    #[serde(default)]
     pub thumb_height: u32,
     #[serde(default)]
     pub batch: u32,
