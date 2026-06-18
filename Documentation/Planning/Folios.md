@@ -1,8 +1,12 @@
 # Folios Screen
 
-**Status June 9th 2026: Not implemented**
+**Status June 18th 2026: Partially implemented**
 
 ## Functionality
+
+### OCR:
+
+For now, OCR is done by Tesseract. 2026-06-18: Further info coming.
 
 ### Cropping:
 
@@ -41,41 +45,64 @@ Either cancel the session or accept the changes made to affected pages to write 
 When entering Crop mode, the screen changes because the most important aspect of cropping is being able to quickly detect
 whether you have come too close to an edge.
 
-There are two view modes: full, showing all pages, and windowed, showing one row or column of pages that fit into a
-horizontal or vertical view. In both cases, the view focuses on the edge being edited.
+~~There are two view modes: full, showing all pages, and windowed, showing one row or column of pages that fit into a
+horizontal or vertical view. In both cases, the view focuses on the edge being edited.~~
+EDIT: We are happy with a single view mode showing all pages in a grid.
 
 #### Tools
 
-**Wide adjust tool** — This tool adjusts the edge of many pages at once.
+Crop-region editing has two tools:
 
-If the range is ♾️, all pages are affected by the same amount.
+- **Adjust tool**
+- **Assign tool**
 
-If the range is a number, the change is applied from the currently selected page `N` and extends `range` pages backward and
-forward.
+Both tools operate on the currently selected set of pages, filtered by the active even/odd page filter if one is enabled.
 
-The change tapers off according to the desired influence curve: none, linear, or Bézier.
+##### Adjust tool
 
-**Single adjust tool** - This tool is meant for very quickly  
+The Adjust tool is for nudging edges of the selected pages. It is used for gradual correction across single or ranges of pages.
+
+The magnet controls whether an adjustment is applied evenly or as a weighted effect across the selection.
+
+When the magnet is off, the adjustment is applied uniformly to the affected pages.
+
+When the magnet is on, the adjustment follows a selected weighting curve. This makes it possible to express gradual changes,
+such as drift through a scan run, without having to adjust each page individually.
+
+The magnet controls include:
+
+- **Taper profile** — the shape of the weighting curve. 
+
+The tool is intended for correcting drift, skewed batches, and gradual scanning-position changes.
+
+##### Assign tool
+
+The Assign tool sets crop-edge values directly.
+Unlike the Adjust tool, it does not add to the existing values. It overwrites them.
+
+This tool is intended for quick fixed-value resets, batch normalization, and cases where a group of pages should share
+exactly the same crop boundaries.
+Good for a rough ballpark starting point.
 
 #### Keyboard shortcuts
 
-| Shortcut | Function                          |
-|----------|-----------------------------------|
-|          | CROP MODE                         |
-|          |                                   |
-|          | ALL TOOLS:                        |
-| ⇧⎇F      | Toggle full / windowed mode       |
-| ⇧⎇↑      | Top edge edited                   |
-| ⇧⎇↓      | Bottom edge edited                |
-| ⇧⎇←      | Left edge edited                  |
-| ⇧⎇→      | Right edge edited                 |
-|          |                                   |
-| ,        | Previous page                     |
-| .        | Next page                         |
-| ⇧,       | 10 pages back                     |
-| ⇧.       | 10 pages forward                  |
-|          |                                   |
-|          | SINGLE ADJUST TOOL:               |
+| Shortcut | Function                           |
+|----------|------------------------------------|
+| ,        | Previous page                      |
+| .        | Next page                          |
+| ⎇ ,     | 10 pages back                      |
+| ⎇ .     | 10 pages forward                   |
+| ⇧        | Moves selected range endpoint      |
+|          |                                    |
+|          | CROP MODE                          |
+|          |                                    |
+|          | ALL TOOLS:                         |
+| ⇧⎇↑      | Top edge edited                    |
+| ⇧⎇↓      | Bottom edge edited                 |
+| ⇧⎇←      | Left edge edited                   |
+| ⇧⎇→      | Right edge edited                  |
+|          |                                    |
+|          | SINGLE ADJUST TOOL:                |
 | ↑,↓      | Adjust top/bottom edge (if edited) |
 | ←,→       | Adjust left/right edge (if edited) |
 

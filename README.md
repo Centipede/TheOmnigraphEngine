@@ -1,5 +1,8 @@
 # The OmniGraph Engine
 
+**Status June 18th 2026: Not ready for use yet! WIP**
+
+
 An automatic system for the ingestion, transcription, and indexing of printed works.
 
 This is the sister project of the actual study
@@ -23,7 +26,7 @@ OCR scanning books is a mixed blessing. For personal studies, I scan many books,
 There is no doubt that, in the not-too-distant future, AI will solve most of these problems and OCR scanning will work
 out of the box.
 
-Today, that is not the case—and I cannot wait.
+Today that is not the case, and I cannot wait.
 
 As of April 2026:
 
@@ -60,12 +63,12 @@ learned and migrating the useful components from the experimental project.
 ## The Names
 
 No way around it. ChatGPT and I entertained each other with an enthusiastic joint venture of steampunk, faux victorian
-name fun.
+naming fun.
 
 ## Planning
 
 As I already have a test project working, I will take an approach that is unusual in the public sphere:
-I will write **planning documents** that aims at summing up all the lessons I have learned.
+I will write **planning documents** that aim at summing up all the lessons I have learned.
 
 [OmniGraph](Documentation/Planning/OmniGraph.md)
 

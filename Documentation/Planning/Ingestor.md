@@ -1,6 +1,8 @@
 # Ingestor Screen
 
-**Status June 9th 2026: Partially implemented**
+**Status June 18th 2026: Partially implemented**
+
+**Missing: Import from PDF**
 
 Once an empty book or document has been created, raw scans need to be loaded into the project.
 
@@ -38,12 +40,13 @@ If importing pages with names such as `scan001.jpg`, `scan002.jpg`, etc., page-r
 
 #### Keyboard shortcuts
 
-| Shortcut | Function         |
-|----------|------------------|
-| ,        | Previous page    |
-| .        | Next page        |
-| ⇧,       | 10 pages back    |
-| ⇧.       | 10 pages forward |
+| Shortcut | Function                      |
+|---------|-------------------------------|
+| ,       | Previous page                 |
+| .       | Next page                     |
+| ⎇ ,     | 10 pages back                 |
+| ⎇ .     | 10 pages forward              |
+| ⇧        | Moves selected range endpoint |
 
 ## Preliminary lessons from the test project
 
