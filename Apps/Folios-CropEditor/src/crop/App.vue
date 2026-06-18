@@ -46,19 +46,19 @@
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
+        <sl-button-group>
+          <sl-button :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
+          <sl-button disabled variant="primary">Crop</sl-button>
+        </sl-button-group>
+
         <sl-range
+            v-if="mode === 'crop'"
             :label="`View: ${viewPercent}%`"
             min="10" max="75" step="5" :value="viewPercent"
             @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
         />
 
         <br>
-
-        <sl-radio-group label="Mode" name="mode" :value="mode"
-                        @sl-change="mode = ($event.target as HTMLInputElement).value">
-          <sl-radio-button value="none">None</sl-radio-button>
-          <sl-radio-button value="crop">Crop</sl-radio-button>
-        </sl-radio-group>
 
         <template v-if="mode === 'crop'">
           <br>
@@ -142,7 +142,7 @@ import type {Page, PageDb, CropEdges} from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode = ref('none');
+const mode = ref('crop');
 const tool = ref('singleadjust');
 const edge = ref('none');
 const adjust_step_small = ref(25);
@@ -358,7 +358,7 @@ onUnmounted(() => {
 .crop-area {
   width: 100%;
   display: grid;
-  grid-template-columns: 10rem 18rem 1fr 20rem;
+  grid-template-columns: 4rem 18rem 1fr 20rem;
   height: calc(100vh - var(--header-height, 0px));
   overflow: hidden;
   font-family: var(--sl-font-sans, sans-serif);
@@ -379,6 +379,7 @@ onUnmounted(() => {
 .sidebar-lead {
   font-size: 0.75rem;
   font-weight: 600;
+  min-height: 2rem;
   color: var(--color-text-muted, #6c757d);
   text-transform: uppercase;
   letter-spacing: 0.05em;

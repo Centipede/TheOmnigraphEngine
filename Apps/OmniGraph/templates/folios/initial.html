@@ -98,7 +98,12 @@
   <!-- Tools -->
   <div class="folios-tools">
     <div class="sidebar-lead">Tools</div>
-    <sl-button variant="default" disabled>Crop</sl-button>
+    <div class="sidebar-content">
+    <sl-button-group>
+      <sl-button variant="primary">OCR</sl-button>
+      <sl-button href="/projects/{{ project.machine_name }}/folios/crop" variant="default">Crop</sl-button>
+    </sl-button-group>
+    </div>
   </div>
 
 </div>

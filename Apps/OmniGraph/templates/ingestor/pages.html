@@ -276,8 +276,8 @@
      or perhaps while the page is loaded if triggering sort and reindex operations on the server. -->
 <div class="pagearea"
      x-data="pagesView()"
-     @keydown.window.arrow-left="selectAdjacent(-1, $event)"
-     @keydown.window.arrow-right="selectAdjacent(1, $event)"
+     @keydown.window.arrow-up="selectAdjacent(-1, $event)"
+     @keydown.window.arrow-down="selectAdjacent(1, $event)"
 >
 
   <div class="sidebar">
