@@ -3,6 +3,11 @@
 
     <div class="crop-sidebar-pages">
       <div class="sidebar-lead">Pages ({{ pages.length }})</div>
+      <sl-button-group>
+        <sl-button size="small" title="Back (,)" @click="navigatePage(-1)">←</sl-button>
+        <sl-button size="small" title="Select all" @click="">All</sl-button>
+        <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
+      </sl-button-group>
       <ul class="page-nav-list" ref="pageListRef">
         <li
             v-for="page in pages"
@@ -20,10 +25,10 @@
       </ul>
     </div>
 
-    <div class="crop-sidebar-sections">
-      <div class="sidebar-lead">Sections</div>
-      <div class="sidebar-content">Section list</div>
-    </div>
+<!--    <div class="crop-sidebar-sections">-->
+<!--      <div class="sidebar-lead">Sections</div>-->
+<!--      <div class="sidebar-content">Section list</div>-->
+<!--    </div>-->
 
     <div class="crop-workarea">
       <div class="strip-grid">
@@ -47,7 +52,7 @@
       <div class="sidebar-content">
 
         <sl-button-group>
-          <sl-button :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
+          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
           <sl-button disabled variant="primary">Crop</sl-button>
         </sl-button-group>
 
@@ -358,7 +363,7 @@ onUnmounted(() => {
 .crop-area {
   width: 100%;
   display: grid;
-  grid-template-columns: 4rem 18rem 1fr 20rem;
+  grid-template-columns: 8rem 1fr 20rem;
   height: calc(100vh - var(--header-height, 0px));
   overflow: hidden;
   font-family: var(--sl-font-sans, sans-serif);
@@ -379,7 +384,7 @@ onUnmounted(() => {
 .sidebar-lead {
   font-size: 0.75rem;
   font-weight: 600;
-  min-height: 2rem;
+  min-height: 1.2rem;
   color: var(--color-text-muted, #6c757d);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -458,5 +463,11 @@ onUnmounted(() => {
   gap: 0.5rem;
   padding-top: 0.25rem;
   border-top: 1px solid var(--color-border, #dee2e6);
+}
+
+.page-nav-buttons sl-button::part(base) {
+  padding-inline: 0.25rem;
+  min-height: 1.25rem;
+  font-size: 0.7rem;
 }
 </style>

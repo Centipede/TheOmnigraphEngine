@@ -2,52 +2,73 @@
 
 {% block title %}{{ project.name }} — Folios — OmniGraph{% endblock %}
 
-{% block head %}{{ super() }}{% endblock %}
+{% block head %}
+{{ super() }}
+<script>
+  const rawPages = {{ pagedb.pages | tojson }};
+  const projectMachineName = {{ project.machine_name | tojson }};
+
+  function foliosOcrView() {
+    return {
+      pages: rawPages.map(page => ({
+        ...page,
+        scanUrl: `/projects/${projectMachineName}/pages/scans/${page.scan}`,
+        thumbUrl: `/projects/${projectMachineName}/pages/thumbs/${page.thumb}`,
+        thumbW: page.thumb_width,
+        thumbH: page.thumb_height,
+      })),
+      selectedIndices: [],
+      rangeAnchor: null,
+      zoomSrc: '',
+
+      selectSingle(idx) {
+        this.selectedIndices = [idx];
+        this.rangeAnchor = idx;
+        this.zoomSrc = this.pages[idx]?.scanUrl ?? '';
+      },
+
+      selectRange(idx) {
+        if (this.rangeAnchor === null) {
+          this.selectSingle(idx);
+          return;
+        }
+
+        const lo = Math.min(this.rangeAnchor, idx);
+        const hi = Math.max(this.rangeAnchor, idx);
+        this.selectedIndices = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+        this.zoomSrc = this.pages[idx]?.scanUrl ?? '';
+      },
+
+      handleClick(idx, event) {
+        if (event.metaKey || event.ctrlKey) {
+          this.selectRange(idx);
+        } else {
+          this.selectSingle(idx);
+        }
+      },
+
+      selectionLabel() {
+        const n = this.selectedIndices.length;
+        if (n === 0) return '';
+
+        if (n === 1) {
+          const p = this.pages[this.selectedIndices[0]];
+          return p ? (p.name || p.scan) : '';
+        }
+
+        const sorted = [...this.selectedIndices].sort((a, b) => a - b);
+        const first = this.pages[sorted[0]];
+        const last = this.pages[sorted[sorted.length - 1]];
+        return `${first?.name || first?.scan || ''} – ${last?.name || last?.scan || ''}`;
+      },
+    };
+  }
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="folios-area"
-     x-data="{
-       pages: [
-         {% for page in pagedb.pages %}
-         { index: {{ page.index }}, name: '{{ page.name }}', scan: '{{ page.scan }}',
-           scanUrl: '/projects/{{ project.machine_name }}/pages/scans/{{ page.scan }}',
-           thumbUrl: '/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}',
-           thumbW: {{ page.thumb_width }}, thumbH: {{ page.thumb_height }} },
-         {% endfor %}
-       ],
-       selectedIndices: [],
-       rangeAnchor: null,
-       zoomSrc: '',
-
-       selectSingle(idx) {
-         this.selectedIndices = [idx];
-         this.rangeAnchor = idx;
-         this.zoomSrc = this.pages[idx]?.scanUrl ?? '';
-       },
-
-       selectRange(idx) {
-         if (this.rangeAnchor === null) { this.selectSingle(idx); return; }
-         const lo = Math.min(this.rangeAnchor, idx), hi = Math.max(this.rangeAnchor, idx);
-         this.selectedIndices = Array.from({length: hi - lo + 1}, (_, i) => lo + i);
-         this.zoomSrc = this.pages[idx]?.scanUrl ?? '';
-       },
-
-       handleClick(idx, event) {
-         (event.metaKey || event.ctrlKey) ? this.selectRange(idx) : this.selectSingle(idx);
-       },
-
-       selectionLabel() {
-         const n = this.selectedIndices.length;
-         if (n === 0) return '';
-         if (n === 1) {
-           const p = this.pages[this.selectedIndices[0]];
-           return p ? (p.name || p.scan) : '';
-         }
-         const s = [...this.selectedIndices].sort((a,b)=>a-b);
-         const f = this.pages[s[0]], l = this.pages[s[s.length-1]];
-         return (f?.name || f?.scan || '') + ' – ' + (l?.name || l?.scan || '');
-       }
-     }">
+     x-data="foliosOcrView()">
 
   <!-- Sidebar 1: page names -->
   <div>
