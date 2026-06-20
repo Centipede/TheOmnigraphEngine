@@ -5,20 +5,20 @@
     <div class="crop-sidebar-pages">
       <div class="sidebar-lead">Pages ({{ pages.length }})</div>
       <sl-button-group>
-        <sl-button size="small" title="Back (,)"    @click="navigatePage(-1)">←</sl-button>
+        <sl-button size="small" title="Back (,)" @click="navigatePage(-1)">←</sl-button>
         <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
       </sl-button-group>
       <ul class="page-nav-list" :ref="setPageListRef">
         <li
-          v-for="page in pages"
-          :key="page.index"
-          :data-page-idx="page.index"
-          :class="{
+            v-for="page in pages"
+            :key="page.index"
+            :data-page-idx="page.index"
+            :class="{
             'page-nav-selected': selectedPageSet.has(page.index),
             'page-nav-focused':  page.index === currentPageIndex,
             'page-nav-named':    !!page.name,
           }"
-          @click="handleListClick(page.index, $event)"
+            @click="handleListClick(page.index, $event)"
         >
           <span v-if="page.name">{{ page.name }}</span>
           <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
@@ -30,17 +30,17 @@
     <div class="crop-workarea" :ref="setStripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
-          v-for="page in pages"
-          :key="page.index"
-          :data-page-idx="page.index"
-          :page="page"
-          :edge="edge"
-          :thumbBaseUrl="thumbBaseUrl"
-          :fraction="viewPercent / 100"
-          :showOverlay="mode === 'crop'"
-          :crop="pageCrops.get(page.index) ?? page.crop_edges"
-          :selected="selectedPageSet.has(page.index)"
-          @click="handleStripClick(page.index, $event)"
+            v-for="page in pages"
+            :key="page.index"
+            :data-page-idx="page.index"
+            :page="page"
+            :edge="edge"
+            :thumbBaseUrl="thumbBaseUrl"
+            :fraction="viewPercent / 100"
+            :showOverlay="mode === 'crop'"
+            :crop="pageCrops.get(page.index) ?? page.crop_edges"
+            :selected="selectedPageSet.has(page.index)"
+            @click="handleStripClick(page.index, $event)"
         />
       </div>
     </div>
@@ -52,7 +52,8 @@
 
         <!-- Mode selector -->
         <sl-button-group>
-          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`" variant="default">Inspect</sl-button>
+          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`" variant="default">Inspect
+          </sl-button>
           <sl-button disabled variant="primary">Crop</sl-button>
         </sl-button-group>
 
@@ -81,108 +82,172 @@
 
           <br>
 
-          <!-- Adjust tool -->
-          <sl-input label="Step small" type="number" min="1" :value="adjust_step_small"
-            @sl-input="adjust_step_small = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
-          />
-          <sl-input label="Step large" type="number" min="1" :value="adjust_step_large"
-            @sl-input="adjust_step_large = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
-          />
-          <div class="accumulator-display" v-if="accumulator !== 0">
-            Δ {{ accumulator > 0 ? '+' : '' }}{{ accumulator }} px
-          </div>
-
-          <br>
-
-          <!-- Magnet -->
-          <sl-switch
-            :checked="magnetEnabled"
-            @sl-change="magnetEnabled = ($event.target as HTMLInputElement).checked; applyMagnet()"
-          >Magnet</sl-switch>
-          <template v-if="magnetEnabled">
-            <br>
-            <sl-radio-group label="Profile" name="profile" :value="magnetProfile"
-              @sl-change="magnetProfile = ($event.target as HTMLInputElement).value as MagnetProfile; applyMagnet()">
-              <sl-radio-button value="bell"     title="0 → peak → 0">Bell</sl-radio-button>
-              <sl-radio-button value="rampup"   title="0 → peak">Ramp ↑</sl-radio-button>
-              <sl-radio-button value="rampdown" title="peak → 0">Ramp ↓</sl-radio-button>
-            </sl-radio-group>
-          </template>
-
-          <br>
-
-          <!-- Edge selector -->
-          <sl-radio-group label="Edge" name="edge" size="small" :value="edge"
-            @sl-change="onEdgeChange(($event.target as HTMLInputElement).value)">
-            <sl-radio-button value="none">None</sl-radio-button>
-            <sl-radio-button value="left">Left</sl-radio-button>
-            <sl-radio-button value="top">Top</sl-radio-button>
-            <sl-radio-button value="bottom">Bottom</sl-radio-button>
-            <sl-radio-button value="right">Right</sl-radio-button>
+          <!-- Tools -->
+          <sl-radio-group label="Tool" name="tool" :value="tool"
+                          @sl-change="tool = ($event.target as HTMLInputElement).value">
+            <sl-radio-button value="adjust">Adjust</sl-radio-button>
+            <sl-radio-button value="assign">Assign</sl-radio-button>
           </sl-radio-group>
 
-          <template v-if="edge !== 'none'">
-            <br>
-            <sl-range
-              :label="`Edge percent: ${viewPercent}%`"
-              min="10" max="75" step="5" :value="viewPercent"
-              @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+          <br>
+
+          <template v-if="tool === 'adjust'">
+            <!-- Adjust tool -->
+            <sl-input label="Step small" type="number" min="1" :value="adjust_step_small"
+                      @sl-input="adjust_step_small = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
             />
+            <sl-input label="Step large" type="number" min="1" :value="adjust_step_large"
+                      @sl-input="adjust_step_large = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
+            />
+            <div class="accumulator-display" v-if="accumulator !== 0">
+              Δ {{ accumulator > 0 ? '+' : '' }}{{ accumulator }} px
+            </div>
+
+            <br>
+
+            <!-- Magnet -->
+            <sl-switch
+                :checked="magnetEnabled"
+                @sl-change="magnetEnabled = ($event.target as HTMLInputElement).checked; applyMagnet()"
+            >Magnet
+            </sl-switch>
+            <template v-if="magnetEnabled">
+              <br>
+              <sl-radio-group label="Profile" name="profile" :value="magnetProfile"
+                              @sl-change="magnetProfile = ($event.target as HTMLInputElement).value as MagnetProfile; applyMagnet()">
+                <sl-radio-button value="bell" title="0 → peak → 0">Bell</sl-radio-button>
+                <sl-radio-button value="rampup" title="0 → peak">Ramp ↑</sl-radio-button>
+                <sl-radio-button value="rampdown" title="peak → 0">Ramp ↓</sl-radio-button>
+              </sl-radio-group>
+            </template>
+
+            <br>
+
+            <!-- Edge selector -->
+            <sl-radio-group label="Edge" name="edge" size="small" :value="edge"
+                            @sl-change="onEdgeChange(($event.target as HTMLInputElement).value)">
+              <sl-radio-button value="none">None</sl-radio-button>
+              <sl-radio-button value="left">Left</sl-radio-button>
+              <sl-radio-button value="top">Top</sl-radio-button>
+              <sl-radio-button value="bottom">Bottom</sl-radio-button>
+              <sl-radio-button value="right">Right</sl-radio-button>
+            </sl-radio-group>
+
+            <template v-if="edge !== 'none'">
+              <br>
+              <sl-range
+                  :label="`Edge percent: ${viewPercent}%`"
+                  min="10" max="75" step="5" :value="viewPercent"
+                  @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+              />
+            </template>
+
+            <br><br>
           </template>
 
-          <br><br>
+          <template v-if="tool === 'assign'">
+            <div class="diamond-inputs">
+              <sl-input class="diamond-input top" size="small" pill type="number" :value="assignValues.top ?? ''"
+                        @sl-input="assignValues.top = parseOptionalNumber(($event.target as HTMLInputElement).value)"></sl-input>
+              <sl-input class="diamond-input left" size="small" pill type="number" :value="assignValues.left ?? ''"
+                        @sl-input="assignValues.left = parseOptionalNumber(($event.target as HTMLInputElement).value)"></sl-input>
+              <sl-input class="diamond-input right" size="small" pill type="number" :value="assignValues.right ?? ''"
+                        @sl-input="assignValues.right = parseOptionalNumber(($event.target as HTMLInputElement).value)"></sl-input>
+              <sl-input class="diamond-input bottom" size="small" pill type="number" :value="assignValues.bottom ?? ''"
+                        @sl-input="assignValues.bottom = parseOptionalNumber(($event.target as HTMLInputElement).value)"></sl-input>
+            </div>
+
+            <sl-button-group>
+              <sl-button variant="default" @click="assignBySetting(assignValues)">Set</sl-button>
+              <sl-button variant="default" @click="assignByAdding(assignValues)">Add</sl-button>
+              <sl-button variant="default" @click="assignBySubtracting(assignValues)">Sub</sl-button>
+            </sl-button-group>
+
+            <br>
+
+            <sl-button-group>
+              <sl-button variant="default" @click="assignReset">Reset</sl-button>
+              <sl-button variant="default" @click="assignAllEdges(100)">+100</sl-button>
+              <sl-button variant="default" @click="assignAllEdges(-100)">−100</sl-button>
+            </sl-button-group>
+          </template>
 
           <!-- Session buttons -->
-          <div class="session-buttons">
-            <sl-button variant="danger"  :disabled="!hasChanges" @click="abandonCrop">Abandon</sl-button>
+          <sl-button-group>
+            <sl-button variant="danger" :disabled="!hasChanges" @click="abandonCrop">Abandon</sl-button>
             <sl-button variant="primary" :disabled="!hasChanges" @click="commitCrops">Commit</sl-button>
-          </div>
+          </sl-button-group>
 
         </template>
+
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue';
-import type { VNodeRef } from 'vue';
+import {ref, reactive, computed, nextTick, onMounted, onUnmounted} from 'vue';
+import type {VNodeRef} from 'vue';
 import PageStrip from './PageStrip.vue';
-import type { Page, PageDb, CropEdges } from './types';
+import type {Page, PageDb, CropEdges} from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
-const mode          = ref('crop');
-const edge          = ref('none');
-const viewPercent   = ref(25);
-const viewMode      = ref<'windowed' | 'full'>('windowed');
+const mode = ref('crop');
+const tool = ref('adjust');
+const edge = ref('none');
+const viewPercent = ref(25);
+const viewMode = ref<'windowed' | 'full'>('windowed');
 
-// ── Step sizes ───────────────────────────────────────────────────────
-const adjust_step_small = ref(25);
-const adjust_step_large = ref(100);
+// ── Adjust tool data ─────────────────────────────────────────────────
+const adjust_step_small = ref(10);
+const adjust_step_large = ref(50);
+
+// ── Assign tool data ─────────────────────────────────────────────────
+type OptionalNumber = number | undefined;
+
+type AssignValues = {
+  top: OptionalNumber;
+  left: OptionalNumber;
+  right: OptionalNumber;
+  bottom: OptionalNumber;
+};
+
+const assignValues = reactive<AssignValues>({
+  top: undefined,
+  left: undefined,
+  right: undefined,
+  bottom: undefined,
+});
+
+function parseOptionalNumber(value: string): OptionalNumber {
+  if (value.trim() === '') return undefined;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
 
 // ── Pages & crop data ────────────────────────────────────────────────
-const pages           = ref<Page[]>([]);
-const pageCrops       = reactive(new Map<number, CropEdges>());
-const originalCrops   = reactive(new Map<number, CropEdges>());
-let   storedNextBatch = 0;
+const pages = ref<Page[]>([]);
+const pageCrops = reactive(new Map<number, CropEdges>());
+const originalCrops = reactive(new Map<number, CropEdges>());
+let storedNextBatch = 0;
 
 // ── Selection ────────────────────────────────────────────────────────
 // selectionAnchor = first-clicked page (plain click resets accumulator).
 // currentPageIndex = free end of range (also used for zoom focus).
-const selectionAnchor  = ref<number | null>(null);
+const selectionAnchor = ref<number | null>(null);
 const currentPageIndex = ref<number | null>(null);
 
 // selectedPages: ordered slice of pages[] between anchor and current.
 const selectedPages = computed(() => {
   const all = pages.value;
   if (!all.length) return [];
-  const anchor  = selectionAnchor.value;
+  const anchor = selectionAnchor.value;
   const current = currentPageIndex.value;
   if (anchor === null && current === null) return [];
-  const anchorPos  = anchor  !== null ? all.findIndex(p => p.index === anchor)  : -1;
+  const anchorPos = anchor !== null ? all.findIndex(p => p.index === anchor) : -1;
   const currentPos = current !== null ? all.findIndex(p => p.index === current) : -1;
   if (anchorPos < 0 && currentPos < 0) return [];
   if (anchorPos < 0) return current !== null ? [all[currentPos]] : [];
@@ -192,13 +257,14 @@ const selectedPages = computed(() => {
   return all.slice(lo, hi + 1);
 });
 
+// selectedPageSet: selectedPages as a set.
+const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
+
 // filteredPages: subset after odd/even filtering (placeholder for future use).
 const filteredPages = computed(() => selectedPages.value /* TODO: odd/even filter */);
 
-const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
-
 // ── Accumulator & magnet ─────────────────────────────────────────────
-const accumulator  = ref(0);
+const accumulator = ref(0);
 const roundBaseCrops = new Map<number, CropEdges>();
 
 type MagnetProfile = 'bell' | 'rampup' | 'rampdown';
@@ -209,9 +275,12 @@ function getMagnetWeight(i: number, n: number, profile: MagnetProfile): number {
   if (n <= 1) return 1.0;
   const t = i / (n - 1);
   switch (profile) {
-    case 'bell':     return t <= 0.5 ? 2 * t : 2 * (1 - t);
-    case 'rampup':   return t;
-    case 'rampdown': return 1 - t;
+    case 'bell':
+      return t <= 0.5 ? 2 * t : 2 * (1 - t);
+    case 'rampup':
+      return t;
+    case 'rampdown':
+      return 1 - t;
   }
 }
 
@@ -219,7 +288,7 @@ function applyMagnet() {
   if (edge.value === 'none') return;
   const edgeKey = edge.value as keyof CropEdges;
   const fp = filteredPages.value;
-  const n  = fp.length;
+  const n = fp.length;
   for (let i = 0; i < n; i++) {
     const page = fp[i];
     const base = roundBaseCrops.get(page.index);
@@ -234,7 +303,7 @@ function rebuildRoundBase() {
   roundBaseCrops.clear();
   for (const page of pages.value) {
     const crop = pageCrops.get(page.index);
-    if (crop) roundBaseCrops.set(page.index, { ...crop });
+    if (crop) roundBaseCrops.set(page.index, {...crop});
   }
 }
 
@@ -255,17 +324,17 @@ function onEdgeChange(newEdge: string) {
 const selectionInfo = computed(() => {
   const fp = filteredPages.value;
   if (!fp.length) return null;
-  const first  = fp[0];
-  const last   = fp[fp.length - 1];
+  const first = fp[0];
+  const last = fp[fp.length - 1];
   const center = fp[Math.floor((fp.length - 1) / 2)];
   return {
-    firstIdx:   first.index,
-    lastIdx:    last.index,
-    centerIdx:  center.index,
-    firstName:  first.name  || first.scan,
-    lastName:   last.name   || last.scan,
+    firstIdx: first.index,
+    lastIdx: last.index,
+    centerIdx: center.index,
+    firstName: first.name || first.scan,
+    lastName: last.name || last.scan,
     centerName: center.name || center.scan,
-    count:      fp.length,
+    count: fp.length,
   };
 });
 
@@ -282,9 +351,9 @@ const hasChanges = computed(() => {
 });
 
 // ── Refs ─────────────────────────────────────────────────────────────
-const pageListRef      = ref<HTMLElement | null>(null);
+const pageListRef = ref<HTMLElement | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
-const thumbBaseUrl     = computed(() => `/projects/${props.machineName}/pages/thumbs/`);
+const thumbBaseUrl = computed(() => `/projects/${props.machineName}/pages/thumbs/`);
 
 const setPageListRef: VNodeRef = el => {
   pageListRef.value = el instanceof HTMLElement ? el : null;
@@ -298,15 +367,15 @@ const setStripWorkareaRef: VNodeRef = el => {
 async function scrollPageListItemIntoView(pageIndex: number) {
   await nextTick();
   pageListRef.value
-    ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
-    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
 }
 
 async function scrollStripItemIntoView(pageIndex: number) {
   await nextTick();
   stripWorkareaRef.value
-    ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
-    ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'smooth'});
 }
 
 function focusPage(pageIndex: number) {
@@ -316,16 +385,17 @@ function focusPage(pageIndex: number) {
 
 // ── Selection actions ────────────────────────────────────────────────
 // Plain click: new anchor = apply+reset accumulator.
+// click: start new selection and reset adjust-accumulator.
 function setAnchor(pageIndex: number) {
   accumulator.value = 0;
   rebuildRoundBase();
-  selectionAnchor.value  = pageIndex;
+  selectionAnchor.value = pageIndex;
   currentPageIndex.value = pageIndex;
   void scrollPageListItemIntoView(pageIndex);
   void scrollStripItemIntoView(pageIndex);
 }
 
-// ⌘/⌃-click: extend range without resetting accumulator.
+// ⇧-click: extend range without resetting accumulator.
 function extendSelection(pageIndex: number) {
   currentPageIndex.value = pageIndex;
   void scrollPageListItemIntoView(pageIndex);
@@ -345,22 +415,118 @@ function isTypingTarget(): boolean {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement)) return false;
   return active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
-         active.tagName === 'SELECT' || active.isContentEditable;
+      active.tagName === 'SELECT' || active.isContentEditable;
 }
 
 function navigatePage(delta: number) {
   if (!pages.value.length || isTypingTarget()) return;
   const anchor = selectionAnchor.value ?? pages.value[0].index;
-  const pos    = pages.value.findIndex(p => p.index === anchor);
-  const next   = pos < 0 ? 0 : Math.max(0, Math.min(pages.value.length - 1, pos + delta));
+  const pos = pages.value.findIndex(p => p.index === anchor);
+  const next = pos < 0 ? 0 : Math.max(0, Math.min(pages.value.length - 1, pos + delta));
   setAnchor(pages.value[next].index);
+}
+
+// ── Adjust tool functions ────────────────────────────────────────────
+
+function adjustByKey(shift: boolean, e: KeyboardEvent) {
+  const step = shift ? adjust_step_large.value : adjust_step_small.value;
+
+  if (edge.value === 'top' && e.key === 'ArrowDown') {
+    e.preventDefault();
+    adjustRange(step);
+    return;
+  }
+  if (edge.value === 'top' && e.key === 'ArrowUp') {
+    e.preventDefault();
+    adjustRange(-step);
+    return;
+  }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown') {
+    e.preventDefault();
+    adjustRange(-step);
+    return;
+  }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp') {
+    e.preventDefault();
+    adjustRange(step);
+    return;
+  }
+  if (edge.value === 'left' && e.key === 'ArrowRight') {
+    e.preventDefault();
+    adjustRange(step);
+    return;
+  }
+  if (edge.value === 'left' && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    adjustRange(-step);
+    return;
+  }
+  if (edge.value === 'right' && e.key === 'ArrowRight') {
+    e.preventDefault();
+    adjustRange(-step);
+    return;
+  }
+  if (edge.value === 'right' && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    adjustRange(step);
+    return;
+  }
+}
+
+// ── Assign tool functions ────────────────────────────────────────────
+
+function forEachSelected(fn: (crop: CropEdges) => void) {
+  for (const page of filteredPages.value) {
+    const crop = pageCrops.get(page.index);
+    if (crop) fn(crop);
+  }
+}
+
+function assignBySetting(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, values.bottom);
+  });
+}
+
+function assignByAdding(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, crop.left   + values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, crop.top    + values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, crop.right  + values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, crop.bottom + values.bottom);
+  });
+}
+
+function assignBySubtracting(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, crop.left   - values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, crop.top    - values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, crop.right  - values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, crop.bottom - values.bottom);
+  });
+}
+
+function assignReset() {
+  forEachSelected(crop => { crop.left = crop.top = crop.right = crop.bottom = 0; });
+}
+
+function assignAllEdges(delta: number) {
+  forEachSelected(crop => {
+    crop.left   = Math.max(0, crop.left   + delta);
+    crop.top    = Math.max(0, crop.top    + delta);
+    crop.right  = Math.max(0, crop.right  + delta);
+    crop.bottom = Math.max(0, crop.bottom + delta);
+  });
 }
 
 // ── Crop session: abandon / commit ───────────────────────────────────
 function abandonCrop() {
   accumulator.value = 0;
   pageCrops.clear();
-  for (const [idx, crop] of originalCrops) pageCrops.set(idx, { ...crop });
+  for (const [idx, crop] of originalCrops) pageCrops.set(idx, {...crop});
   rebuildRoundBase();
 }
 
@@ -375,11 +541,11 @@ async function commitCrops() {
   try {
     const res = await fetch(`/api/projects/${props.machineName}/pages`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(updatedPageDb),
     });
     if (res.ok) {
-      for (const [idx, crop] of pageCrops) originalCrops.set(idx, { ...crop });
+      for (const [idx, crop] of pageCrops) originalCrops.set(idx, {...crop});
     } else {
       console.error('Commit failed:', res.status, await res.text());
     }
@@ -388,20 +554,34 @@ async function commitCrops() {
   }
 }
 
+
 // ── Keyboard shortcuts ───────────────────────────────────────────────
 function onKeyDown(e: KeyboardEvent) {
   if (mode.value !== 'crop') return;
   const shift = e.shiftKey;
-  const alt   = e.altKey;
+  const alt = e.altKey;
 
   // ⇧⎇ combos — edge selection and view toggle
   if (shift && alt) {
     switch (e.key) {
-      case 'ArrowUp':    e.preventDefault(); onEdgeChange('top');    return;
-      case 'ArrowDown':  e.preventDefault(); onEdgeChange('bottom'); return;
-      case 'ArrowLeft':  e.preventDefault(); onEdgeChange('left');   return;
-      case 'ArrowRight': e.preventDefault(); onEdgeChange('right');  return;
-      case 'F': case 'f':
+      case 'ArrowUp':
+        e.preventDefault();
+        onEdgeChange('top');
+        return;
+      case 'ArrowDown':
+        e.preventDefault();
+        onEdgeChange('bottom');
+        return;
+      case 'ArrowLeft':
+        e.preventDefault();
+        onEdgeChange('left');
+        return;
+      case 'ArrowRight':
+        e.preventDefault();
+        onEdgeChange('right');
+        return;
+      case 'F':
+      case 'f':
         e.preventDefault();
         viewMode.value = viewMode.value === 'full' ? 'windowed' : 'full';
         return;
@@ -414,37 +594,41 @@ function onKeyDown(e: KeyboardEvent) {
 
   // Page navigation: , / . and < / > (Shift+, / Shift+.)
   switch (e.key) {
-    case ',': e.preventDefault(); navigatePage(-1);  return;
-    case '.': e.preventDefault(); navigatePage(1);   return;
-    case '<': e.preventDefault(); navigatePage(-10); return;
-    case '>': e.preventDefault(); navigatePage(10);  return;
+    case ',':
+      e.preventDefault();
+      navigatePage(-1);
+      return;
+    case '.':
+      e.preventDefault();
+      navigatePage(1);
+      return;
+    case '<':
+      e.preventDefault();
+      navigatePage(-10);
+      return;
+    case '>':
+      e.preventDefault();
+      navigatePage(10);
+      return;
   }
 
   // Edge adjustment — not when Alt is held; Shift = large step
   if (alt) return;
-  const step = shift ? adjust_step_large.value : adjust_step_small.value;
 
-  if (edge.value === 'top'    && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange( step);  return; }
-  if (edge.value === 'top'    && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange( step);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowRight') { e.preventDefault(); adjustRange( step);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange( step);  return; }
+  adjustByKey(shift, e);
 }
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
-    const res  = await fetch(`/api/projects/${props.machineName}/pages`);
+    const res = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
-    pages.value     = data.pages;
+    pages.value = data.pages;
     storedNextBatch = data.next_batch;
     for (const page of data.pages) {
-      const crop = { ...page.crop_edges };
+      const crop = {...page.crop_edges};
       pageCrops.set(page.index, crop);
-      originalCrops.set(page.index, { ...crop });
+      originalCrops.set(page.index, {...crop});
     }
     rebuildRoundBase();
     if (data.pages.length > 0) setAnchor(data.pages[0].index);
@@ -475,7 +659,10 @@ onUnmounted(() => {
   overflow-y: auto;
   min-height: 0;
 }
-.crop-area > div:last-child { border-right: none; }
+
+.crop-area > div:last-child {
+  border-right: none;
+}
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -515,7 +702,9 @@ onUnmounted(() => {
   -webkit-user-select: none;
 }
 
-.crop-tools { padding: 0; }
+.crop-tools {
+  padding: 0;
+}
 
 /* Page list */
 .page-nav-list {
@@ -526,6 +715,7 @@ onUnmounted(() => {
   user-select: none;
   -webkit-user-select: none;
 }
+
 .page-nav-list li {
   padding: 0.25rem 0.5rem;
   cursor: pointer;
@@ -535,11 +725,28 @@ onUnmounted(() => {
   color: var(--color-text-muted, #6c757d);
   border-left: 2px solid transparent;
 }
-.page-nav-list li:hover         { background: var(--color-bg-muted, #f1f3f5); }
-.page-nav-named                 { color: var(--color-text, #212529); }
-.page-nav-selected              { background: var(--color-bg-selected, #8397aa) !important; color: var(--color-text, #212529) !important; }
-.page-nav-focused               { border-left-color: var(--color-accent, #2563eb) !important; }
-.page-nav-unnamed               { color: var(--color-text-dimmed, #a2acb6); font-style: italic; }
+
+.page-nav-list li:hover {
+  background: var(--color-bg-muted, #f1f3f5);
+}
+
+.page-nav-named {
+  color: var(--color-text, #212529);
+}
+
+.page-nav-selected {
+  background: var(--color-bg-selected, #8397aa) !important;
+  color: var(--color-text, #212529) !important;
+}
+
+.page-nav-focused {
+  border-left-color: var(--color-accent, #2563eb) !important;
+}
+
+.page-nav-unnamed {
+  color: var(--color-text-dimmed, #a2acb6);
+  font-style: italic;
+}
 
 /* Selection info panel */
 .selection-info-panel {
@@ -552,12 +759,14 @@ onUnmounted(() => {
   gap: 0.3rem;
   margin-bottom: 0.5rem;
 }
+
 .info-row {
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
   flex-wrap: wrap;
 }
+
 .info-label {
   font-weight: 600;
   color: var(--color-text-muted, #6c757d);
@@ -566,8 +775,19 @@ onUnmounted(() => {
   letter-spacing: 0.04em;
   flex-shrink: 0;
 }
-.info-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.info-count { color: var(--color-text-muted, #6c757d); flex-shrink: 0; }
+
+.info-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-count {
+  color: var(--color-text-muted, #6c757d);
+  flex-shrink: 0;
+}
 
 /* Accumulator display */
 .accumulator-display {
@@ -577,11 +797,36 @@ onUnmounted(() => {
   padding: 0.15rem 0;
 }
 
-/* Session buttons */
-.session-buttons {
-  display: flex;
+
+.diamond-inputs {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
   gap: 0.5rem;
-  padding-top: 0.25rem;
-  border-top: 1px solid var(--color-border, #dee2e6);
+  justify-content: center;
+  align-items: center;
+}
+
+.diamond-input {
+  width: 5rem;
+}
+
+.diamond-input.top {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.diamond-input.left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.diamond-input.right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.diamond-input.bottom {
+  grid-column: 2;
+  grid-row: 3;
 }
 </style>
