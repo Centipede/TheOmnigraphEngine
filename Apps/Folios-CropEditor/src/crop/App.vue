@@ -17,7 +17,7 @@
             'page-nav-selected': page.index === currentPageIndex,
             'page-nav-named':    !!page.name,
           }"
-            @click="currentPageIndex = page.index"
+            @click="selectPageFromList(page.index)"
         >
           <span v-if="page.name">{{ page.name }}</span>
           <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
@@ -30,11 +30,12 @@
 <!--      <div class="sidebar-content">Section list</div>-->
 <!--    </div>-->
 
-    <div class="crop-workarea">
+    <div class="crop-workarea" ref="stripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
             v-for="page in pages"
             :key="page.index"
+            :data-page-idx="page.index"
             :page="page"
             :edge="edge"
             :thumbBaseUrl="thumbBaseUrl"
@@ -42,7 +43,7 @@
             :showOverlay="mode === 'crop'"
             :crop="pageCrops.get(page.index) ?? page.crop_edges"
             :selected="page.index === currentPageIndex"
-            @click="currentPageIndex = page.index"
+            @click="selectPageFromStrip(page.index)"
         />
       </div>
     </div>
@@ -55,14 +56,6 @@
           <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
           <sl-button disabled variant="primary">Crop</sl-button>
         </sl-button-group>
-
-        <sl-range
-            v-if="mode === 'crop'"
-            :label="`View: ${viewPercent}%`"
-            min="10" max="75" step="5" :value="viewPercent"
-            @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
-        />
-
         <br>
 
         <template v-if="mode === 'crop'">
@@ -117,18 +110,28 @@
             <sl-radio-button value="bottom">Bottom</sl-radio-button>
             <sl-radio-button value="right">Right</sl-radio-button>
           </sl-radio-group>
-          <br><br>
+
+          <br>
+
+          <sl-range
+              v-if="mode === 'crop'"
+              :label="`Edge percent: ${viewPercent}%`"
+              min="10" max="75" step="5" :value="viewPercent"
+              @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+          />
+          <br>
+          <br>
 
           <div class="session-buttons">
             <sl-button
-              variant="danger"
-              :disabled="!hasChanges"
-              @click="abandonCrop"
+                variant="danger"
+                :disabled="!hasChanges"
+                @click="abandonCrop"
             >Abandon</sl-button>
             <sl-button
-              variant="primary"
-              :disabled="!hasChanges"
-              @click="commitCrops"
+                variant="primary"
+                :disabled="!hasChanges"
+                @click="commitCrops"
             >Commit</sl-button>
           </div>
 
@@ -166,6 +169,7 @@ const originalCrops = reactive(new Map<number, CropEdges>());
 let   storedNextBatch = 0;
 
 const pageListRef = ref<HTMLElement | null>(null);
+const stripWorkareaRef = ref<HTMLElement | null>(null);
 
 const hasChanges = computed(() => {
   for (const page of pages.value) {
@@ -176,6 +180,26 @@ const hasChanges = computed(() => {
         orig.right !== curr.right || orig.bottom !== curr.bottom) return true;
   }
   return false;
+});
+
+function isTypingTarget(): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+
+  return (
+    active.tagName === 'INPUT' ||
+    active.tagName === 'TEXTAREA' ||
+    active.tagName === 'SELECT' ||
+    active.isContentEditable
+  );
+}
+
+
+// Keep the selected page visible in the sidebar when navigation changes by other means.
+watch(currentPageIndex, (idx) => {
+  if (idx === null) return;
+  void scrollPageListItemIntoView(idx);
+  void scrollStripItemIntoView(idx);
 });
 
 // Keep the selected page visible in the sidebar when navigating by keyboard.
@@ -193,11 +217,51 @@ const thumbBaseUrl = computed(
 
 // ── Page navigation ─────────────────────────────────────────────────
 
+
+async function scrollPageListItemIntoView(pageIndex: number) {
+  await nextTick();
+
+  pageListRef.value
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function scrollStripItemIntoView(pageIndex: number) {
+  await nextTick();
+
+  stripWorkareaRef.value
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+function selectPageFromList(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollStripItemIntoView(pageIndex);
+}
+
+function selectPageFromStrip(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollPageListItemIntoView(pageIndex);
+}
+
+function selectPageAndScrollBoth(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollPageListItemIntoView(pageIndex);
+  void scrollStripItemIntoView(pageIndex);
+}
+
 function navigatePage(delta: number) {
-  if (!pages.value.length) return;
-  const cur = currentPageIndex.value ?? 0;
-  const next = Math.max(0, Math.min(pages.value.length - 1, cur + delta));
-  currentPageIndex.value = next;
+  if (!pages.value.length || isTypingTarget()) return;
+
+  const currentIndex = currentPageIndex.value ?? pages.value[0].index;
+  const currentPosition = pages.value.findIndex(page => page.index === currentIndex);
+
+  const nextPosition =
+      currentPosition === -1
+          ? delta > 0 ? 0 : pages.value.length - 1
+          : Math.max(0, Math.min(pages.value.length - 1, currentPosition + delta));
+
+  selectPageAndScrollBoth(pages.value[nextPosition].index);
 }
 
 // ── Edge adjustment (Single Adjust — current page only) ─────────────
@@ -415,6 +479,8 @@ onUnmounted(() => {
   gap: 4px;
   padding: 6px;
   align-content: flex-start;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .crop-tools {
@@ -426,6 +492,8 @@ onUnmounted(() => {
   padding: 0;
   margin: 0;
   font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .page-nav-list li {
@@ -436,7 +504,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   color: var(--color-text-muted, #6c757d);
   border-left: 2px solid transparent;
-  user-select: none;
 }
 
 .page-nav-list li:hover {

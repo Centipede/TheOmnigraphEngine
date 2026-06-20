@@ -41,6 +41,7 @@
         min-height: 0;
         flex: 1;
         user-select: none;
+        -webkit-user-select: none;
     }
 
     .page-list li {
@@ -103,6 +104,7 @@
         overflow-y: auto;
         min-height: 0;
         user-select: none;
+        -webkit-user-select: none;
     }
 
     .page-preview {
@@ -112,6 +114,7 @@
         width: max-content;
         cursor: pointer;
         user-select: none;
+        -webkit-user-select: none;
     }
 
     .page-preview-image-frame {
@@ -172,8 +175,10 @@
     }
 </style>
 <script>
+    // @formatter:off
     const rawPages = {{ pagedb.pages | tojson }};
     const projectMachineName = {{project.machine_name | tojson}};
+    // @formatter:on
 
     function pagesView() {
         return {
@@ -320,114 +325,116 @@
      @keydown.window="handlePageKeydown($event)"
 >
 
-    <div class="sidebar">
-        <p class="lead">Pages: {{ pagedb.pages|length }}</p>
+  <div class="sidebar">
+    <p class="lead">Pages: {{ pagedb.pages|length }}</p>
 
-        {% if pagedb.pages %}
-        <ul class="page-list">
-            <li class="header">
-                <b class="page-info">Idx</b>
-                <b class="page-info">Bat</b>
-                <b class="page-name">Name</b>
-                <b class="page-info">Scan</b>
-            </li>
-            {% for page in pagedb.pages %}
-            <li class="row"
-                data-page-index="{{ page.index }}"
-                :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
-                @click="selectFromList({{ page.index }}, $event)">
-                <span class="page-info">({{ page.index }})</span>
-                <span class="page-info">{{ page.batch }}</span>
-                {% if page.name %}
-                <span class="page-info">{{ page.name }}</span>
-                {% else %}
-                <span class="page-name page-name-empty">[No name]</span>
-                {% endif %}
-                <span class="page-info">{{ page.scan }}</span>
-            </li>
-            {% endfor %}
-        </ul>
+    {% if pagedb.pages %}
+    <ul class="page-list"
+        @mousedown.shift.prevent>
+      <li class="header">
+        <b class="page-info">Idx</b>
+        <b class="page-info">Bat</b>
+        <b class="page-name">Name</b>
+        <b class="page-info">Scan</b>
+      </li>
+      {% for page in pagedb.pages %}
+      <li class="row"
+          data-page-index="{{ page.index }}"
+          :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+          @click="selectFromList({{ page.index }}, $event)">
+        <span class="page-info">({{ page.index }})</span>
+        <span class="page-info">{{ page.batch }}</span>
+        {% if page.name %}
+        <span class="page-info">{{ page.name }}</span>
         {% else %}
-        <p>No pages yet.</p>
+        <span class="page-name page-name-empty">[No name]</span>
         {% endif %}
+        <span class="page-info">{{ page.scan }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No pages yet.</p>
+    {% endif %}
 
-    </div>
+  </div>
 
-    <div class="workarea">
+  <div class="workarea">
 
-        <div class="selection-info-bar" x-text="selectionInfo()"></div>
+    <div class="selection-info-bar" x-text="selectionInfo()"></div>
 
-        <div class="thumbs-and-zoom-container">
+    <div class="thumbs-and-zoom-container">
 
-            <div class="thumbs-container">
-                {% for page in pagedb.pages %}
-                <div class="page-preview"
-                     data-page-index="{{ page.index }}"
-                     :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
-                     @click="selectFromPreview({{ page.index }}, $event)">
-                    <div class="page-preview-image-frame">
-                        <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}"
-                             src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview"
-                             class="page-preview-image">
-                    </div>
-                    <div class="page-preview-info">
-                        <div><span style="color: var(--color-text-dimmed); font-size: 80%">({{ page.index }})</span> {%
-                            if page.name %} {{ page.name }} {% else %} [No name] {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+      <div class="thumbs-container"
+           @mousedown.shift.prevent>
+        {% for page in pagedb.pages %}
+        <div class="page-preview"
+             data-page-index="{{ page.index }}"
+             :class="selectedIndices.includes({{ page.index }}) ? 'selected' : ''"
+             @click="selectFromPreview({{ page.index }}, $event)">
+          <div class="page-preview-image-frame">
+            <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}"
+                 src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview"
+                 class="page-preview-image">
+          </div>
+          <div class="page-preview-info">
+            <div><span style="color: var(--color-text-dimmed); font-size: 80%">({{ page.index }})</span> {%
+              if page.name %} {{ page.name }} {% else %} [No name] {% endif %}
             </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
 
-            <div class="zoom-container">
-                <img :src="currentPageImgSrc" x-show="currentPageImgSrc !== ''" style="max-width: 100%; height: auto;">
-                <div class="page-preview-info" x-show="currentPageImgSrc !== ''">
-                    <div>
+      <div class="zoom-container">
+        <img :src="currentPageImgSrc" x-show="currentPageImgSrc !== ''" style="max-width: 100%; height: auto;">
+        <div class="page-preview-info" x-show="currentPageImgSrc !== ''">
+          <div>
                         <span style="color: var(--color-text-dimmed); font-size: 80%"
                               x-text="'(' + currentPageIndex + ')'"></span>
-                        <span x-text="currentPageName || '[No name]'"></span>
-                    </div>
-                </div>
-
-            </div>
+            <span x-text="currentPageName || '[No name]'"></span>
+          </div>
         </div>
 
+      </div>
     </div>
 
-    <div class="tools">
-        <p class="lead">Tools:</p>
-        <form action="/projects/{{ project.machine_name }}/ingestor/rename" method="post"
-              x-show="selectedIndices.length > 0">
-            <input type="hidden" name="indices" :value="selectedIndices.join(',')">
-            <sl-button type="submit" variant="default">Rename pages</sl-button>
-            <sl-radio-group name="scheme" value="1" label="Scheme" help-text="Naming method">
-                <sl-radio-button value="1">1,2,3,...</sl-radio-button>
-                <sl-radio-button value="2">i,ii,iii,iv,...</sl-radio-button>
-                <sl-radio-button value="3">I,II,III,IV,...</sl-radio-button>
-            </sl-radio-group>
-            <sl-input name="first_page" placeholder="First page name" clearable></sl-input>
-        </form>
+  </div>
 
-        <sl-button href="/projects/{{ project.machine_name }}/ingestor/append" variant="default">Append images
-        </sl-button>
-        <sl-button
-                x-show="selectedIndices.length === 1"
-                :href="'/projects/{{ project.machine_name }}/ingestor/insert?after=' + selectedIndices.at(-1)"
-                variant="default"
-                x-text="'Insert after: ' + selectedIndices.at(-1)">
-        </sl-button>
-        <sl-button
-                x-show="selectedIndices.length === 1"
-                :href="'/projects/{{ project.machine_name }}/ingestor/insert?before=' + selectedIndices.at(-1)"
-                variant="default"
-                x-text="'Insert before: ' + selectedIndices.at(-1)">
-        </sl-button>
-        <sl-button
-                x-show="selectedIndices.length > 0"
-                :href="'/projects/{{ project.machine_name }}/ingestor/remove?indices=' + selectedIndices.join(',')"
-                variant="default"
-                x-text="'Remove ' + selectedIndices.length + (selectedIndices.length === 1 ? ' page' : ' pages')">
-        </sl-button>
-    </div>
+  <div class="tools">
+    <p class="lead">Tools:</p>
+    <form action="/projects/{{ project.machine_name }}/ingestor/rename" method="post"
+          x-show="selectedIndices.length > 0">
+      <input type="hidden" name="indices" :value="selectedIndices.join(',')">
+      <sl-button type="submit" variant="default">Rename pages</sl-button>
+      <sl-radio-group name="scheme" value="1" label="Scheme" help-text="Naming method">
+        <sl-radio-button value="1">1,2,3,...</sl-radio-button>
+        <sl-radio-button value="2">i,ii,iii,iv,...</sl-radio-button>
+        <sl-radio-button value="3">I,II,III,IV,...</sl-radio-button>
+      </sl-radio-group>
+      <sl-input name="first_page" placeholder="First page name" clearable></sl-input>
+    </form>
+
+    <sl-button href="/projects/{{ project.machine_name }}/ingestor/append" variant="default">Append images
+    </sl-button>
+    <sl-button
+        x-show="selectedIndices.length === 1"
+        :href="'/projects/{{ project.machine_name }}/ingestor/insert?after=' + selectedIndices.at(-1)"
+        variant="default"
+        x-text="'Insert after: ' + selectedIndices.at(-1)">
+    </sl-button>
+    <sl-button
+        x-show="selectedIndices.length === 1"
+        :href="'/projects/{{ project.machine_name }}/ingestor/insert?before=' + selectedIndices.at(-1)"
+        variant="default"
+        x-text="'Insert before: ' + selectedIndices.at(-1)">
+    </sl-button>
+    <sl-button
+        x-show="selectedIndices.length > 0"
+        :href="'/projects/{{ project.machine_name }}/ingestor/remove?indices=' + selectedIndices.join(',')"
+        variant="default"
+        x-text="'Remove ' + selectedIndices.length + (selectedIndices.length === 1 ? ' page' : ' pages')">
+    </sl-button>
+  </div>
 </div>
 {% endblock %}
