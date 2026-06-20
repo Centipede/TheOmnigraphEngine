@@ -158,9 +158,17 @@
             </div>
 
             <sl-button-group>
-              <sl-button variant="default" @click="assignBySetting({ ...assignValues });">Set</sl-button>
-              <sl-button variant="default" @click="">Add</sl-button>
-              <sl-button variant="default" @click="">Sub</sl-button>
+              <sl-button variant="default" @click="assignBySetting(assignValues)">Set</sl-button>
+              <sl-button variant="default" @click="assignByAdding(assignValues)">Add</sl-button>
+              <sl-button variant="default" @click="assignBySubtracting(assignValues)">Sub</sl-button>
+            </sl-button-group>
+
+            <br>
+
+            <sl-button-group>
+              <sl-button variant="default" @click="assignReset">Reset</sl-button>
+              <sl-button variant="default" @click="assignAllEdges(100)">+100</sl-button>
+              <sl-button variant="default" @click="assignAllEdges(-100)">−100</sl-button>
             </sl-button-group>
           </template>
 
@@ -467,21 +475,51 @@ function adjustByKey(shift: boolean, e: KeyboardEvent) {
 
 // ── Assign tool functions ────────────────────────────────────────────
 
-function assignBySetting(values: AssignValues) {
-
-
-  const fp = filteredPages.value;
-  const n = fp.length;
-  for (let i = 0; i < n; i++) {
-    const page = fp[i];
-    let curr = pageCrops.get(page.index);
-    if (!curr) continue;
-    if (values.left !== undefined) curr.left = Math.max(0, values.left);
-    if (values.top !== undefined) curr.top = Math.max(0, values.top);
-    if (values.right !== undefined) curr.right = Math.max(0, values.right);
-    if (values.bottom !== undefined) curr.bottom = Math.max(0, values.bottom);
+function forEachSelected(fn: (crop: CropEdges) => void) {
+  for (const page of filteredPages.value) {
+    const crop = pageCrops.get(page.index);
+    if (crop) fn(crop);
   }
+}
 
+function assignBySetting(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, values.bottom);
+  });
+}
+
+function assignByAdding(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, crop.left   + values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, crop.top    + values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, crop.right  + values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, crop.bottom + values.bottom);
+  });
+}
+
+function assignBySubtracting(values: AssignValues) {
+  forEachSelected(crop => {
+    if (values.left   !== undefined) crop.left   = Math.max(0, crop.left   - values.left);
+    if (values.top    !== undefined) crop.top    = Math.max(0, crop.top    - values.top);
+    if (values.right  !== undefined) crop.right  = Math.max(0, crop.right  - values.right);
+    if (values.bottom !== undefined) crop.bottom = Math.max(0, crop.bottom - values.bottom);
+  });
+}
+
+function assignReset() {
+  forEachSelected(crop => { crop.left = crop.top = crop.right = crop.bottom = 0; });
+}
+
+function assignAllEdges(delta: number) {
+  forEachSelected(crop => {
+    crop.left   = Math.max(0, crop.left   + delta);
+    crop.top    = Math.max(0, crop.top    + delta);
+    crop.right  = Math.max(0, crop.right  + delta);
+    crop.bottom = Math.max(0, crop.bottom + delta);
+  });
 }
 
 // ── Crop session: abandon / commit ───────────────────────────────────
