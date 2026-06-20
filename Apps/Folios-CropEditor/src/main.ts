@@ -1,6 +1,9 @@
 import { createApp } from 'vue'
 import './style.css'
 import './shoelace'
-import App from './App.vue'
+import App from './crop/App.vue'
 
-createApp(App).mount('#app')
+createApp(App, {
+    machineName: "test-project",
+    projectName: 'Test Project',
+}).mount('#app')

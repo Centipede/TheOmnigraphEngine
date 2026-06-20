@@ -8,7 +8,7 @@
         <sl-button size="small" title="Back (,)"    @click="navigatePage(-1)">←</sl-button>
         <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
       </sl-button-group>
-      <ul class="page-nav-list" ref="pageListRef">
+      <ul class="page-nav-list" :ref="setPageListRef">
         <li
           v-for="page in pages"
           :key="page.index"
@@ -27,7 +27,7 @@
     </div>
 
     <!-- Central: strip grid -->
-    <div class="crop-workarea" ref="stripWorkareaRef">
+    <div class="crop-workarea" :ref="setStripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
           v-for="page in pages"
@@ -147,6 +147,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import type { VNodeRef } from 'vue';
 import PageStrip from './PageStrip.vue';
 import type { Page, PageDb, CropEdges } from './types';
 
@@ -285,6 +286,14 @@ const pageListRef      = ref<HTMLElement | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
 const thumbBaseUrl     = computed(() => `/projects/${props.machineName}/pages/thumbs/`);
 
+const setPageListRef: VNodeRef = el => {
+  pageListRef.value = el instanceof HTMLElement ? el : null;
+};
+
+const setStripWorkareaRef: VNodeRef = el => {
+  stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
+};
+
 // ── Scroll helpers ───────────────────────────────────────────────────
 async function scrollPageListItemIntoView(pageIndex: number) {
   await nextTick();
@@ -324,11 +333,11 @@ function extendSelection(pageIndex: number) {
 }
 
 function handleListClick(pageIndex: number, e: MouseEvent) {
-  (e.metaKey || e.ctrlKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
+  (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
 function handleStripClick(pageIndex: number, e: MouseEvent) {
-  (e.metaKey || e.ctrlKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
+  (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
 // ── Page navigation ──────────────────────────────────────────────────
@@ -417,12 +426,12 @@ function onKeyDown(e: KeyboardEvent) {
 
   if (edge.value === 'top'    && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange( step);  return; }
   if (edge.value === 'top'    && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange( step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange( step);  return; }
   if (edge.value === 'left'   && e.key === 'ArrowRight') { e.preventDefault(); adjustRange( step);  return; }
   if (edge.value === 'left'   && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange(-step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustRange( step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange( step);  return; }
 }
 
 onMounted(async () => {
