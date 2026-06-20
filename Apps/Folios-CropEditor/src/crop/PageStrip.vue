@@ -1,13 +1,18 @@
 <template>
-  <div class="strip-container" :class="{ 'strip-selected': selected }" :style="containerStyle">
-    <img :src="src" class="strip-img" :style="imgStyle" :alt="label" :title="label" />
-    <template v-if="showOverlay">
-      <div class="ov-red"   :style="topRedStyle"    />
-      <div class="ov-red"   :style="bottomRedStyle" />
-      <div class="ov-red"   :style="leftRedStyle"   />
-      <div class="ov-red"   :style="rightRedStyle"  />
-      <div class="ov-green" :style="greenStyle"     />
-    </template>
+  <div class="strip-wrapper" :class="{ 'strip-selected': selected }">
+    <div class="strip-container" :style="containerStyle">
+      <img :src="src" class="strip-img" :style="imgStyle" :alt="label" :title="label" />
+      <template v-if="showOverlay">
+        <div class="ov-red"   :style="topRedStyle"    />
+        <div class="ov-red"   :style="bottomRedStyle" />
+        <div class="ov-red"   :style="leftRedStyle"   />
+        <div class="ov-red"   :style="rightRedStyle"  />
+        <div class="ov-green" :style="greenStyle"     />
+      </template>
+    </div>
+    <div class="strip-info">
+      <span class="strip-label" :class="{ 'strip-label-unnamed': !props.page.name }">{{ label }}</span>
+    </div>
   </div>
 </template>
 
@@ -133,18 +138,56 @@ const rightRedStyle = computed(() => ({
 </script>
 
 <style scoped>
-.strip-container {
-  border: 1px solid var(--color-border, #dee2e6);
-  border-radius: 1px;
+.strip-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
   cursor: default;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 2px;
+  overflow: hidden;   /* clips the info section to the same width as the image strip */
 }
-.strip-container:hover {
+
+.strip-wrapper:hover {
   border-color: var(--color-accent, #2563eb);
 }
+
 .strip-selected {
   outline: 2px solid var(--color-accent, #2563eb);
   outline-offset: 1px;
 }
+
+.strip-container {
+  flex-shrink: 0;
+}
+
+/* Fixed-height info bar — same height on every card regardless of content.
+   Designed to grow into a richer info section in future iterations. */
+.strip-info {
+  height: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface, #fff);
+  border-top: 1px solid var(--color-border, #dee2e6);
+  padding: 0 3px;
+  flex-shrink: 0;
+}
+
+.strip-label {
+  font-size: 0.65rem;
+  color: var(--color-text, #212529);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.strip-label-unnamed {
+  color: var(--color-text-dimmed, #a2acb6);
+  font-style: italic;
+}
+
 .strip-img {
   user-select: none;
 }
