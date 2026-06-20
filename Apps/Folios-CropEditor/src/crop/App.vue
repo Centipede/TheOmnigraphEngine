@@ -1,23 +1,24 @@
 <template>
   <div class="crop-area">
 
+    <!-- Sidebar: page list -->
     <div class="crop-sidebar-pages">
       <div class="sidebar-lead">Pages ({{ pages.length }})</div>
       <sl-button-group>
-        <sl-button size="small" title="Back (,)" @click="navigatePage(-1)">←</sl-button>
-        <sl-button size="small" title="Select all" @click="">All</sl-button>
+        <sl-button size="small" title="Back (,)"    @click="navigatePage(-1)">←</sl-button>
         <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
       </sl-button-group>
       <ul class="page-nav-list" ref="pageListRef">
         <li
-            v-for="page in pages"
-            :key="page.index"
-            :data-page-idx="page.index"
-            :class="{
-            'page-nav-selected': page.index === currentPageIndex,
+          v-for="page in pages"
+          :key="page.index"
+          :data-page-idx="page.index"
+          :class="{
+            'page-nav-selected': selectedPageSet.has(page.index),
+            'page-nav-focused':  page.index === currentPageIndex,
             'page-nav-named':    !!page.name,
           }"
-            @click="selectPageFromList(page.index)"
+          @click="handleListClick(page.index, $event)"
         >
           <span v-if="page.name">{{ page.name }}</span>
           <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
@@ -25,85 +26,94 @@
       </ul>
     </div>
 
-<!--    <div class="crop-sidebar-sections">-->
-<!--      <div class="sidebar-lead">Sections</div>-->
-<!--      <div class="sidebar-content">Section list</div>-->
-<!--    </div>-->
-
+    <!-- Central: strip grid -->
     <div class="crop-workarea" ref="stripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
-            v-for="page in pages"
-            :key="page.index"
-            :data-page-idx="page.index"
-            :page="page"
-            :edge="edge"
-            :thumbBaseUrl="thumbBaseUrl"
-            :fraction="viewPercent / 100"
-            :showOverlay="mode === 'crop'"
-            :crop="pageCrops.get(page.index) ?? page.crop_edges"
-            :selected="page.index === currentPageIndex"
-            @click="selectPageFromStrip(page.index)"
+          v-for="page in pages"
+          :key="page.index"
+          :data-page-idx="page.index"
+          :page="page"
+          :edge="edge"
+          :thumbBaseUrl="thumbBaseUrl"
+          :fraction="viewPercent / 100"
+          :showOverlay="mode === 'crop'"
+          :crop="pageCrops.get(page.index) ?? page.crop_edges"
+          :selected="selectedPageSet.has(page.index)"
+          @click="handleStripClick(page.index, $event)"
         />
       </div>
     </div>
 
+    <!-- Tools -->
     <div class="crop-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
+        <!-- Mode selector -->
         <sl-button-group>
-          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
+          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`" variant="default">Inspect</sl-button>
           <sl-button disabled variant="primary">Crop</sl-button>
         </sl-button-group>
-        <br>
 
         <template v-if="mode === 'crop'">
-          <br>
 
-          <sl-radio-group label="Tool" name="tool" :value="tool"
-                          @sl-change="tool = ($event.target as HTMLInputElement).value">
-            <sl-radio-button value="singleadjust">Single Adjust</sl-radio-button>
-            <sl-radio-button value="wideadjust">Wide Adjust</sl-radio-button>
-          </sl-radio-group>
-
-          <template v-if="tool === 'singleadjust'">
+          <!-- Selection info -->
+          <template v-if="selectionInfo">
             <br>
-
-            <sl-input label="Step (small)" :value="adjust_step_small"
-                      @sl-input="adjust_step_small = parseInt(($event.target as HTMLInputElement).value)"></sl-input>
-            <sl-input label="Step (large)" :value="adjust_step_large"
-                      @sl-input="adjust_step_large = parseInt(($event.target as HTMLInputElement).value)"></sl-input>
-
-          </template>
-
-          <template v-if="tool === 'wideadjust'">
-            <br>
-            <sl-range
-                :label="`Width: ${wide_width} pages`"
-                min="1" max="200" step="1" :value="wide_width"
-                @sl-input="wide_width = parseInt(($event.target as HTMLInputElement).value)"
-            />
-            <br>
-            <sl-input
-                label="Adjust (scan px)"
-                type="number"
-                min="1"
-                :value="wide_value"
-                @sl-input="wide_value = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
-            />
-            <br>
-            <sl-button-group>
-              <sl-button @click="applyWideAdjust(1)">Apply</sl-button>
-              <sl-button @click="applyWideAdjust(-1)">Unapply</sl-button>
-            </sl-button-group>
+            <div class="selection-info-panel">
+              <div class="info-row">
+                <span class="info-label">Range</span>
+                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
+                <span class="info-count">({{ selectionInfo.count }})</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Center</span>
+                <span class="info-value">{{ selectionInfo.centerName }}</span>
+              </div>
+              <sl-button-group>
+                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
+                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
+                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
+              </sl-button-group>
+            </div>
           </template>
 
           <br>
+
+          <!-- Adjust tool -->
+          <sl-input label="Step small" type="number" min="1" :value="adjust_step_small"
+            @sl-input="adjust_step_small = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
+          />
+          <sl-input label="Step large" type="number" min="1" :value="adjust_step_large"
+            @sl-input="adjust_step_large = Math.max(1, parseInt(($event.target as HTMLInputElement).value) || 1)"
+          />
+          <div class="accumulator-display" v-if="accumulator !== 0">
+            Δ {{ accumulator > 0 ? '+' : '' }}{{ accumulator }} px
+          </div>
+
           <br>
 
+          <!-- Magnet -->
+          <sl-switch
+            :checked="magnetEnabled"
+            @sl-change="magnetEnabled = ($event.target as HTMLInputElement).checked; applyMagnet()"
+          >Magnet</sl-switch>
+          <template v-if="magnetEnabled">
+            <br>
+            <sl-radio-group label="Profile" name="profile" :value="magnetProfile"
+              @sl-change="magnetProfile = ($event.target as HTMLInputElement).value as MagnetProfile; applyMagnet()">
+              <sl-radio-button value="bell"     title="0 → peak → 0">Bell</sl-radio-button>
+              <sl-radio-button value="rampup"   title="0 → peak">Ramp ↑</sl-radio-button>
+              <sl-radio-button value="rampdown" title="peak → 0">Ramp ↓</sl-radio-button>
+            </sl-radio-group>
+          </template>
+
+          <br>
+
+          <!-- Edge selector -->
           <sl-radio-group label="Edge" name="edge" size="small" :value="edge"
-                          @sl-change="edge = ($event.target as HTMLInputElement).value">
+            @sl-change="onEdgeChange(($event.target as HTMLInputElement).value)">
             <sl-radio-button value="none">None</sl-radio-button>
             <sl-radio-button value="left">Left</sl-radio-button>
             <sl-radio-button value="top">Top</sl-radio-button>
@@ -111,32 +121,24 @@
             <sl-radio-button value="right">Right</sl-radio-button>
           </sl-radio-group>
 
-          <br>
-
-          <sl-range
-              v-if="mode === 'crop'"
+          <template v-if="edge !== 'none'">
+            <br>
+            <sl-range
               :label="`Edge percent: ${viewPercent}%`"
               min="10" max="75" step="5" :value="viewPercent"
               @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
-          />
-          <br>
-          <br>
+            />
+          </template>
 
+          <br><br>
+
+          <!-- Session buttons -->
           <div class="session-buttons">
-            <sl-button
-                variant="danger"
-                :disabled="!hasChanges"
-                @click="abandonCrop"
-            >Abandon</sl-button>
-            <sl-button
-                variant="primary"
-                :disabled="!hasChanges"
-                @click="commitCrops"
-            >Commit</sl-button>
+            <sl-button variant="danger"  :disabled="!hasChanges" @click="abandonCrop">Abandon</sl-button>
+            <sl-button variant="primary" :disabled="!hasChanges" @click="commitCrops">Commit</sl-button>
           </div>
 
         </template>
-
       </div>
     </div>
 
@@ -144,33 +146,129 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import PageStrip from './PageStrip.vue';
-import type {Page, PageDb, CropEdges} from './types';
+import type { Page, PageDb, CropEdges } from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode = ref('crop');
-const tool = ref('singleadjust');
-const edge = ref('none');
+// ── Mode / tool / edge ───────────────────────────────────────────────
+const mode          = ref('crop');
+const edge          = ref('none');
+const viewPercent   = ref(25);
+const viewMode      = ref<'windowed' | 'full'>('windowed');
+
+// ── Step sizes ───────────────────────────────────────────────────────
 const adjust_step_small = ref(25);
 const adjust_step_large = ref(100);
-const wide_width        = ref(100);
-const wide_value        = ref(5);
-const viewPercent       = ref(25);
-const viewMode          = ref<'windowed' | 'full'>('windowed');
-const pages             = ref<Page[]>([]);
-const currentPageIndex  = ref<number | null>(null);
 
-// Per-page crop state — populated from API, modified client-side until saved.
-const pageCrops     = reactive(new Map<number, CropEdges>());
-// Snapshot of server state — reactive so hasChanges recomputes when it's updated.
-const originalCrops = reactive(new Map<number, CropEdges>());
+// ── Pages & crop data ────────────────────────────────────────────────
+const pages           = ref<Page[]>([]);
+const pageCrops       = reactive(new Map<number, CropEdges>());
+const originalCrops   = reactive(new Map<number, CropEdges>());
 let   storedNextBatch = 0;
 
-const pageListRef = ref<HTMLElement | null>(null);
-const stripWorkareaRef = ref<HTMLElement | null>(null);
+// ── Selection ────────────────────────────────────────────────────────
+// selectionAnchor = first-clicked page (plain click resets accumulator).
+// currentPageIndex = free end of range (also used for zoom focus).
+const selectionAnchor  = ref<number | null>(null);
+const currentPageIndex = ref<number | null>(null);
 
+// selectedPages: ordered slice of pages[] between anchor and current.
+const selectedPages = computed(() => {
+  const all = pages.value;
+  if (!all.length) return [];
+  const anchor  = selectionAnchor.value;
+  const current = currentPageIndex.value;
+  if (anchor === null && current === null) return [];
+  const anchorPos  = anchor  !== null ? all.findIndex(p => p.index === anchor)  : -1;
+  const currentPos = current !== null ? all.findIndex(p => p.index === current) : -1;
+  if (anchorPos < 0 && currentPos < 0) return [];
+  if (anchorPos < 0) return current !== null ? [all[currentPos]] : [];
+  if (currentPos < 0) return [all[anchorPos]];
+  const lo = Math.min(anchorPos, currentPos);
+  const hi = Math.max(anchorPos, currentPos);
+  return all.slice(lo, hi + 1);
+});
+
+// filteredPages: subset after odd/even filtering (placeholder for future use).
+const filteredPages = computed(() => selectedPages.value /* TODO: odd/even filter */);
+
+const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
+
+// ── Accumulator & magnet ─────────────────────────────────────────────
+const accumulator  = ref(0);
+const roundBaseCrops = new Map<number, CropEdges>();
+
+type MagnetProfile = 'bell' | 'rampup' | 'rampdown';
+const magnetEnabled = ref(false);
+const magnetProfile = ref<MagnetProfile>('bell');
+
+function getMagnetWeight(i: number, n: number, profile: MagnetProfile): number {
+  if (n <= 1) return 1.0;
+  const t = i / (n - 1);
+  switch (profile) {
+    case 'bell':     return t <= 0.5 ? 2 * t : 2 * (1 - t);
+    case 'rampup':   return t;
+    case 'rampdown': return 1 - t;
+  }
+}
+
+function applyMagnet() {
+  if (edge.value === 'none') return;
+  const edgeKey = edge.value as keyof CropEdges;
+  const fp = filteredPages.value;
+  const n  = fp.length;
+  for (let i = 0; i < n; i++) {
+    const page = fp[i];
+    const base = roundBaseCrops.get(page.index);
+    const curr = pageCrops.get(page.index);
+    if (!base || !curr) continue;
+    const weight = magnetEnabled.value ? getMagnetWeight(i, n, magnetProfile.value) : 1.0;
+    curr[edgeKey] = Math.max(0, base[edgeKey] + Math.round(accumulator.value * weight));
+  }
+}
+
+function rebuildRoundBase() {
+  roundBaseCrops.clear();
+  for (const page of pages.value) {
+    const crop = pageCrops.get(page.index);
+    if (crop) roundBaseCrops.set(page.index, { ...crop });
+  }
+}
+
+function adjustRange(delta: number) {
+  if (edge.value === 'none' || filteredPages.value.length === 0) return;
+  accumulator.value += delta;
+  applyMagnet();
+}
+
+function onEdgeChange(newEdge: string) {
+  // Changing edge starts a new adjustment round.
+  accumulator.value = 0;
+  rebuildRoundBase();
+  edge.value = newEdge;
+}
+
+// ── Selection info (for tools panel) ────────────────────────────────
+const selectionInfo = computed(() => {
+  const fp = filteredPages.value;
+  if (!fp.length) return null;
+  const first  = fp[0];
+  const last   = fp[fp.length - 1];
+  const center = fp[Math.floor((fp.length - 1) / 2)];
+  return {
+    firstIdx:   first.index,
+    lastIdx:    last.index,
+    centerIdx:  center.index,
+    firstName:  first.name  || first.scan,
+    lastName:   last.name   || last.scan,
+    centerName: center.name || center.scan,
+    count:      fp.length,
+  };
+});
+
+// ── Has changes ──────────────────────────────────────────────────────
 const hasChanges = computed(() => {
   for (const page of pages.value) {
     const orig = originalCrops.get(page.index);
@@ -182,119 +280,79 @@ const hasChanges = computed(() => {
   return false;
 });
 
-function isTypingTarget(): boolean {
-  const active = document.activeElement;
-  if (!(active instanceof HTMLElement)) return false;
+// ── Refs ─────────────────────────────────────────────────────────────
+const pageListRef      = ref<HTMLElement | null>(null);
+const stripWorkareaRef = ref<HTMLElement | null>(null);
+const thumbBaseUrl     = computed(() => `/projects/${props.machineName}/pages/thumbs/`);
 
-  return (
-    active.tagName === 'INPUT' ||
-    active.tagName === 'TEXTAREA' ||
-    active.tagName === 'SELECT' ||
-    active.isContentEditable
-  );
-}
-
-
-// Keep the selected page visible in the sidebar when navigation changes by other means.
-watch(currentPageIndex, (idx) => {
-  if (idx === null) return;
-  void scrollPageListItemIntoView(idx);
-  void scrollStripItemIntoView(idx);
-});
-
-// Keep the selected page visible in the sidebar when navigating by keyboard.
-watch(currentPageIndex, async (idx) => {
-  if (idx === null) return;
-  await nextTick();
-  pageListRef.value
-      ?.querySelector<HTMLElement>(`[data-page-idx="${idx}"]`)
-      ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
-});
-
-const thumbBaseUrl = computed(
-    () => `/projects/${props.machineName}/pages/thumbs/`
-);
-
-// ── Page navigation ─────────────────────────────────────────────────
-
-
+// ── Scroll helpers ───────────────────────────────────────────────────
 async function scrollPageListItemIntoView(pageIndex: number) {
   await nextTick();
-
   pageListRef.value
-      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
-      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+    ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 async function scrollStripItemIntoView(pageIndex: number) {
   await nextTick();
-
   stripWorkareaRef.value
-      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+    ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
 }
 
-function selectPageFromList(pageIndex: number) {
+function focusPage(pageIndex: number) {
+  void scrollPageListItemIntoView(pageIndex);
+  void scrollStripItemIntoView(pageIndex);
+}
+
+// ── Selection actions ────────────────────────────────────────────────
+// Plain click: new anchor = apply+reset accumulator.
+function setAnchor(pageIndex: number) {
+  accumulator.value = 0;
+  rebuildRoundBase();
+  selectionAnchor.value  = pageIndex;
   currentPageIndex.value = pageIndex;
+  void scrollPageListItemIntoView(pageIndex);
   void scrollStripItemIntoView(pageIndex);
 }
 
-function selectPageFromStrip(pageIndex: number) {
-  currentPageIndex.value = pageIndex;
-  void scrollPageListItemIntoView(pageIndex);
-}
-
-function selectPageAndScrollBoth(pageIndex: number) {
+// ⌘/⌃-click: extend range without resetting accumulator.
+function extendSelection(pageIndex: number) {
   currentPageIndex.value = pageIndex;
   void scrollPageListItemIntoView(pageIndex);
   void scrollStripItemIntoView(pageIndex);
+}
+
+function handleListClick(pageIndex: number, e: MouseEvent) {
+  (e.metaKey || e.ctrlKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
+}
+
+function handleStripClick(pageIndex: number, e: MouseEvent) {
+  (e.metaKey || e.ctrlKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
+}
+
+// ── Page navigation ──────────────────────────────────────────────────
+function isTypingTarget(): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+  return active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
+         active.tagName === 'SELECT' || active.isContentEditable;
 }
 
 function navigatePage(delta: number) {
   if (!pages.value.length || isTypingTarget()) return;
-
-  const currentIndex = currentPageIndex.value ?? pages.value[0].index;
-  const currentPosition = pages.value.findIndex(page => page.index === currentIndex);
-
-  const nextPosition =
-      currentPosition === -1
-          ? delta > 0 ? 0 : pages.value.length - 1
-          : Math.max(0, Math.min(pages.value.length - 1, currentPosition + delta));
-
-  selectPageAndScrollBoth(pages.value[nextPosition].index);
+  const anchor = selectionAnchor.value ?? pages.value[0].index;
+  const pos    = pages.value.findIndex(p => p.index === anchor);
+  const next   = pos < 0 ? 0 : Math.max(0, Math.min(pages.value.length - 1, pos + delta));
+  setAnchor(pages.value[next].index);
 }
 
-// ── Edge adjustment (Single Adjust — current page only) ─────────────
-
-function adjustEdge(which: keyof CropEdges, delta: number) {
-  if (currentPageIndex.value === null) return;
-  const crop = pageCrops.get(currentPageIndex.value);
-  if (crop) crop[which] = Math.max(0, crop[which] + delta);
-}
-
-// ── Wide Adjust — apply delta to all pages within ±wide_width ────────
-
-function applyWideAdjust(sign: 1 | -1) {
-  if (currentPageIndex.value === null || edge.value === 'none') return;
-  const center  = currentPageIndex.value;
-  const radius  = wide_width.value;
-  const delta   = sign * wide_value.value;
-  const edgeKey = edge.value as keyof CropEdges;
-  for (const page of pages.value) {
-    if (Math.abs(page.index - center) <= radius) {
-      const crop = pageCrops.get(page.index);
-      if (crop) crop[edgeKey] = Math.max(0, crop[edgeKey] + delta);
-    }
-  }
-}
-
-// ── Crop session: abandon / commit ──────────────────────────────────
-
+// ── Crop session: abandon / commit ───────────────────────────────────
 function abandonCrop() {
+  accumulator.value = 0;
   pageCrops.clear();
-  for (const [idx, crop] of originalCrops) {
-    pageCrops.set(idx, { ...crop });
-  }
+  for (const [idx, crop] of originalCrops) pageCrops.set(idx, { ...crop });
+  rebuildRoundBase();
 }
 
 async function commitCrops() {
@@ -312,10 +370,7 @@ async function commitCrops() {
       body: JSON.stringify(updatedPageDb),
     });
     if (res.ok) {
-      // Advance the snapshot so hasChanges resets to false.
-      for (const [idx, crop] of pageCrops) {
-        originalCrops.set(idx, { ...crop });
-      }
+      for (const [idx, crop] of pageCrops) originalCrops.set(idx, { ...crop });
     } else {
       console.error('Commit failed:', res.status, await res.text());
     }
@@ -325,94 +380,65 @@ async function commitCrops() {
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
-// Only active when not typing in a form element inside the tools panel.
-
 function onKeyDown(e: KeyboardEvent) {
   if (mode.value !== 'crop') return;
-
   const shift = e.shiftKey;
-  const alt = e.altKey;
+  const alt   = e.altKey;
 
-  // ⇧⎇ combos — always active in crop mode
+  // ⇧⎇ combos — edge selection and view toggle
   if (shift && alt) {
     switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        edge.value = 'top';
-        return;
-      case 'ArrowDown':
-        e.preventDefault();
-        edge.value = 'bottom';
-        return;
-      case 'ArrowLeft':
-        e.preventDefault();
-        edge.value = 'left';
-        return;
-      case 'ArrowRight':
-        e.preventDefault();
-        edge.value = 'right';
-        return;
-      case 'F':
-      case 'f':
+      case 'ArrowUp':    e.preventDefault(); onEdgeChange('top');    return;
+      case 'ArrowDown':  e.preventDefault(); onEdgeChange('bottom'); return;
+      case 'ArrowLeft':  e.preventDefault(); onEdgeChange('left');   return;
+      case 'ArrowRight': e.preventDefault(); onEdgeChange('right');  return;
+      case 'F': case 'f':
         e.preventDefault();
         viewMode.value = viewMode.value === 'full' ? 'windowed' : 'full';
         return;
     }
   }
 
-  // Skip navigation/adjustment keys when focus is inside the tools panel
+  // Skip nav/adjust when focus is inside the tools panel
   const target = e.target as HTMLElement;
   if (target.closest?.('.crop-tools')) return;
 
-  // Page navigation: , / .  and  < / >  (Shift+,  Shift+.)
+  // Page navigation: , / . and < / > (Shift+, / Shift+.)
   switch (e.key) {
-    case ',':
-      e.preventDefault();
-      navigatePage(-1);
-      return;
-    case '.':
-      e.preventDefault();
-      navigatePage(1);
-      return;
-    case '<':
-      e.preventDefault();
-      navigatePage(-10);
-      return;  // Shift+,
-    case '>':
-      e.preventDefault();
-      navigatePage(10);
-      return;  // Shift+.
+    case ',': e.preventDefault(); navigatePage(-1);  return;
+    case '.': e.preventDefault(); navigatePage(1);   return;
+    case '<': e.preventDefault(); navigatePage(-10); return;
+    case '>': e.preventDefault(); navigatePage(10);  return;
   }
 
-  // Arrow key edge adjustment — Single Adjust tool only, not when Alt is held.
-  // Plain arrow = step small; Shift+arrow = step large.
-  if (tool.value !== 'singleadjust' || alt) return;
-
+  // Edge adjustment — not when Alt is held; Shift = large step
+  if (alt) return;
   const step = shift ? adjust_step_large.value : adjust_step_small.value;
 
-  if (edge.value === 'top'    && e.key === 'ArrowDown')  { e.preventDefault(); adjustEdge('top',    step);  return; }
-  if (edge.value === 'top'    && e.key === 'ArrowUp')    { e.preventDefault(); adjustEdge('top',   -step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustEdge('bottom', step);  return; }
-  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustEdge('bottom',-step);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowRight') { e.preventDefault(); adjustEdge('left',   step);  return; }
-  if (edge.value === 'left'   && e.key === 'ArrowLeft')  { e.preventDefault(); adjustEdge('left',  -step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustEdge('right',  step);  return; }
-  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustEdge('right', -step);  return; }
+  if (edge.value === 'top'    && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange( step);  return; }
+  if (edge.value === 'top'    && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowDown')  { e.preventDefault(); adjustRange( step);  return; }
+  if (edge.value === 'bottom' && e.key === 'ArrowUp')    { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowRight') { e.preventDefault(); adjustRange( step);  return; }
+  if (edge.value === 'left'   && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange(-step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowRight') { e.preventDefault(); adjustRange( step);  return; }
+  if (edge.value === 'right'  && e.key === 'ArrowLeft')  { e.preventDefault(); adjustRange(-step);  return; }
 }
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
-    const res = await fetch(`/api/projects/${props.machineName}/pages`);
+    const res  = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
-    pages.value = data.pages;
+    pages.value     = data.pages;
     storedNextBatch = data.next_batch;
     for (const page of data.pages) {
       const crop = { ...page.crop_edges };
       pageCrops.set(page.index, crop);
       originalCrops.set(page.index, { ...crop });
     }
-    if (data.pages.length > 0) currentPageIndex.value = 0;
+    rebuildRoundBase();
+    if (data.pages.length > 0) setAnchor(data.pages[0].index);
   } catch (e) {
     console.error('Failed to load pages:', e);
   }
@@ -440,10 +466,7 @@ onUnmounted(() => {
   overflow-y: auto;
   min-height: 0;
 }
-
-.crop-area > div:last-child {
-  border-right: none;
-}
+.crop-area > div:last-child { border-right: none; }
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -483,10 +506,9 @@ onUnmounted(() => {
   -webkit-user-select: none;
 }
 
-.crop-tools {
-  padding: 0;
-}
+.crop-tools { padding: 0; }
 
+/* Page list */
 .page-nav-list {
   list-style: none;
   padding: 0;
@@ -495,7 +517,6 @@ onUnmounted(() => {
   user-select: none;
   -webkit-user-select: none;
 }
-
 .page-nav-list li {
   padding: 0.25rem 0.5rem;
   cursor: pointer;
@@ -505,36 +526,53 @@ onUnmounted(() => {
   color: var(--color-text-muted, #6c757d);
   border-left: 2px solid transparent;
 }
+.page-nav-list li:hover         { background: var(--color-bg-muted, #f1f3f5); }
+.page-nav-named                 { color: var(--color-text, #212529); }
+.page-nav-selected              { background: var(--color-bg-selected, #8397aa) !important; color: var(--color-text, #212529) !important; }
+.page-nav-focused               { border-left-color: var(--color-accent, #2563eb) !important; }
+.page-nav-unnamed               { color: var(--color-text-dimmed, #a2acb6); font-style: italic; }
 
-.page-nav-list li:hover {
-  background: var(--color-bg-muted, #f1f3f5);
+/* Selection info panel */
+.selection-info-panel {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.info-label {
+  font-weight: 600;
+  color: var(--color-text-muted, #6c757d);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.info-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-count { color: var(--color-text-muted, #6c757d); flex-shrink: 0; }
+
+/* Accumulator display */
+.accumulator-display {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent, #2563eb);
+  padding: 0.15rem 0;
 }
 
-.page-nav-named {
-  color: var(--color-text, #212529);
-}
-
-.page-nav-selected {
-  background: var(--color-bg-selected, #8397aa) !important;
-  color: var(--color-text, #212529) !important;
-  border-left-color: var(--color-accent, #2563eb) !important;
-}
-
-.page-nav-unnamed {
-  color: var(--color-text-dimmed, #a2acb6);
-  font-style: italic;
-}
-
+/* Session buttons */
 .session-buttons {
   display: flex;
   gap: 0.5rem;
   padding-top: 0.25rem;
   border-top: 1px solid var(--color-border, #dee2e6);
-}
-
-.page-nav-buttons sl-button::part(base) {
-  padding-inline: 0.25rem;
-  min-height: 1.25rem;
-  font-size: 0.7rem;
 }
 </style>
