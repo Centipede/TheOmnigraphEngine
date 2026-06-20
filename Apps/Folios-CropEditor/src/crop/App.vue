@@ -3,6 +3,11 @@
 
     <div class="crop-sidebar-pages">
       <div class="sidebar-lead">Pages ({{ pages.length }})</div>
+      <sl-button-group>
+        <sl-button size="small" title="Back (,)" @click="navigatePage(-1)">←</sl-button>
+        <sl-button size="small" title="Select all" @click="">All</sl-button>
+        <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
+      </sl-button-group>
       <ul class="page-nav-list" ref="pageListRef">
         <li
             v-for="page in pages"
@@ -12,7 +17,7 @@
             'page-nav-selected': page.index === currentPageIndex,
             'page-nav-named':    !!page.name,
           }"
-            @click="currentPageIndex = page.index"
+            @click="selectPageFromList(page.index)"
         >
           <span v-if="page.name">{{ page.name }}</span>
           <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
@@ -20,16 +25,17 @@
       </ul>
     </div>
 
-    <div class="crop-sidebar-sections">
-      <div class="sidebar-lead">Sections</div>
-      <div class="sidebar-content">Section list</div>
-    </div>
+<!--    <div class="crop-sidebar-sections">-->
+<!--      <div class="sidebar-lead">Sections</div>-->
+<!--      <div class="sidebar-content">Section list</div>-->
+<!--    </div>-->
 
-    <div class="crop-workarea">
+    <div class="crop-workarea" ref="stripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
             v-for="page in pages"
             :key="page.index"
+            :data-page-idx="page.index"
             :page="page"
             :edge="edge"
             :thumbBaseUrl="thumbBaseUrl"
@@ -37,7 +43,7 @@
             :showOverlay="mode === 'crop'"
             :crop="pageCrops.get(page.index) ?? page.crop_edges"
             :selected="page.index === currentPageIndex"
-            @click="currentPageIndex = page.index"
+            @click="selectPageFromStrip(page.index)"
         />
       </div>
     </div>
@@ -46,19 +52,11 @@
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
-        <sl-range
-            :label="`View: ${viewPercent}%`"
-            min="10" max="75" step="5" :value="viewPercent"
-            @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
-        />
-
+        <sl-button-group>
+          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`"  variant="default">OCR</sl-button>
+          <sl-button disabled variant="primary">Crop</sl-button>
+        </sl-button-group>
         <br>
-
-        <sl-radio-group label="Mode" name="mode" :value="mode"
-                        @sl-change="mode = ($event.target as HTMLInputElement).value">
-          <sl-radio-button value="none">None</sl-radio-button>
-          <sl-radio-button value="crop">Crop</sl-radio-button>
-        </sl-radio-group>
 
         <template v-if="mode === 'crop'">
           <br>
@@ -112,18 +110,28 @@
             <sl-radio-button value="bottom">Bottom</sl-radio-button>
             <sl-radio-button value="right">Right</sl-radio-button>
           </sl-radio-group>
-          <br><br>
+
+          <br>
+
+          <sl-range
+              v-if="mode === 'crop'"
+              :label="`Edge percent: ${viewPercent}%`"
+              min="10" max="75" step="5" :value="viewPercent"
+              @sl-input="viewPercent = parseInt(($event.target as HTMLInputElement).value)"
+          />
+          <br>
+          <br>
 
           <div class="session-buttons">
             <sl-button
-              variant="danger"
-              :disabled="!hasChanges"
-              @click="abandonCrop"
+                variant="danger"
+                :disabled="!hasChanges"
+                @click="abandonCrop"
             >Abandon</sl-button>
             <sl-button
-              variant="primary"
-              :disabled="!hasChanges"
-              @click="commitCrops"
+                variant="primary"
+                :disabled="!hasChanges"
+                @click="commitCrops"
             >Commit</sl-button>
           </div>
 
@@ -142,7 +150,7 @@ import type {Page, PageDb, CropEdges} from './types';
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
-const mode = ref('none');
+const mode = ref('crop');
 const tool = ref('singleadjust');
 const edge = ref('none');
 const adjust_step_small = ref(25);
@@ -161,6 +169,7 @@ const originalCrops = reactive(new Map<number, CropEdges>());
 let   storedNextBatch = 0;
 
 const pageListRef = ref<HTMLElement | null>(null);
+const stripWorkareaRef = ref<HTMLElement | null>(null);
 
 const hasChanges = computed(() => {
   for (const page of pages.value) {
@@ -171,6 +180,26 @@ const hasChanges = computed(() => {
         orig.right !== curr.right || orig.bottom !== curr.bottom) return true;
   }
   return false;
+});
+
+function isTypingTarget(): boolean {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return false;
+
+  return (
+    active.tagName === 'INPUT' ||
+    active.tagName === 'TEXTAREA' ||
+    active.tagName === 'SELECT' ||
+    active.isContentEditable
+  );
+}
+
+
+// Keep the selected page visible in the sidebar when navigation changes by other means.
+watch(currentPageIndex, (idx) => {
+  if (idx === null) return;
+  void scrollPageListItemIntoView(idx);
+  void scrollStripItemIntoView(idx);
 });
 
 // Keep the selected page visible in the sidebar when navigating by keyboard.
@@ -188,11 +217,51 @@ const thumbBaseUrl = computed(
 
 // ── Page navigation ─────────────────────────────────────────────────
 
+
+async function scrollPageListItemIntoView(pageIndex: number) {
+  await nextTick();
+
+  pageListRef.value
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+async function scrollStripItemIntoView(pageIndex: number) {
+  await nextTick();
+
+  stripWorkareaRef.value
+      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
+function selectPageFromList(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollStripItemIntoView(pageIndex);
+}
+
+function selectPageFromStrip(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollPageListItemIntoView(pageIndex);
+}
+
+function selectPageAndScrollBoth(pageIndex: number) {
+  currentPageIndex.value = pageIndex;
+  void scrollPageListItemIntoView(pageIndex);
+  void scrollStripItemIntoView(pageIndex);
+}
+
 function navigatePage(delta: number) {
-  if (!pages.value.length) return;
-  const cur = currentPageIndex.value ?? 0;
-  const next = Math.max(0, Math.min(pages.value.length - 1, cur + delta));
-  currentPageIndex.value = next;
+  if (!pages.value.length || isTypingTarget()) return;
+
+  const currentIndex = currentPageIndex.value ?? pages.value[0].index;
+  const currentPosition = pages.value.findIndex(page => page.index === currentIndex);
+
+  const nextPosition =
+      currentPosition === -1
+          ? delta > 0 ? 0 : pages.value.length - 1
+          : Math.max(0, Math.min(pages.value.length - 1, currentPosition + delta));
+
+  selectPageAndScrollBoth(pages.value[nextPosition].index);
 }
 
 // ── Edge adjustment (Single Adjust — current page only) ─────────────
@@ -358,7 +427,7 @@ onUnmounted(() => {
 .crop-area {
   width: 100%;
   display: grid;
-  grid-template-columns: 10rem 18rem 1fr 20rem;
+  grid-template-columns: 8rem 1fr 20rem;
   height: calc(100vh - var(--header-height, 0px));
   overflow: hidden;
   font-family: var(--sl-font-sans, sans-serif);
@@ -379,6 +448,7 @@ onUnmounted(() => {
 .sidebar-lead {
   font-size: 0.75rem;
   font-weight: 600;
+  min-height: 1.2rem;
   color: var(--color-text-muted, #6c757d);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -409,6 +479,8 @@ onUnmounted(() => {
   gap: 4px;
   padding: 6px;
   align-content: flex-start;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .crop-tools {
@@ -420,6 +492,8 @@ onUnmounted(() => {
   padding: 0;
   margin: 0;
   font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .page-nav-list li {
@@ -430,7 +504,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   color: var(--color-text-muted, #6c757d);
   border-left: 2px solid transparent;
-  user-select: none;
 }
 
 .page-nav-list li:hover {
@@ -457,5 +530,11 @@ onUnmounted(() => {
   gap: 0.5rem;
   padding-top: 0.25rem;
   border-top: 1px solid var(--color-border, #dee2e6);
+}
+
+.page-nav-buttons sl-button::part(base) {
+  padding-inline: 0.25rem;
+  min-height: 1.25rem;
+  font-size: 0.7rem;
 }
 </style>

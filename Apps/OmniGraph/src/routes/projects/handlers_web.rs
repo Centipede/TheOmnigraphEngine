@@ -168,7 +168,7 @@ pub async fn folios_get(
     let pagedb = storage::load_page_db(&pagedb_path);
     let env = state.templates.acquire_env().unwrap();
     let html = env
-        .get_template("folios/initial.html")
+        .get_template("folios/inspectmode.html")
         .unwrap()
         .render(context! { project, pagedb })
         .unwrap();
