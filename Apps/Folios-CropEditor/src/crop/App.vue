@@ -14,9 +14,10 @@
             :key="page.index"
             :data-page-idx="page.index"
             :class="{
-            'page-nav-selected': selectedPageSet.has(page.index),
-            'page-nav-focused':  page.index === currentPageIndex,
-            'page-nav-named':    !!page.name,
+            'page-nav-selected':     selectedPageSet.has(page.index),
+            'page-nav-focused':      page.index === currentPageIndex,
+            'page-nav-named':        !!page.name,
+            'page-nav-filtered-out': !isInFilter(page),
           }"
             @click="handleListClick(page.index, $event)"
         >
@@ -30,7 +31,7 @@
     <div class="crop-workarea" :ref="setStripWorkareaRef">
       <div class="strip-grid">
         <PageStrip
-            v-for="page in pages"
+            v-for="page in visiblePages"
             :key="page.index"
             :data-page-idx="page.index"
             :page="page"
@@ -58,6 +59,14 @@
         </sl-button-group>
 
         <template v-if="mode === 'crop'">
+
+          <br>
+          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-change="filterMode = ($event.target as HTMLInputElement).value">
+            <sl-radio-button value="all">All</sl-radio-button>
+            <sl-radio-button value="even">Even</sl-radio-button>
+            <sl-radio-button value="odd">Odd</sl-radio-button>
+          </sl-radio-group>
+
 
           <!-- Selection info -->
           <template v-if="selectionInfo">
@@ -111,6 +120,9 @@
                 @sl-change="magnetEnabled = ($event.target as HTMLInputElement).checked; applyMagnet()"
             >Magnet
             </sl-switch>
+
+            <br>
+
             <template v-if="magnetEnabled">
               <br>
               <sl-radio-group label="Profile" name="profile" :value="magnetProfile"
@@ -142,7 +154,6 @@
               />
             </template>
 
-            <br><br>
           </template>
 
           <template v-if="tool === 'assign'">
@@ -156,6 +167,8 @@
               <sl-input class="diamond-input bottom" size="small" pill type="number" :value="assignValues.bottom ?? ''"
                         @sl-input="assignValues.bottom = parseOptionalNumber(($event.target as HTMLInputElement).value)"></sl-input>
             </div>
+
+            <br>
 
             <sl-button-group>
               <sl-button variant="default" @click="assignBySetting(assignValues)">Set</sl-button>
@@ -171,6 +184,8 @@
               <sl-button variant="default" @click="assignAllEdges(-100)">−100</sl-button>
             </sl-button-group>
           </template>
+
+          <br><br>
 
           <!-- Session buttons -->
           <sl-button-group>
@@ -198,6 +213,7 @@ const mode = ref('crop');
 const tool = ref('adjust');
 const edge = ref('none');
 const viewPercent = ref(25);
+const filterMode = ref('all')
 const viewMode = ref<'windowed' | 'full'>('windowed');
 
 // ── Adjust tool data ─────────────────────────────────────────────────
@@ -257,11 +273,58 @@ const selectedPages = computed(() => {
   return all.slice(lo, hi + 1);
 });
 
-// selectedPageSet: selectedPages as a set.
+// Parse a Roman numeral string to an integer, or return null.
+function parseRoman(s: string): number | null {
+  const upper = s.toUpperCase().trim();
+  if (!upper || !/^[IVXLCDM]+$/.test(upper)) return null;
+  const vals: Record<string, number> = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
+  let total = 0, prev = 0;
+  for (const ch of [...upper].reverse()) {
+    const v = vals[ch];
+    if (!v) return null;
+    if (v < prev) total -= v; else total += v;
+    prev = v;
+  }
+  return total > 0 ? total : null;
+}
+
+// Derive a 1-based ordinal from the page name where possible, so even/odd
+// reflects what the user sees rather than the internal storage index.
+// Priority: Arabic numeral name → Roman numeral name → 1-based index fallback.
+function pageOrdinal(page: Page): number {
+  if (page.name) {
+    const arabic = parseInt(page.name.trim(), 10);
+    if (!isNaN(arabic) && String(arabic) === page.name.trim()) return arabic;
+    const roman = parseRoman(page.name.trim());
+    if (roman !== null) return roman;
+  }
+  return page.index + 1; // 1-based: index 0 → ordinal 1 (odd)
+}
+
+// isInFilter: true when a page passes the current even/odd filter.
+// Uses the page ordinal derived from its name, not the raw storage index.
+function isInFilter(page: Page): boolean {
+  if (filterMode.value === 'all')  return true;
+  const ord = pageOrdinal(page);
+  if (filterMode.value === 'even') return ord % 2 === 0;
+  return ord % 2 !== 0;
+}
+
+// filteredPages: selectedPages narrowed to pages that pass the filter.
+// ALL edit operations iterate this — pages outside the filter are never touched.
+const filteredPages = computed(() =>
+  filterMode.value === 'all'
+    ? selectedPages.value
+    : selectedPages.value.filter(isInFilter)
+);
+
+// selectedPageSet: set of indices in filteredPages (for highlight/overlay).
 const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
 
-// filteredPages: subset after odd/even filtering (placeholder for future use).
-const filteredPages = computed(() => selectedPages.value /* TODO: odd/even filter */);
+// visiblePages: pages shown in the strip grid — only those passing the filter.
+const visiblePages = computed(() =>
+  filterMode.value === 'all' ? pages.value : pages.value.filter(isInFilter)
+);
 
 // ── Accumulator & magnet ─────────────────────────────────────────────
 const accumulator = ref(0);
@@ -746,6 +809,11 @@ onUnmounted(() => {
 .page-nav-unnamed {
   color: var(--color-text-dimmed, #a2acb6);
   font-style: italic;
+}
+
+.page-nav-filtered-out {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Selection info panel */
