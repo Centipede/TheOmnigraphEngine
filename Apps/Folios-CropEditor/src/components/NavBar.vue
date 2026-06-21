@@ -4,9 +4,8 @@
       <sl-button class="nav-brand" href="/projects" variant="text">OmniGraph</sl-button>
 
       <div class="nav-start">
-        <sl-button :href="`/projects/${machineName}`"           variant="text">Overview</sl-button>
-        <sl-button :href="`/projects/${machineName}/metadata`"  variant="text">Metadata</sl-button>
-        <sl-button :href="`/projects/${machineName}/ingestor`"  variant="text">Ingestor</sl-button>
+        <sl-button :href="`http://127.0.0.1:8080/projects/${machineName}`"           variant="text">Overview</sl-button>
+        <sl-button :href="`http://127.0.0.1:8080/projects/${machineName}/ingestor`"  variant="text">Ingestor</sl-button>
         <sl-button :href="`/projects/${machineName}/folios`"    variant="primary">Folios</sl-button>
       </div>
 

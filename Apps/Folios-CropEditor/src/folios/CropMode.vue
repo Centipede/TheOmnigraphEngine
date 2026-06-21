@@ -1,6 +1,4 @@
 <template>
-  <div class="vue-app-root">
-  <NavBar :machineName="machineName" :projectName="projectName" />
   <div class="crop-area">
 
     <!-- Sidebar: page list -->
@@ -200,13 +198,11 @@
       </div>
     </div>
   </div>
-  </div>
 </template>
 
 <script setup lang="ts">
 import {ref, reactive, computed, nextTick, onMounted, onUnmounted} from 'vue';
 import type {VNodeRef} from 'vue';
-import NavBar from './NavBar.vue';
 import PageStrip from './PageStrip.vue';
 import type {Page, PageDb, CropEdges} from './types';
 
@@ -420,7 +416,7 @@ const hasChanges = computed(() => {
 // ── Refs ─────────────────────────────────────────────────────────────
 const pageListRef = ref<HTMLElement | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
-const thumbBaseUrl = computed(() => `/projects/${props.machineName}/pages/thumbs/`);
+const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
 
 const setPageListRef: VNodeRef = el => {
   pageListRef.value = el instanceof HTMLElement ? el : null;
@@ -710,15 +706,6 @@ onUnmounted(() => {
 </script>
 
 <style>
-.vue-app-root {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background: var(--color-bg, #f8f9fa);
-  font-family: var(--sl-font-sans, sans-serif);
-  color: var(--color-text, #212529);
-}
 
 .crop-area {
   flex: 1;

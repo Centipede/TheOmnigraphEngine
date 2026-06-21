@@ -184,7 +184,7 @@
         return {
             pages: rawPages.map(page => ({
                 ...page,
-                scanUrl: `/projects/${projectMachineName}/pages/scans/${page.scan}`
+                scanUrl: `/media/projects/${projectMachineName}/pages/scans/${page.scan}`
             })),
             selectedIndices: [],
             rangeAnchor: null,
@@ -374,7 +374,7 @@
              @click="selectFromPreview({{ page.index }}, $event)">
           <div class="page-preview-image-frame">
             <img width="{{ page.thumb_width/2 }}" height="{{ page.thumb_height/2 }}"
-                 src="/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview"
+                 src="/media/projects/{{ project.machine_name }}/pages/thumbs/{{ page.thumb }}" alt="Page preview"
                  class="page-preview-image">
           </div>
           <div class="page-preview-info">
