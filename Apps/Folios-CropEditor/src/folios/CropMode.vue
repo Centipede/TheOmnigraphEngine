@@ -2,30 +2,15 @@
   <div class="crop-area">
 
     <!-- Sidebar: page list -->
-    <div class="crop-sidebar-pages">
-      <div class="sidebar-lead">Pages ({{ pages.length }})</div>
-      <sl-button-group>
-        <sl-button size="small" title="Back (,)" @click="navigatePage(-1)">←</sl-button>
-        <sl-button size="small" title="Forward (.)" @click="navigatePage(1)">→</sl-button>
-      </sl-button-group>
-      <ul class="page-nav-list" :ref="setPageListRef">
-        <li
-            v-for="page in pages"
-            :key="page.index"
-            :data-page-idx="page.index"
-            :class="{
-            'page-nav-selected':     selectedPageSet.has(page.index),
-            'page-nav-focused':      page.index === currentPageIndex,
-            'page-nav-named':        !!page.name,
-            'page-nav-filtered-out': !isInFilter(page),
-          }"
-            @click="handleListClick(page.index, $event)"
-        >
-          <span v-if="page.name">{{ page.name }}</span>
-          <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
-        </li>
-      </ul>
-    </div>
+    <PageList
+        ref="pageListComponentRef"
+        :pages="pages"
+        :selected-page-indices="selectedPageSet"
+        :current-page-index="currentPageIndex"
+        :is-page-in-filter="isInFilter"
+        @navigate="navigatePage"
+        @page-click="handleListClick"
+    />
 
     <!-- Central: strip grid -->
     <div class="crop-workarea" :ref="setStripWorkareaRef">
@@ -201,10 +186,12 @@
 </template>
 
 <script setup lang="ts">
-import {ref, reactive, computed, nextTick, onMounted, onUnmounted} from 'vue';
 import type {VNodeRef} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
+import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
 import PageStrip from './PageStrip.vue';
-import type {Page, PageDb, CropEdges} from './types';
+import type {CropEdges, Page, PageDb} from './types';
+import PageList from "./PageList.vue";
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 
@@ -273,58 +260,17 @@ const selectedPages = computed(() => {
   return all.slice(lo, hi + 1);
 });
 
-// Parse a Roman numeral string to an integer, or return null.
-function parseRoman(s: string): number | null {
-  const upper = s.toUpperCase().trim();
-  if (!upper || !/^[IVXLCDM]+$/.test(upper)) return null;
-  const vals: Record<string, number> = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
-  let total = 0, prev = 0;
-  for (const ch of [...upper].reverse()) {
-    const v = vals[ch];
-    if (!v) return null;
-    if (v < prev) total -= v; else total += v;
-    prev = v;
-  }
-  return total > 0 ? total : null;
-}
-
-// Derive a 1-based ordinal from the page name where possible, so even/odd
-// reflects what the user sees rather than the internal storage index.
-// Priority: Arabic numeral name → Roman numeral name → 1-based index fallback.
-function pageOrdinal(page: Page): number {
-  if (page.name) {
-    const arabic = parseInt(page.name.trim(), 10);
-    if (!isNaN(arabic) && String(arabic) === page.name.trim()) return arabic;
-    const roman = parseRoman(page.name.trim());
-    if (roman !== null) return roman;
-  }
-  return page.index + 1; // 1-based: index 0 → ordinal 1 (odd)
-}
-
-// isInFilter: true when a page passes the current even/odd filter.
-// Uses the page ordinal derived from its name, not the raw storage index.
-function isInFilter(page: Page): boolean {
-  if (filterMode.value === 'all')  return true;
-  const ord = pageOrdinal(page);
-  if (filterMode.value === 'even') return ord % 2 === 0;
-  return ord % 2 !== 0;
-}
+const isInFilter = makeIsInFilter(filterMode);
 
 // filteredPages: selectedPages narrowed to pages that pass the filter.
 // ALL edit operations iterate this — pages outside the filter are never touched.
-const filteredPages = computed(() =>
-  filterMode.value === 'all'
-    ? selectedPages.value
-    : selectedPages.value.filter(isInFilter)
-);
+const filteredPages = useFilteredPages(filterMode, selectedPages);
 
 // selectedPageSet: set of indices in filteredPages (for highlight/overlay).
 const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
 
 // visiblePages: pages shown in the strip grid — only those passing the filter.
-const visiblePages = computed(() =>
-  filterMode.value === 'all' ? pages.value : pages.value.filter(isInFilter)
-);
+const visiblePages = useFilteredPages(filterMode, pages);
 
 // ── Accumulator & magnet ─────────────────────────────────────────────
 const accumulator = ref(0);
@@ -414,13 +360,10 @@ const hasChanges = computed(() => {
 });
 
 // ── Refs ─────────────────────────────────────────────────────────────
-const pageListRef = ref<HTMLElement | null>(null);
+const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
-const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
 
-const setPageListRef: VNodeRef = el => {
-  pageListRef.value = el instanceof HTMLElement ? el : null;
-};
+const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
 
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
@@ -428,10 +371,7 @@ const setStripWorkareaRef: VNodeRef = el => {
 
 // ── Scroll helpers ───────────────────────────────────────────────────
 async function scrollPageListItemIntoView(pageIndex: number) {
-  await nextTick();
-  pageListRef.value
-      ?.querySelector<HTMLElement>(`[data-page-idx="${pageIndex}"]`)
-      ?.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  await pageListComponentRef.value?.scrollPageIntoView(pageIndex);
 }
 
 async function scrollStripItemIntoView(pageIndex: number) {
@@ -708,20 +648,21 @@ onUnmounted(() => {
 <style>
 
 .crop-area {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   display: grid;
-  grid-template-columns: 8rem 1fr 20rem;
+  grid-template-columns: 8rem minmax(0, 1fr) 20rem;
   overflow: hidden;
 }
 
-.crop-area > div {
-  border-right: 1px solid var(--color-border, #dee2e6);
-  overflow-y: auto;
+.crop-area > * {
   min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border, #dee2e6);
 }
 
-.crop-area > div:last-child {
+.crop-area > *:last-child {
   border-right: none;
 }
 
@@ -747,10 +688,9 @@ onUnmounted(() => {
 }
 
 .crop-workarea {
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
 }
 
 .strip-grid {
@@ -768,14 +708,6 @@ onUnmounted(() => {
 }
 
 /* Page list */
-.page-nav-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 0.75rem;
-  user-select: none;
-  -webkit-user-select: none;
-}
 
 .page-nav-list li {
   padding: 0.25rem 0.5rem;
@@ -789,29 +721,6 @@ onUnmounted(() => {
 
 .page-nav-list li:hover {
   background: var(--color-bg-muted, #f1f3f5);
-}
-
-.page-nav-named {
-  color: var(--color-text, #212529);
-}
-
-.page-nav-selected {
-  background: var(--color-bg-selected, #8397aa) !important;
-  color: var(--color-text, #212529) !important;
-}
-
-.page-nav-focused {
-  border-left-color: var(--color-accent, #2563eb) !important;
-}
-
-.page-nav-unnamed {
-  color: var(--color-text-dimmed, #a2acb6);
-  font-style: italic;
-}
-
-.page-nav-filtered-out {
-  opacity: 0.35;
-  pointer-events: none;
 }
 
 /* Selection info panel */
