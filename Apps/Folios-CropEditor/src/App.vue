@@ -1,12 +1,14 @@
 <template>
   <div class="vue-app-root">
     <NavBar :machineName="machineName" :projectName="projectName" />
+    <InspectMode :machine-name="machineName" :project-name="projectName" />
     <CropMode :machine-name="machineName" :project-name="projectName" />
   </div>
 </template>
 
 <script setup lang="ts">
 import NavBar from "./components/NavBar.vue";
+import InspectMode from "./folios/InspectMode.vue";
 import CropMode from "./folios/CropMode.vue";
 
 defineProps<{ machineName: string; projectName: string }>();

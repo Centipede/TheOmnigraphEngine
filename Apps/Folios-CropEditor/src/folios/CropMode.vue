@@ -25,6 +25,8 @@
             :fraction="viewPercent / 100"
             :showOverlay="mode === 'crop'"
             :crop="pageCrops.get(page.index) ?? page.crop_edges"
+            crop-color="rgba(0, 180, 0, 0.12)"
+            discard-color="rgba(220, 0, 0, 0.35)"
             :selected="selectedPageSet.has(page.index)"
             @click="handleStripClick(page.index, $event)"
         />
@@ -687,7 +689,7 @@ onUnmounted(() => {
   color: var(--color-text-muted, #6c757d);
 }
 
-.crop-workarea {
+.inspect-workarea {
   min-width: 0;
   min-height: 0;
   overflow: auto;
