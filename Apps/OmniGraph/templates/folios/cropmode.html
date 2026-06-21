@@ -2,7 +2,16 @@
 
 {% block title %}{{ project.name }} — Crop — OmniGraph{% endblock %}
 
-{% block head %}{{ super() }}{% endblock %}
+{% block head %}{{ super() }}
+<style>
+  /* Vue app takes over the full viewport — it renders its own navbar. */
+  #folios-crop-app {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div id="folios-crop-app"

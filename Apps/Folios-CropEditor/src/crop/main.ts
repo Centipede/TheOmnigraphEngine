@@ -9,6 +9,9 @@ const mountEl = document.getElementById('folios-crop-app');
 const machineName = mountEl?.dataset.machineName ?? '';
 const projectName = mountEl?.dataset.projectName ?? '';
 
+// Vue now renders its own navbar, so the header height is always 56px.
+document.documentElement.style.setProperty('--header-height', '56px');
+
 const app = createApp(App, { machineName, projectName });
 app.config.compilerOptions.isCustomElement = (tag) => tag.startsWith('sl-');
 app.mount('#folios-crop-app');

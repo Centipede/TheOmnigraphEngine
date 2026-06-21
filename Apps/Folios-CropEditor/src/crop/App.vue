@@ -1,4 +1,6 @@
 <template>
+  <div class="vue-app-root">
+  <NavBar :machineName="machineName" :projectName="projectName" />
   <div class="crop-area">
 
     <!-- Sidebar: page list -->
@@ -198,11 +200,13 @@
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import {ref, reactive, computed, nextTick, onMounted, onUnmounted} from 'vue';
 import type {VNodeRef} from 'vue';
+import NavBar from './NavBar.vue';
 import PageStrip from './PageStrip.vue';
 import type {Page, PageDb, CropEdges} from './types';
 
@@ -706,15 +710,22 @@ onUnmounted(() => {
 </script>
 
 <style>
-.crop-area {
+.vue-app-root {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  height: 100%;
+  background: var(--color-bg, #f8f9fa);
+  font-family: var(--sl-font-sans, sans-serif);
+  color: var(--color-text, #212529);
+}
+
+.crop-area {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 8rem 1fr 20rem;
-  height: calc(100vh - var(--header-height, 0px));
   overflow: hidden;
-  font-family: var(--sl-font-sans, sans-serif);
-  background: var(--color-bg, #f8f9fa);
-  color: var(--color-text, #212529);
 }
 
 .crop-area > div {
