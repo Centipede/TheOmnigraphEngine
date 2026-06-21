@@ -1,30 +1,31 @@
 <template>
   <div class="vue-app-root">
-    <NavBar :machineName="machineName" :projectName="projectName" />
-    <InspectMode :machine-name="machineName" :project-name="projectName" />
-    <CropMode :machine-name="machineName" :project-name="projectName" />
+    <NavBar :machineName="machineName" :projectName="projectName"/>
+    <RouterView/>
   </div>
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue';
+import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
-import InspectMode from "./folios/InspectMode.vue";
-import CropMode from "./folios/CropMode.vue";
 
-defineProps<{ machineName: string; projectName: string }>();
+const route = useRoute();
 
+const machineName = computed(() => String(route.params.machineName ?? ''));
+const projectName = computed(() => machineName.value);
 </script>
 
 <style>
 .vue-app-root {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    background: var(--color-bg, #f8f9fa);
-    font-family: var(--sl-font-sans, sans-serif);
-    color: var(--color-text, #212529);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg, #f8f9fa);
+  font-family: var(--sl-font-sans, sans-serif);
+  color: var(--color-text, #212529);
 }
 </style>
