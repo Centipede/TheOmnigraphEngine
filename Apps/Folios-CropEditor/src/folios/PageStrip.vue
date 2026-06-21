@@ -20,7 +20,7 @@
 import { computed } from 'vue';
 import type { Page, CropEdges } from './types';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   page:        Page;
   edge:        string;
   thumbBaseUrl: string;
@@ -28,7 +28,12 @@ const props = defineProps<{
   showOverlay: boolean;
   crop:        CropEdges;
   selected?:   boolean;
-}>();
+  cropColor?:  string;
+  discardColor?: string;
+}>(), {
+  cropColor: 'rgba(0, 180, 0, 0.12)',
+  discardColor: 'rgba(220, 0, 0, 0.35)',
+});
 
 const label = computed(() => props.page.name || props.page.scan);
 const src   = computed(() => props.thumbBaseUrl + props.page.thumb);
@@ -90,8 +95,8 @@ const greenStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${iw.value}px`,
   height: `${ih.value}px`,
-  background: 'rgba(0, 180, 0, 0.12)',
-  outline: '2px solid rgba(0, 180, 0, 0.75)',
+  background: props.cropColor,
+  outline: `2px solid ${props.cropColor}`,
   outlineOffset: '-1px',
   pointerEvents: 'none' as const,
 }));
@@ -102,7 +107,7 @@ const topRedStyle = computed(() => ({
   top:    `${oy.value}px`,
   width:  `${tw.value}px`,
   height: `${tt.value}px`,
-  background: 'rgba(220, 0, 0, 0.35)',
+  background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -112,7 +117,7 @@ const bottomRedStyle = computed(() => ({
   top:    `${oy.value + th.value - tb.value}px`,
   width:  `${tw.value}px`,
   height: `${tb.value}px`,
-  background: 'rgba(220, 0, 0, 0.35)',
+  background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -122,7 +127,7 @@ const leftRedStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${tl.value}px`,
   height: `${ih.value}px`,
-  background: 'rgba(220, 0, 0, 0.35)',
+  background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -132,7 +137,7 @@ const rightRedStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${tr.value}px`,
   height: `${ih.value}px`,
-  background: 'rgba(220, 0, 0, 0.35)',
+  background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
 </script>

@@ -17,7 +17,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         shoelace: resolve(__dirname, 'src/shoelace.ts'),
-        'folios-crop': resolve(__dirname, 'src/crop/main.ts'),
+        'omnigraph-ui': resolve(__dirname, 'src/main.ts'),
       },
       output: {
         entryFileNames: '[name].js',
@@ -32,7 +32,7 @@ export default defineConfig({
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
-      '/projects': {
+      '/media': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
