@@ -1,10 +1,15 @@
 use crate::secrets::AppSecrets;
 use minijinja::{Environment, Value};
 use minijinja_autoreload::AutoReloader;
+use rust_embed::RustEmbed;
 use std::{
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
+
+#[derive(RustEmbed)]
+#[folder = "templates/"]
+struct EmbeddedTemplates;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -62,22 +67,58 @@ fn date_filter(value: Value, format: &str) -> Result<String, minijinja::Error> {
     })
 }
 
+#[cfg(debug_assertions)]
+fn build_template_reloader() -> AutoReloader {
+    AutoReloader::new(|notifier| {
+        let mut env = Environment::new();
+        notifier.watch_path("templates", true);
+        env.set_loader(minijinja::path_loader("templates"));
+        env.add_filter("date", date_filter);
+        Ok(env)
+    })
+}
+
+#[cfg(not(debug_assertions))]
+fn build_template_reloader() -> AutoReloader {
+    AutoReloader::new(|_notifier| {
+        let mut env = Environment::new();
+
+        for path in EmbeddedTemplates::iter() {
+            let path = path.to_string();
+
+            if !path.ends_with(".html") {
+                continue;
+            }
+
+            let file = EmbeddedTemplates::get(&path).ok_or_else(|| {
+                minijinja::Error::new(
+                    minijinja::ErrorKind::TemplateNotFound,
+                    format!("embedded template not found: {path}"),
+                )
+            })?;
+
+            let source = std::str::from_utf8(file.data.as_ref()).map_err(|err| {
+                minijinja::Error::new(
+                    minijinja::ErrorKind::InvalidOperation,
+                    format!("embedded template is not valid UTF-8: {path}: {err}"),
+                )
+            })?;
+
+            env.add_template_owned(path, source.to_owned())?;
+        }
+
+        env.add_filter("date", date_filter);
+        Ok(env)
+    })
+}
+
 impl AppState {
     pub fn from_env() -> Self {
         let projects_dir = std::env::var("PROJECTS_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("./projects"));
 
-        let mut env = Environment::new();
-        env.set_loader(minijinja::path_loader("templates"));
-
-        let reloader = AutoReloader::new(|notifier| {
-            let mut env = Environment::new();
-            notifier.watch_path("templates", true);
-            env.set_loader(minijinja::path_loader("templates"));
-            env.add_filter("date", date_filter);
-            Ok(env)
-        });
+        let reloader = build_template_reloader();
 
         Self {
             projects_dir: Arc::new(projects_dir),
