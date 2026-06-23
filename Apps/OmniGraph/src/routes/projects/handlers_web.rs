@@ -5,7 +5,6 @@ use crate::routes::projects::forms::{
 use crate::routes::projects::models::{Author, IMPORT_ORDER_GAP, Page, Project};
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
-use axum::Json;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Redirect};
@@ -327,8 +326,9 @@ pub async fn ingest_images_post(
     }
 
     storage::reindex(&mut pagedb);
-    let _ = storage::save_page_db(&pagedb_path, &pagedb);
-
+    if storage::save_page_db(&pagedb_path, &pagedb).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
     Redirect::to(&format!("/projects/{}", machine_name)).into_response()
 }
 
@@ -485,43 +485,6 @@ pub async fn rename_pages_post(
     Redirect::to(&format!("/projects/{}/ingestor", machine_name)).into_response()
 }
 
-pub async fn create_project(
-    State(state): State<AppState>,
-    Json(payload): Json<CreateProject>,
-) -> impl IntoResponse {
-    let machine_name = payload.machine_name.trim().to_string();
-    let name = payload.name.trim().to_string();
-
-    if !storage::is_valid_machine_name(&machine_name) || name.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "invalid name"})),
-        )
-            .into_response();
-    }
-
-    let project_dir = state.projects_dir.join(&machine_name);
-    if project_dir.exists() {
-        return (
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({"error": "project already exists"})),
-        )
-            .into_response();
-    }
-
-    match storage::create_project_on_disk(&state, &name, &machine_name) {
-        Ok(_) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({"machine_name": machine_name})),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()})),
-        )
-            .into_response(),
-    }
-}
 
 fn parse_roman(s: &str) -> Option<u32> {
     let mut total: i32 = 0;

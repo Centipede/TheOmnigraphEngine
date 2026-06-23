@@ -1,7 +1,7 @@
 <template>
   <header class="vue-header">
     <nav>
-      <sl-button class="nav-brand" href="/projects" variant="text">OmniGraph</sl-button>
+      <sl-button class="nav-brand" href="/projects" variant="text">Home</sl-button>
 
       <div class="nav-start">
         <sl-button :href="`http://127.0.0.1:8080/projects/${machineName}`"           variant="text">Overview</sl-button>

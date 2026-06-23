@@ -1,7 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
 
@@ -97,4 +96,18 @@ pub fn read_project(projects_dir: &PathBuf, machine_name: &str) -> Result<Projec
     };
 
     Ok(project)
+}
+
+pub fn write_project(projects_dir: &PathBuf, machine_name: &str, project: &Project) -> Result<(), StatusCode> {
+    let toml_path = projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+
+    fs::create_dir_all(toml_path.parent().unwrap())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let toml_str = toml::to_string(&project)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    fs::write(&toml_path, toml_str)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

@@ -192,7 +192,7 @@ import type {VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
 import PageStrip from './PageStrip.vue';
-import type {CropEdges, Page, PageDb} from './types';
+import type {CropEdges, Page, PageDb} from '../types';
 import PageList from "./PageList.vue";
 
 const props = defineProps<{ machineName: string; projectName: string }>();

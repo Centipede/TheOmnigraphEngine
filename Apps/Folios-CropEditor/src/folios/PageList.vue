@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
-import type { Page } from './types';
+import type { Page } from '../types';
 
 defineProps<{
   pages: Page[];

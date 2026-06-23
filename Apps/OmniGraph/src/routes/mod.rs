@@ -5,7 +5,7 @@ use axum::{
     extract::DefaultBodyLimit,
     http::{header, StatusCode},
     response::{IntoResponse, Redirect},
-    routing::{get, post, put},
+    routing::{get, post},
     Router,
 };
 use rust_embed::RustEmbed;
@@ -37,7 +37,7 @@ async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
 
 pub fn build_router(state: AppState) -> Router {
     let api = Router::new()
-        .route("/projects", get(handlers_api::list_projects).post(handlers_web::create_project))
+        .route("/projects", get(handlers_api::list_projects).post(handlers_api::create_project))
         .route("/projects/{machine_name}", get(handlers_api::get_project_metadata))
         .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb).put(handlers_api::put_project_pagesdb))
     ;

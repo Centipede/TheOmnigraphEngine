@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue';
-import type {Page} from "../folios/types.ts";
+import type {Page} from "../types";
 
 
 // Parse a Roman numeral string to an integer, or return null.

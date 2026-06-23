@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Page, CropEdges } from './types';
+import type { Page, CropEdges } from '../types';
 
 const props = withDefaults(defineProps<{
   page:        Page;
