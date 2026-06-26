@@ -1,11 +1,31 @@
-use crate::routes::projects::forms::CreateProject;
+use crate::routes::projects::forms::{CreateProject, SettingsUpdate};
 use crate::routes::projects::models::PageDb;
-use crate::routes::projects::storage;
+use crate::routes::projects::{storage};
 use crate::state::AppState;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+
+
+
+pub async fn settings_get(State(state): State<AppState>) -> impl IntoResponse {
+    Json(storage::read_settings(&state))
+}
+
+pub async fn settings_post(
+    State(state): State<AppState>,
+    Json(payload): Json<SettingsUpdate>,
+) -> impl IntoResponse {
+    match storage::write_settings(&state, &payload) {
+        Ok(()) => Json(storage::read_settings(&state)).into_response(),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
 
 pub async fn list_projects(State(state): State<AppState>) -> impl IntoResponse {
     Json(storage::read_projects(&state))

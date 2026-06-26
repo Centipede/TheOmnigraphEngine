@@ -2,10 +2,16 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Projects from '../projects/Projects.vue';
 import InspectMode from '../folios/InspectMode.vue';
 import CropMode from '../folios/CropMode.vue';
+import Settings from '../settings/Settings.vue';
 
 export const router = createRouter({
     history: createWebHistory(),
     routes: [
+        {
+            path: '/settings',
+            name: 'settings',
+            component: Settings,
+        },
         {
             path: '/projects',
             name: 'projects',
