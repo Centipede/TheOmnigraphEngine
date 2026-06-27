@@ -64,7 +64,7 @@
         <template v-if="mode === 'crop'">
 
           <br>
-          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-change="filterMode = ($event.target as HTMLInputElement).value">
+          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-input="onFilterChange">
             <sl-radio-button value="all">All</sl-radio-button>
             <sl-radio-button value="even">Even</sl-radio-button>
             <sl-radio-button value="odd">Odd</sl-radio-button>
@@ -107,6 +107,7 @@ import type {VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
 import { RouterLink } from 'vue-router';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
+import { usePageFilterNavigation } from "../composables/usePageFilterNavigation";
 import PageStrip from './PageStrip.vue';
 import type {CropEdges, Page, PageDb} from '../types';
 import PageList from "./PageList.vue";
@@ -228,6 +229,15 @@ function handleStripClick(pageIndex: number, e: MouseEvent) {
   (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
+const { onFilterChange } = usePageFilterNavigation({
+  filterMode,
+  pages,
+  visiblePages,
+  selectionAnchor,
+  currentPageIndex,
+  setAnchor,
+});
+
 // ── Page navigation ──────────────────────────────────────────────────
 function isTypingTarget(): boolean {
   const active = document.activeElement;
@@ -237,11 +247,12 @@ function isTypingTarget(): boolean {
 }
 
 function navigatePage(delta: number) {
-  if (!pages.value.length || isTypingTarget()) return;
-  const anchor = selectionAnchor.value ?? pages.value[0].index;
-  const pos = pages.value.findIndex(p => p.index === anchor);
-  const next = pos < 0 ? 0 : Math.max(0, Math.min(pages.value.length - 1, pos + delta));
-  setAnchor(pages.value[next].index);
+  const navPages = visiblePages.value;
+  if (!navPages.length || isTypingTarget()) return;
+  const anchor = selectionAnchor.value ?? navPages[0].index;
+  const pos = navPages.findIndex(p => p.index === anchor);
+  const next = pos < 0 ? 0 : Math.max(0, Math.min(navPages.length - 1, pos + delta));
+  setAnchor(navPages[next].index);
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
