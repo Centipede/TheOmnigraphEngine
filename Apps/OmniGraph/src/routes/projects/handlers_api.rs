@@ -58,7 +58,7 @@ pub async fn create_project(
     match storage::create_project_on_disk(&state, &payload.name, &payload.machine_name) {
         Ok(_) => (
             StatusCode::CREATED,
-            Json(payload),
+            Json(storage::read_project(&state.projects_dir, &payload.machine_name).unwrap()),
         )
             .into_response(),
         Err(e) => (
@@ -80,13 +80,16 @@ pub async fn get_project_metadata(
     Json(project).into_response()
 }
 
-pub async fn post_project_metadata(
+pub async fn put_project_metadata(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
     Json(project): Json<crate::routes::projects::models::Project>,
 ) -> impl IntoResponse {
     match storage::write_project(&state.projects_dir, &machine_name, &project) {
-        Ok(_) => StatusCode::OK.into_response(),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(project),
+        ).into_response(),
         Err(status) => status.into_response(),
     }
 }

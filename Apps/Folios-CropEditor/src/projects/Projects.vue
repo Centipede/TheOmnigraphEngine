@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import type { Project } from '../types/project';
+import type { Project, ProjectCreateForm } from '../types/project';
 
 const projects = ref<Project[]>([]);
 const isLoading = ref(false);
@@ -87,7 +87,7 @@ const errorMessage = ref('');
 
 const userEditedMachineName = ref(false);
 
-const newProject = reactive<Project>({
+const newProject = reactive<ProjectCreateForm>({
   name: '',
   machine_name: '',
 });

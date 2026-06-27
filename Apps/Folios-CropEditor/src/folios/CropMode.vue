@@ -40,9 +40,29 @@
 
         <!-- Mode selector -->
         <sl-button-group>
-          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`" variant="default">Inspect
-          </sl-button>
-          <sl-button disabled variant="primary">Crop</sl-button>
+          <RouterLink
+              :to="`/projects/${props.machineName}/folios/inspect`"
+              custom
+              v-slot="{ navigate }"
+          >
+            <sl-button
+                :disabled="hasChanges"
+                variant="default"
+                @click="navigate"
+            >
+              Inspect
+            </sl-button>
+          </RouterLink>
+
+          <RouterLink
+              :to="`/projects/${props.machineName}/folios/crop`"
+              custom
+              v-slot="{ navigate }"
+          >
+            <sl-button disabled variant="primary" @click="navigate">
+              Crop
+            </sl-button>
+          </RouterLink>
         </sl-button-group>
 
         <template v-if="mode === 'crop'">
@@ -190,6 +210,7 @@
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
+import { RouterLink } from 'vue-router';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
 import PageStrip from './PageStrip.vue';
 import type {CropEdges, Page, PageDb} from '../types';
