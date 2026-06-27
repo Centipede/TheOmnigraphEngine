@@ -1,6 +1,27 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
+pub struct SettingsForm {
+    pub openai_api_key:     String,
+    pub perplexity_api_key: String,
+}
+
+#[derive(Deserialize)]
+pub struct SettingsUpdate {
+    #[serde(default)]
+    pub openai_api_key: Option<String>,
+    #[serde(default)]
+    pub perplexity_api_key: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SettingsResponse {
+    pub openai_api_key_set: bool,
+    pub perplexity_api_key_set: bool,
+}
+
+
+#[derive(Deserialize, Serialize)]
 pub struct CreateProject {
     pub name: String,
     pub machine_name: String,

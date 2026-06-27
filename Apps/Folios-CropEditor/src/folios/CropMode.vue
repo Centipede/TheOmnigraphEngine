@@ -40,15 +40,35 @@
 
         <!-- Mode selector -->
         <sl-button-group>
-          <sl-button :disabled="hasChanges" :href="`/projects/${props.machineName}/folios`" variant="default">Inspect
-          </sl-button>
-          <sl-button disabled variant="primary">Crop</sl-button>
+          <RouterLink
+              :to="`/projects/${props.machineName}/folios/inspect`"
+              custom
+              v-slot="{ navigate }"
+          >
+            <sl-button
+                :disabled="hasChanges"
+                variant="default"
+                @click="navigate"
+            >
+              Inspect
+            </sl-button>
+          </RouterLink>
+
+          <RouterLink
+              :to="`/projects/${props.machineName}/folios/crop`"
+              custom
+              v-slot="{ navigate }"
+          >
+            <sl-button disabled variant="primary" @click="navigate">
+              Crop
+            </sl-button>
+          </RouterLink>
         </sl-button-group>
 
         <template v-if="mode === 'crop'">
 
           <br>
-          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-change="filterMode = ($event.target as HTMLInputElement).value">
+          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-change="onFilterChange">
             <sl-radio-button value="all">All</sl-radio-button>
             <sl-radio-button value="even">Even</sl-radio-button>
             <sl-radio-button value="odd">Odd</sl-radio-button>
@@ -190,9 +210,11 @@
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
+import { RouterLink } from 'vue-router';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
+import { usePageFilterNavigation } from "../composables/usePageFilterNavigation";
 import PageStrip from './PageStrip.vue';
-import type {CropEdges, Page, PageDb} from './types';
+import type {CropEdges, Page, PageDb} from '../types';
 import PageList from "./PageList.vue";
 
 const props = defineProps<{ machineName: string; projectName: string }>();
@@ -415,6 +437,15 @@ function handleStripClick(pageIndex: number, e: MouseEvent) {
   (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
+const { onFilterChange } = usePageFilterNavigation({
+  filterMode,
+  pages,
+  visiblePages,
+  selectionAnchor,
+  currentPageIndex,
+  setAnchor,
+});
+
 // ── Page navigation ──────────────────────────────────────────────────
 function isTypingTarget(): boolean {
   const active = document.activeElement;
@@ -424,11 +455,12 @@ function isTypingTarget(): boolean {
 }
 
 function navigatePage(delta: number) {
-  if (!pages.value.length || isTypingTarget()) return;
-  const anchor = selectionAnchor.value ?? pages.value[0].index;
-  const pos = pages.value.findIndex(p => p.index === anchor);
-  const next = pos < 0 ? 0 : Math.max(0, Math.min(pages.value.length - 1, pos + delta));
-  setAnchor(pages.value[next].index);
+  const navPages = visiblePages.value;
+  if (!navPages.length || isTypingTarget()) return;
+  const anchor = selectionAnchor.value ?? navPages[0].index;
+  const pos = navPages.findIndex(p => p.index === anchor);
+  const next = pos < 0 ? 0 : Math.max(0, Math.min(navPages.length - 1, pos + delta));
+  setAnchor(navPages[next].index);
 }
 
 // ── Adjust tool functions ────────────────────────────────────────────

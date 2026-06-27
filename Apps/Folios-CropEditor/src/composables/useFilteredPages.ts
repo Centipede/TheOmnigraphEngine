@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue';
-import type {Page} from "../folios/types.ts";
+import type {Page} from "../types";
 
 
 // Parse a Roman numeral string to an integer, or return null.
@@ -49,12 +49,7 @@ export function useFilteredPages(
 
     // isInFilter: true when a page passes the current even/odd filter.
     // Uses the page ordinal derived from its name, not the raw storage index.
-    function isInFilter(page: Page): boolean {
-        if (filterMode.value === 'all')  return true;
-        const ord = pageOrdinal(page);
-        if (filterMode.value === 'even') return ord % 2 === 0;
-        return ord % 2 !== 0;
-    }
+    const isInFilter = makeIsInFilter(filterMode);
 
     const filtered = computed(() => {
         return filterMode.value === 'all'

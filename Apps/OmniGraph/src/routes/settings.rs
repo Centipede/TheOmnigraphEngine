@@ -3,6 +3,8 @@ use minijinja::context;
 use secrecy::Secret;
 use serde::Deserialize;
 use crate::state::AppState;
+use crate::routes::projects::forms::SettingsForm;
+
 
 pub async fn settings_get(State(state): State<AppState>) -> impl IntoResponse {
     let secrets = state.secrets.read().unwrap();
@@ -13,12 +15,6 @@ pub async fn settings_get(State(state): State<AppState>) -> impl IntoResponse {
             perplexity_key_set  => secrets.perplexity_is_set(),
         }).unwrap();
     Html(html)
-}
-
-#[derive(Deserialize)]
-pub struct SettingsForm {
-    pub openai_api_key:     String,
-    pub perplexity_api_key: String,
 }
 
 pub async fn settings_post(

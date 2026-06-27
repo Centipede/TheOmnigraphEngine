@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::Json;
+use secrecy::Secret;
+use crate::routes::projects::forms::{SettingsResponse, SettingsUpdate};
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
 
@@ -69,6 +71,37 @@ pub fn sort_by_import_order(db: &mut PageDb) {
     reindex(db);
 }
 
+pub fn read_settings(state: &AppState) -> SettingsResponse {
+    let secrets = state.secrets.read().unwrap();
+
+    SettingsResponse {
+        openai_api_key_set: secrets.openai_is_set(),
+        perplexity_api_key_set: secrets.perplexity_is_set(),
+    }
+}
+
+pub fn write_settings(state: &AppState, payload: &SettingsUpdate) -> std::io::Result<()> {
+    let mut secrets = state.secrets.write().unwrap();
+
+    if let Some(openai_api_key) = payload.openai_api_key.as_deref() {
+        let openai_api_key = openai_api_key.trim();
+
+        if !openai_api_key.is_empty() {
+            secrets.openai_api_key = Some(Secret::new(openai_api_key.to_string()));
+        }
+    }
+
+    if let Some(perplexity_api_key) = payload.perplexity_api_key.as_deref() {
+        let perplexity_api_key = perplexity_api_key.trim();
+
+        if !perplexity_api_key.is_empty() {
+            secrets.perplexity_api_key = Some(Secret::new(perplexity_api_key.to_string()));
+        }
+    }
+
+    crate::secrets::save(&secrets)
+}
+
 pub fn read_projects(state: &AppState) -> Vec<Project> {
     let Ok(entries) = fs::read_dir(state.projects_dir.as_ref()) else {
         return vec![];
@@ -97,4 +130,18 @@ pub fn read_project(projects_dir: &PathBuf, machine_name: &str) -> Result<Projec
     };
 
     Ok(project)
+}
+
+pub fn write_project(projects_dir: &PathBuf, machine_name: &str, project: &Project) -> Result<(), StatusCode> {
+    let toml_path = projects_dir
+        .join(&machine_name)
+        .join("metadata")
+        .join("project.toml");
+
+    fs::create_dir_all(toml_path.parent().unwrap())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let toml_str = toml::to_string(&project)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    fs::write(&toml_path, toml_str)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }

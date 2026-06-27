@@ -1,0 +1,6 @@
+GET http://localhost:8080/api/projects
+Accept: application/json
+
+<> 2026-06-11T173426.200.json
+
+###

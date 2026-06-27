@@ -1,16 +1,71 @@
 <template>
   <header class="vue-header">
     <nav>
-      <sl-button class="nav-brand" href="/projects" variant="text">OmniGraph</sl-button>
+      <RouterLink to="/projects" custom v-slot="{ navigate, isExactActive }">
+        <sl-button
+            class="nav-brand"
+            :variant="isExactActive ? 'primary' : 'text'"
+            @click="navigate"
+        >
+          Home
+        </sl-button>
+      </RouterLink>
 
       <div class="nav-start">
-        <sl-button :href="`http://127.0.0.1:8080/projects/${machineName}`"           variant="text">Overview</sl-button>
-        <sl-button :href="`http://127.0.0.1:8080/projects/${machineName}/ingestor`"  variant="text">Ingestor</sl-button>
-        <sl-button :href="`/projects/${machineName}/folios`"    variant="primary">Folios</sl-button>
+        <RouterLink
+            :to="`/projects/${machineName}`"
+            custom
+            v-slot="{ navigate, isExactActive }"
+        >
+          <sl-button
+              :variant="isExactActive ? 'primary' : 'text'"
+              :disabled="!machineName"
+              @click="navigate"
+          >
+            Overview
+          </sl-button>
+        </RouterLink>
+
+        <RouterLink
+            :to="`/projects/${machineName}/ingestor`"
+            custom
+            v-slot="{ navigate, isActive }"
+        >
+          <sl-button
+              :variant="isActive ? 'primary' : 'text'"
+              :disabled="!machineName"
+              @click="navigate"
+          >
+            Ingestor
+          </sl-button>
+        </RouterLink>
+
+
+        <RouterLink
+            :to="`/projects/${machineName}/folios`"
+            custom
+            v-slot="{ navigate, isActive }"
+        >
+          <sl-button
+              :variant="isActive ? 'primary' : 'text'"
+              :disabled="!machineName"
+              @click="navigate"
+          >
+            Folios
+          </sl-button>
+        </RouterLink>
       </div>
 
       <div class="nav-end">
-        <sl-button href="/settings" variant="text">Settings</sl-button>
+        <RouterLink to="/settings" custom v-slot="{ navigate, isActive }">
+          <sl-button
+              :variant="isActive ? 'primary' : 'text'"
+              @click="navigate"
+          >
+            Settings
+          </sl-button>
+        </RouterLink>
+
         <sl-dropdown @sl-select="(e: Event) => setTheme((e as CustomEvent).detail.item.value)">
           <sl-icon-button slot="trigger" :name="themeIcon" label="Theme"></sl-icon-button>
           <sl-menu>
@@ -26,6 +81,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { RouterLink } from 'vue-router';
 
 defineProps<{ machineName: string; projectName: string }>();
 
