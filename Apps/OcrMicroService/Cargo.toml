@@ -7,4 +7,4 @@ edition = "2024"
 axum = { version = "0.7", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
-
+toml = "0.8"

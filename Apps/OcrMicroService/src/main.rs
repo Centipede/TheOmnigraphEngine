@@ -1,10 +1,27 @@
 use axum::{
-    extract::Multipart,
+    extract::{Multipart, State},
     routing::post,
     Json, Router,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::{path::PathBuf, sync::Arc};
 use tokio::{fs::{self, File}, io::AsyncWriteExt, process::Command};
+
+#[derive(Clone)]
+struct AppState {
+    tesseract_config: Arc<TesseractCommandConfig>,
+}
+
+#[derive(Deserialize)]
+struct AppConfig {
+    tesseract: TesseractCommandConfig,
+}
+
+#[derive(Deserialize)]
+struct TesseractCommandConfig {
+    command: String,
+    args: Vec<String>,
+}
 
 #[derive(Serialize)]
 struct OcrResponse {
@@ -22,10 +39,22 @@ pub struct ScannedImage {
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new()
-        .route("/ocr", post(ocr));
+    let config_path = get_config_path()
+        .expect("failed to read command line arguments");
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let tesseract_config = load_tesseract_config(config_path)
+        .await
+        .expect("failed to load tesseract configuration");
+
+    let state = AppState {
+        tesseract_config: Arc::new(tesseract_config),
+    };
+
+    let app = Router::new()
+        .route("/ocr/tesseract", post(ocr_tesseract))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
         .unwrap();
 
@@ -34,7 +63,54 @@ async fn main() {
         .unwrap();
 }
 
-async fn ocr(mut multipart: Multipart) -> Json<OcrResponse> {
+async fn load_tesseract_config(config_path: PathBuf) -> Result<TesseractCommandConfig, String> {
+    let config_contents = fs::read_to_string(&config_path)
+        .await
+        .map_err(|err| {
+            format!(
+                "failed to read config file {}: {err}",
+                config_path.display()
+            )
+        })?;
+
+    let app_config: AppConfig = toml::from_str(&config_contents)
+        .map_err(|err| {
+            format!(
+                "failed to parse config file {}: {err}",
+                config_path.display()
+            )
+        })?;
+
+    Ok(app_config.tesseract)
+}
+
+fn get_config_path() -> Result<PathBuf, String> {
+    let mut args = std::env::args().skip(1);
+
+    while let Some(arg) = args.next() {
+        if arg == "--config" {
+            let config_path = args
+                .next()
+                .ok_or_else(|| "--config requires a path argument".to_string())?;
+
+            return Ok(PathBuf::from(config_path));
+        }
+    }
+
+    let executable_path = std::env::current_exe()
+        .map_err(|err| format!("failed to get executable path: {err}"))?;
+
+    let executable_dir = executable_path
+        .parent()
+        .ok_or_else(|| "failed to get executable directory".to_string())?;
+
+    Ok(executable_dir.join("tesseract.toml"))
+}
+
+async fn ocr_tesseract(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> Json<OcrResponse> {
     let mut language: Option<String> = None;
     let mut config: Option<String> = None;
     let mut results: Vec<ScannedImage> = Vec::new();
@@ -78,7 +154,12 @@ async fn ocr(mut multipart: Multipart) -> Json<OcrResponse> {
     let language = language.unwrap_or_else(|| "eng".to_string());
 
     for scanned_image in &mut results {
-        match run_tesseract(&scanned_image.temp_path, &language, &config).await {
+        match run_tesseract(
+            &state.tesseract_config,
+            &scanned_image.temp_path,
+            &language,
+            &config,
+        ).await {
             Ok(output) if config == "text" => scanned_image.text = Some(output),
             Ok(output) if config == "hocr" => scanned_image.hocr = Some(output),
             Ok(_) => scanned_image.error = Some(format!("unsupported config: {config}")),
@@ -92,20 +173,14 @@ async fn ocr(mut multipart: Multipart) -> Json<OcrResponse> {
 }
 
 async fn run_tesseract(
+    tesseract_config: &TesseractCommandConfig,
     image_path: &str,
     language: &str,
     config: &str,
 ) -> Result<String, String> {
-    let mut command = Command::new("tesseract");
     let mut temp_config_path: Option<String> = None;
 
-    command
-        .arg(image_path)
-        .arg("stdout")
-        .arg("-l")
-        .arg(language);
-
-    if config == "hocr" {
+    let config_path = if config == "hocr" {
         let path = format!(
             "/tmp/tesseract_hocr_{}_{}.conf",
             std::process::id(),
@@ -125,9 +200,45 @@ user_defined_dpi 320
             .await
             .map_err(|err| format!("failed to write tesseract config: {err}"))?;
 
-        command.arg(&path);
-        temp_config_path = Some(path);
+        temp_config_path = Some(path.clone());
+        path
+    } else {
+        let path = format!(
+            "/tmp/tesseract_text_{}_{}.conf",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_err(|err| format!("failed to create config timestamp: {err}"))?
+                .as_nanos()
+        );
+
+        let config_contents = "\
+hocr_font_info 0
+user_defined_dpi 320
+";
+
+        fs::write(&path, config_contents)
+            .await
+            .map_err(|err| format!("failed to write tesseract config: {err}"))?;
+
+        temp_config_path = Some(path.clone());
+        path
+    };
+
+    let mut command = Command::new(&tesseract_config.command);
+
+    for arg in &tesseract_config.args {
+        let arg = arg
+            .replace("{image_path}", image_path)
+            .replace("{language}", language)
+            .replace("{config_path}", &config_path);
+
+        if !arg.is_empty() {
+            command.arg(arg);
+        }
     }
+
+    println!("Running command: {:?}", command);
 
     let output = command
         .output()

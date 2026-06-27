@@ -2,3 +2,5 @@
 /.idea
 .idea
 /Apps/ingestor/projects
+/Apps/OcrMicroService/target
+/Apps/OcrMicroService/dist

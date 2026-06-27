@@ -1,0 +1,9 @@
+[tesseract]
+command = "tesseract"
+args = [
+    "{image_path}",
+    "stdout",
+    "-l",
+    "{language}",
+    "{config_path}",
+]

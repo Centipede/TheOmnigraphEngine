@@ -1,0 +1,16 @@
+[tesseract]
+command = "docker"
+args = [
+    "run",
+    "--rm",
+    "-v",
+    "{config_path}:/tmp/config",
+    "-v",
+    "{image_path}:/tmp/img.jpg",
+    "jitesoft/tesseract-ocr",
+    "/tmp/img.jpg",
+    "stdout",
+    "-l",
+    "{language}",
+    "/tmp/config",
+]
