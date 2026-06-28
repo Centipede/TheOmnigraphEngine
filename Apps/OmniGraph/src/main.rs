@@ -1,3 +1,5 @@
+mod app_settings;
+mod ocr_poll;
 mod routes;
 mod secrets;
 mod state;

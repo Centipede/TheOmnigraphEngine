@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use axum::http::StatusCode;
 use axum::Json;
 use secrecy::Secret;
-use crate::routes::projects::forms::{SettingsResponse, SettingsUpdate};
+use crate::app_settings::OcrServerConfig;
+use crate::routes::projects::forms::{OcrServerData, SettingsResponse, SettingsUpdate};
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
 
@@ -73,33 +74,50 @@ pub fn sort_by_import_order(db: &mut PageDb) {
 
 pub fn read_settings(state: &AppState) -> SettingsResponse {
     let secrets = state.secrets.read().unwrap();
+    let settings = state.settings.read().unwrap();
+    let ocr_status = state.ocr_status.read().unwrap();
 
     SettingsResponse {
         openai_api_key_set: secrets.openai_is_set(),
         perplexity_api_key_set: secrets.perplexity_is_set(),
+        ocr_server_1: settings.ocr_server_1.as_ref().map(|s| OcrServerData { host: s.host.clone(), port: s.port }),
+        ocr_server_2: settings.ocr_server_2.as_ref().map(|s| OcrServerData { host: s.host.clone(), port: s.port }),
+        ocr_command_format: settings.ocr_command_format.clone(),
+        ocr_server_1_status: ocr_status.server_1.clone(),
+        ocr_server_2_status: ocr_status.server_2.clone(),
     }
 }
 
 pub fn write_settings(state: &AppState, payload: &SettingsUpdate) -> std::io::Result<()> {
-    let mut secrets = state.secrets.write().unwrap();
+    {
+        let mut secrets = state.secrets.write().unwrap();
 
-    if let Some(openai_api_key) = payload.openai_api_key.as_deref() {
-        let openai_api_key = openai_api_key.trim();
-
-        if !openai_api_key.is_empty() {
-            secrets.openai_api_key = Some(Secret::new(openai_api_key.to_string()));
+        if let Some(openai_api_key) = payload.openai_api_key.as_deref() {
+            let openai_api_key = openai_api_key.trim();
+            if !openai_api_key.is_empty() {
+                secrets.openai_api_key = Some(Secret::new(openai_api_key.to_string()));
+            }
         }
+
+        if let Some(perplexity_api_key) = payload.perplexity_api_key.as_deref() {
+            let perplexity_api_key = perplexity_api_key.trim();
+            if !perplexity_api_key.is_empty() {
+                secrets.perplexity_api_key = Some(Secret::new(perplexity_api_key.to_string()));
+            }
+        }
+
+        crate::secrets::save(&secrets)?;
     }
 
-    if let Some(perplexity_api_key) = payload.perplexity_api_key.as_deref() {
-        let perplexity_api_key = perplexity_api_key.trim();
-
-        if !perplexity_api_key.is_empty() {
-            secrets.perplexity_api_key = Some(Secret::new(perplexity_api_key.to_string()));
-        }
+    if let Some(ocr) = &payload.ocr {
+        let mut settings = state.settings.write().unwrap();
+        settings.ocr_server_1 = ocr.server_1.as_ref().map(|s| OcrServerConfig { host: s.host.clone(), port: s.port });
+        settings.ocr_server_2 = ocr.server_2.as_ref().map(|s| OcrServerConfig { host: s.host.clone(), port: s.port });
+        settings.ocr_command_format = ocr.command_format.clone();
+        crate::app_settings::save(&settings)?;
     }
 
-    crate::secrets::save(&secrets)
+    Ok(())
 }
 
 pub fn read_projects(state: &AppState) -> Vec<Project> {

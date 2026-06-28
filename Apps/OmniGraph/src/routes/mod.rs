@@ -55,7 +55,6 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/ingestor/insert", get(handlers_web::ingest_images_get).post(handlers_web::ingest_images_post).layer(DefaultBodyLimit::disable()))
         .route("/projects/{machine_name}/ingestor/remove", get(handlers_web::remove_images_get).post(handlers_web::remove_images_post))
         .route("/projects/{machine_name}/ingestor/rename", post(handlers_web::rename_pages_post))
-        .route("/settings", get(settings::settings_get).post(settings::settings_post))
         .route("/media/projects/{machine_name}/pages/thumbs/{filename}", get(handlers_web::serve_thumb))
         .route("/media/projects/{machine_name}/pages/scans/{filename}", get(handlers_web::serve_scan))
         .nest("/api", api)

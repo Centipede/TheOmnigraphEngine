@@ -1,3 +1,5 @@
+use crate::app_settings::AppSettings;
+use crate::ocr_poll::OcrServerStatus;
 use crate::secrets::AppSecrets;
 use minijinja::{Environment, Value};
 use minijinja_autoreload::AutoReloader;
@@ -16,6 +18,8 @@ pub struct AppState {
     pub projects_dir: Arc<PathBuf>,
     pub templates: Arc<AutoReloader>,
     pub secrets: Arc<RwLock<AppSecrets>>,
+    pub settings: Arc<RwLock<AppSettings>>,
+    pub ocr_status: Arc<RwLock<OcrServerStatus>>,
 }
 
 impl AppState {
@@ -120,10 +124,16 @@ impl AppState {
 
         let reloader = build_template_reloader();
 
+        let settings = Arc::new(RwLock::new(crate::app_settings::load()));
+        let ocr_status = Arc::new(RwLock::new(OcrServerStatus::default()));
+        crate::ocr_poll::spawn_poller(Arc::clone(&settings), Arc::clone(&ocr_status));
+
         Self {
             projects_dir: Arc::new(projects_dir),
             templates: Arc::new(reloader),
             secrets: Arc::new(RwLock::new(crate::secrets::load())),
+            settings,
+            ocr_status,
         }
     }
 }
