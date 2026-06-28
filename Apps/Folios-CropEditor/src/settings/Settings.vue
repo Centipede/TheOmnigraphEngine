@@ -14,9 +14,10 @@
       Loading settings…
     </p>
 
-    <h3>API Keys</h3>
-
     <form class="form-grid" @submit.prevent="saveSettings">
+
+      <h3>API Keys</h3>
+
       <label for="openai_api_key">
         OpenAI
         <small v-if="settingsStatus.openai_api_key_set">stored — leave blank to keep</small>
@@ -43,6 +44,64 @@
           autocomplete="off"
       >
 
+      <h3 class="section-heading">Tesseract OCR</h3>
+
+      <label>Priority servers</label>
+      <div class="ocr-servers">
+        <div class="ocr-server-row">
+          <span class="server-label">1st</span>
+          <span class="status-dot" :class="settingsStatus.ocr_server_1_status" :title="statusLabel(settingsStatus.ocr_server_1_status)"></span>
+          <input
+              v-model="ocrForm.server_1_host"
+              type="text"
+              placeholder="hostname or IP"
+              class="host-input"
+              autocomplete="off"
+          >
+          <span class="port-sep">:</span>
+          <input
+              v-model="ocrForm.server_1_port"
+              type="number"
+              placeholder="3000"
+              class="port-input"
+              min="1"
+              max="65535"
+          >
+        </div>
+        <div class="ocr-server-row">
+          <span class="server-label">2nd</span>
+          <span class="status-dot" :class="settingsStatus.ocr_server_2_status" :title="statusLabel(settingsStatus.ocr_server_2_status)"></span>
+          <input
+              v-model="ocrForm.server_2_host"
+              type="text"
+              placeholder="hostname or IP"
+              class="host-input"
+              autocomplete="off"
+          >
+          <span class="port-sep">:</span>
+          <input
+              v-model="ocrForm.server_2_port"
+              type="number"
+              placeholder="3000"
+              class="port-input"
+              min="1"
+              max="65535"
+          >
+        </div>
+      </div>
+
+      <label>Local command format</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" v-model="ocrForm.command_format" value="native">
+          Native tesseract
+        </label>
+        <label class="radio-label">
+          <input type="radio" v-model="ocrForm.command_format" value="docker">
+          Docker
+        </label>
+      </div>
+
       <div class="form-actions">
         <sl-button
             type="submit"
@@ -53,13 +112,14 @@
           Save
         </sl-button>
       </div>
+
     </form>
   </main>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import type { SettingsForm, SettingsStatus } from '../types/settings';
+import type { OcrCommandFormat, OcrServerStatus, SettingsStatus } from '../types/settings';
 
 const SETTINGS_ENDPOINT = '/api/settings';
 
@@ -68,36 +128,57 @@ const isSaving = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 
-const settingsForm = reactive<SettingsForm>({
+const settingsStatus = reactive<SettingsStatus>({
+  openai_api_key_set: false,
+  perplexity_api_key_set: false,
+  ocr_server_1: null,
+  ocr_server_2: null,
+  ocr_command_format: 'native',
+  ocr_server_1_status: 'unconfigured',
+  ocr_server_2_status: 'unconfigured',
+});
+
+const settingsForm = reactive({
   openai_api_key: '',
   perplexity_api_key: '',
 });
 
-const settingsStatus = reactive<SettingsStatus>({
-  openai_api_key_set: false,
-  perplexity_api_key_set: false,
+const ocrForm = reactive({
+  server_1_host: '',
+  server_1_port: '',
+  server_2_host: '',
+  server_2_port: '',
+  command_format: 'native' as OcrCommandFormat,
 });
+
+function applyStatus(status: SettingsStatus): void {
+  settingsStatus.openai_api_key_set = status.openai_api_key_set;
+  settingsStatus.perplexity_api_key_set = status.perplexity_api_key_set;
+  settingsStatus.ocr_server_1 = status.ocr_server_1;
+  settingsStatus.ocr_server_2 = status.ocr_server_2;
+  settingsStatus.ocr_command_format = status.ocr_command_format;
+  settingsStatus.ocr_server_1_status = status.ocr_server_1_status;
+  settingsStatus.ocr_server_2_status = status.ocr_server_2_status;
+
+  ocrForm.server_1_host = status.ocr_server_1?.host ?? '';
+  ocrForm.server_1_port = status.ocr_server_1?.port?.toString() ?? '';
+  ocrForm.server_2_host = status.ocr_server_2?.host ?? '';
+  ocrForm.server_2_port = status.ocr_server_2?.port?.toString() ?? '';
+  ocrForm.command_format = status.ocr_command_format;
+}
+
+function statusLabel(s: OcrServerStatus): string {
+  return s === 'online' ? 'Online' : s === 'offline' ? 'Offline' : 'Not configured';
+}
 
 async function loadSettingsStatus(): Promise<void> {
   isLoading.value = true;
   errorMessage.value = '';
 
   try {
-    const response = await fetch(SETTINGS_ENDPOINT, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to load settings status: ${response.status}`);
-    }
-
-    const status = await response.json() as SettingsStatus;
-
-    settingsStatus.openai_api_key_set = status.openai_api_key_set;
-    settingsStatus.perplexity_api_key_set = status.perplexity_api_key_set;
-    console.log('Settings status:', status);
+    const response = await fetch(SETTINGS_ENDPOINT, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`${response.status}`);
+    applyStatus(await response.json() as SettingsStatus);
   } catch (error) {
     console.error(error);
     errorMessage.value = 'Could not load settings.';
@@ -111,33 +192,30 @@ async function saveSettings(): Promise<void> {
   errorMessage.value = '';
   successMessage.value = '';
 
-  const formToSubmit: SettingsForm = {
+  const s1Host = ocrForm.server_1_host.trim();
+  const s2Host = ocrForm.server_2_host.trim();
+
+  const body = {
     openai_api_key: settingsForm.openai_api_key,
     perplexity_api_key: settingsForm.perplexity_api_key,
+    ocr: {
+      server_1: s1Host ? { host: s1Host, port: parseInt(ocrForm.server_1_port) || 3000 } : null,
+      server_2: s2Host ? { host: s2Host, port: parseInt(ocrForm.server_2_port) || 3000 } : null,
+      command_format: ocrForm.command_format,
+    },
   };
 
   try {
     const response = await fetch(SETTINGS_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(formToSubmit),
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
     });
+    if (!response.ok) throw new Error(`${response.status}`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to save settings: ${response.status}`);
-    }
-
-    const status = await response.json() as SettingsStatus;
-
-    settingsStatus.openai_api_key_set = status.openai_api_key_set;
-    settingsStatus.perplexity_api_key_set = status.perplexity_api_key_set;
-
+    applyStatus(await response.json() as SettingsStatus);
     settingsForm.openai_api_key = '';
     settingsForm.perplexity_api_key = '';
-
     successMessage.value = 'Settings saved.';
   } catch (error) {
     console.error(error);
@@ -166,6 +244,11 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
+.form-grid h3 {
+  margin: 1rem 0 0;
+  font-size: 1rem;
+}
+
 .form-grid label {
   display: grid;
   gap: 0.25rem;
@@ -177,13 +260,83 @@ onMounted(() => {
   color: var(--color-text-muted);
 }
 
-.form-grid input {
+.form-grid input[type="text"],
+.form-grid input[type="number"] {
   padding: 0.5rem 0.625rem;
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   font: inherit;
+}
+
+/* OCR server rows */
+.ocr-servers {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ocr-server-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.server-label {
+  font-weight: 600;
+  min-width: 2rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.host-input {
+  flex: 1;
+  padding: 0.5rem 0.625rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
+}
+
+.port-sep {
+  color: var(--color-text-muted);
+}
+
+.port-input {
+  width: 5rem;
+  padding: 0.5rem 0.625rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
+}
+
+/* Status dot */
+.status-dot {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.online      { background: #16a34a; }
+.status-dot.offline     { background: #dc2626; }
+.status-dot.unconfigured { background: #9ca3af; }
+
+/* Radio group */
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 400;
+  cursor: pointer;
 }
 
 .form-actions {

@@ -1,3 +1,5 @@
+use crate::app_settings::OcrCommandFormat;
+use crate::ocr_poll::ServerStatus;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -6,18 +8,40 @@ pub struct SettingsForm {
     pub perplexity_api_key: String,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct OcrServerData {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Deserialize)]
+pub struct OcrSettingsUpdate {
+    #[serde(default)]
+    pub server_1: Option<OcrServerData>,
+    #[serde(default)]
+    pub server_2: Option<OcrServerData>,
+    pub command_format: OcrCommandFormat,
+}
+
 #[derive(Deserialize)]
 pub struct SettingsUpdate {
     #[serde(default)]
     pub openai_api_key: Option<String>,
     #[serde(default)]
     pub perplexity_api_key: Option<String>,
+    #[serde(default)]
+    pub ocr: Option<OcrSettingsUpdate>,
 }
 
 #[derive(Serialize)]
 pub struct SettingsResponse {
     pub openai_api_key_set: bool,
     pub perplexity_api_key_set: bool,
+    pub ocr_server_1: Option<OcrServerData>,
+    pub ocr_server_2: Option<OcrServerData>,
+    pub ocr_command_format: OcrCommandFormat,
+    pub ocr_server_1_status: ServerStatus,
+    pub ocr_server_2_status: ServerStatus,
 }
 
 
