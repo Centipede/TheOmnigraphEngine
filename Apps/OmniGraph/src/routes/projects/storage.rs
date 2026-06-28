@@ -165,6 +165,13 @@ pub fn write_project(projects_dir: &PathBuf, machine_name: &str, project: &Proje
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+pub fn list_scanned(projects_dir: &PathBuf, machine_name: &str, pages: &[crate::routes::projects::models::Page]) -> Vec<String> {
+    pages.iter()
+        .filter(|p| hocr_original_path(projects_dir, machine_name, &p.scan).exists())
+        .map(|p| p.scan.clone())
+        .collect()
+}
+
 fn hocr_dir(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> PathBuf {
     let stem = Path::new(scan).file_stem()
         .and_then(|s| s.to_str()).unwrap_or(scan);

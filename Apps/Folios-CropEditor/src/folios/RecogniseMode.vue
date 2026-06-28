@@ -8,6 +8,7 @@
         :selected-page-indices="selectedPageSet"
         :current-page-index="currentPageIndex"
         :is-page-in-filter="isInFilter"
+        :page-extras="pageExtras"
         @navigate="navigatePage"
         @page-click="handleListClick"
     />
@@ -110,6 +111,29 @@ const props = defineProps<{ machineName: string; projectName: string }>();
 // ── Mode / tool / edge ───────────────────────────────────────────────
 const mode = ref('recognise');
 const filterMode = ref('all')
+
+// ── hOCR status ──────────────────────────────────────────────────────
+const hocrScanned = ref<Set<string>>(new Set());
+
+const pageExtras = computed<Map<number, string>>(() => {
+  const map = new Map<number, string>();
+  for (const page of pages.value) {
+    if (hocrScanned.value.has(page.scan)) map.set(page.index, 'hOCR');
+  }
+  return map;
+});
+
+async function fetchHocrStatus(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/hocr-status`);
+    if (resp.ok) {
+      const data = await resp.json() as { scanned: string[] };
+      hocrScanned.value = new Set(data.scanned);
+    }
+  } catch (e) {
+    console.error('Failed to fetch hOCR status:', e);
+  }
+}
 
 // ── Scan state ───────────────────────────────────────────────────────
 interface ScanPageResult { scan: string; success: boolean; error?: string }
@@ -341,6 +365,7 @@ async function scanPages(force = false): Promise<void> {
 
     const data = await resp.json() as { results: ScanPageResult[] };
     scanResults.value = data.results;
+    void fetchHocrStatus();
   } catch (e) {
     console.error(e);
     scanError.value = 'Network error.';
@@ -348,6 +373,8 @@ async function scanPages(force = false): Promise<void> {
     isScanning.value = false;
   }
 }
+
+let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
@@ -364,10 +391,13 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load pages:', e);
   }
+  await fetchHocrStatus();
+  hocrStatusInterval = setInterval(() => { void fetchHocrStatus(); }, 30_000);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown);
+  if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 </script>
 

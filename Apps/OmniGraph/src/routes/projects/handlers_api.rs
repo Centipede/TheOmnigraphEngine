@@ -95,6 +95,15 @@ pub async fn put_project_metadata(
     }
 }
 
+pub async fn get_hocr_status(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let pagedb = storage::load_page_db(&state.project_pagesdb_path(&machine_name));
+    let scanned = storage::list_scanned(&state.projects_dir, &machine_name, &pagedb.pages);
+    Json(serde_json::json!({ "scanned": scanned }))
+}
+
 pub async fn scan_pages_post(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
