@@ -53,6 +53,42 @@
           >
             Folios
           </sl-button>
+          <template v-if="isActive">
+
+            <!-- Mode selector -->
+            <sl-button-group>
+              <RouterLink
+                  :to="`/projects/${machineName}/folios/inspect`"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Inspect
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
+                  :to="`/projects/${machineName}/folios/crop`"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Crop
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
+                  :to="`/projects/${machineName}/folios/recognise`"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Recognise
+                </sl-button>
+              </RouterLink>
+            </sl-button-group>
+
+          </template>
         </RouterLink>
       </div>
 
