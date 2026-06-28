@@ -45,6 +45,31 @@ pub struct SettingsResponse {
 }
 
 
+#[derive(Deserialize)]
+pub struct ScanRequest {
+    pub indices: Vec<usize>,
+    #[serde(default)]
+    pub force: bool,
+}
+
+#[derive(Serialize)]
+pub struct ScanPageResult {
+    pub scan: String,
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ScanResponse {
+    pub results: Vec<ScanPageResult>,
+}
+
+#[derive(Serialize)]
+pub struct ScanConflict {
+    pub pages: Vec<String>,
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct CreateProject {
     pub name: String,
