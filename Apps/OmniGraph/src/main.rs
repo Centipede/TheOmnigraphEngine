@@ -1,4 +1,5 @@
 mod app_settings;
+mod image_utils;
 mod ocr_client;
 mod ocr_poll;
 mod routes;

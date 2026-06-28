@@ -157,21 +157,36 @@ pub async fn scan_pages_post(
             .into_response();
     };
 
-    // Read scan files from disk
+    // Read scan files from disk and white out crop margins
     let scans_dir = state.projects_dir.join(&machine_name).join("pages").join("scans");
     let mut scan_files: Vec<(String, Vec<u8>)> = Vec::new();
 
     for page in &pages {
-        match tokio::fs::read(scans_dir.join(&page.scan)).await {
-            Ok(bytes) => scan_files.push((page.scan.clone(), bytes)),
-            Err(e) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({"error": format!("failed to read {}: {}", page.scan, e)})),
-                )
-                    .into_response();
-            }
-        }
+        let raw = match tokio::fs::read(scans_dir.join(&page.scan)).await {
+            Ok(b) => b,
+            Err(e) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("failed to read {}: {}", page.scan, e)})),
+            ).into_response(),
+        };
+
+        let crop = page.crop_edges;
+        let scan_name = page.scan.clone();
+        let bytes = match tokio::task::spawn_blocking(move || {
+            crate::image_utils::apply_crop_mask(&raw, crop)
+        }).await {
+            Ok(Ok(b)) => b,
+            Ok(Err(e)) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("failed to mask {}: {}", scan_name, e)})),
+            ).into_response(),
+            Err(_) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("image task panicked for {}", scan_name)})),
+            ).into_response(),
+        };
+
+        scan_files.push((page.scan.clone(), bytes));
     }
 
     // Call OCR service
