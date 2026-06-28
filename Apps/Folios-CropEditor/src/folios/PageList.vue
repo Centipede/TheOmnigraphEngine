@@ -24,8 +24,13 @@
         }"
           @click="$emit('page-click', page.index, $event)"
       >
-        <span v-if="page.name">{{ page.name }}</span>
-        <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
+        <span class="page-nav-main">
+          <span v-if="page.name">{{ page.name }}</span>
+          <em v-else class="page-nav-unnamed">{{ page.scan }}</em>
+        </span>
+        <span v-if="pageExtras?.get(page.index)" class="page-nav-extra">
+          {{ pageExtras.get(page.index) }}
+        </span>
       </li>
     </ul>
   </div>
@@ -40,6 +45,7 @@ defineProps<{
   selectedPageIndices: Set<number>;
   currentPageIndex: number | null;
   isPageInFilter: (page: Page) => boolean;
+  pageExtras?: Map<number, string>;
 }>();
 
 defineEmits<{
@@ -82,13 +88,30 @@ defineExpose({
 }
 
 .page-nav-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--color-text-muted, #6c757d);
   border-left: 2px solid transparent;
+}
+
+.page-nav-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-nav-extra {
+  flex-shrink: 0;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--color-accent, #2563eb);
+  opacity: 0.75;
 }
 
 .page-nav-list li:hover {

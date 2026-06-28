@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Folios Crop Editor — Dev</title>
+  <!-- Shoelace -->
+  <link rel="stylesheet" href="/shoelace.css">
+  <script type="module" src="/shoelace.js"></script>
+  <style>
+      :root, [data-theme="light"] {
+          --color-bg:           #f8f9fa;
+          --color-surface:      #ffffff;
+          --color-border:       #dee2e6;
+          --color-text:         #212529;
+          --color-text-muted:   #6c757d;
+          --color-text-dimmed:  #a2acb6;
+          --color-accent:       #2563eb;
+          --color-accent-hover: #1d4ed8;
+          --color-bg-selected:  #8397aa;
+          --color-bg-muted:     #f1f3f5;
+          --header-height: 56px;
+      }
+      [data-theme="dark"] {
+          --color-bg:           #111317;
+          --color-surface:      #1e2025;
+          --color-border:       #2e3138;
+          --color-text:         #e1e3e8;
+          --color-text-muted:   #868e96;
+          --color-text-dimmed:  #5f646a;
+          --color-accent:       #60a5fa;
+          --color-accent-hover: #93c5fd;
+          --color-bg-selected:  #424a53;
+          --color-bg-muted:     #282c34;
+          --header-height: 0px;
+      }
+      html, body { margin: 0; height: 100%; background: var(--color-bg); }
+
+      #app {
+          position: fixed;
+          inset: 0;
+          z-index: 100;
+      }
+  </style>
+  <link rel="stylesheet" href="/omnigraph-ui.css">
+</head>
+<body>
+<div id="app">
+</div>
+<script type="module" src="/omnigraph-ui.js"></script>
+</body>
+</html>

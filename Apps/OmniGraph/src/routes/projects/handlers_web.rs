@@ -12,6 +12,17 @@ use axum_extra::extract::Form;
 use minijinja::context;
 use std::fs;
 
+pub async fn vue_app(State(state): State<AppState>) -> impl IntoResponse {
+    let env = state.templates.acquire_env().unwrap();
+    let html = env
+        .get_template("base-ui.html")
+        .unwrap()
+        .render(context! {})
+        .unwrap();
+
+    Html(html)
+}
+
 pub async fn projects_page(State(state): State<AppState>) -> impl IntoResponse {
     let projects = storage::read_projects(&state);
     let env = state.templates.acquire_env().unwrap();

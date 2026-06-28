@@ -38,33 +38,6 @@
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
-        <!-- Mode selector -->
-        <sl-button-group>
-          <RouterLink
-              :to="`/projects/${props.machineName}/folios/inspect`"
-              custom
-              v-slot="{ navigate }"
-          >
-            <sl-button
-                :disabled="hasChanges"
-                variant="default"
-                @click="navigate"
-            >
-              Inspect
-            </sl-button>
-          </RouterLink>
-
-          <RouterLink
-              :to="`/projects/${props.machineName}/folios/crop`"
-              custom
-              v-slot="{ navigate }"
-          >
-            <sl-button disabled variant="primary" @click="navigate">
-              Crop
-            </sl-button>
-          </RouterLink>
-        </sl-button-group>
-
         <template v-if="mode === 'crop'">
 
           <br>
@@ -210,7 +183,7 @@
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
-import { RouterLink } from 'vue-router';
+import { onBeforeRouteLeave } from 'vue-router';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
 import { usePageFilterNavigation } from "../composables/usePageFilterNavigation";
 import PageStrip from './PageStrip.vue';
@@ -382,6 +355,15 @@ const hasChanges = computed(() => {
   }
   return false;
 });
+
+onBeforeRouteLeave(() => {
+  if (!hasChanges.value) return true;
+
+  return window.confirm(
+      'You have uncommitted crop changes. Leave this page and discard them?'
+  );
+});
+
 
 // ── Refs ─────────────────────────────────────────────────────────────
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);

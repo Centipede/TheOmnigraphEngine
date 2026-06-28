@@ -1,4 +1,5 @@
-use crate::routes::projects::forms::{CreateProject, SettingsUpdate};
+use crate::ocr_poll::ServerStatus;
+use crate::routes::projects::forms::{CreateProject, ScanConflict, ScanPageResult, ScanRequest, ScanResponse, SettingsUpdate};
 use crate::routes::projects::models::PageDb;
 use crate::routes::projects::{storage};
 use crate::state::AppState;
@@ -92,6 +93,132 @@ pub async fn put_project_metadata(
         ).into_response(),
         Err(status) => status.into_response(),
     }
+}
+
+pub async fn get_hocr_status(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let pagedb = storage::load_page_db(&state.project_pagesdb_path(&machine_name));
+    let scanned = storage::list_scanned(&state.projects_dir, &machine_name, &pagedb.pages);
+    Json(serde_json::json!({ "scanned": scanned }))
+}
+
+pub async fn scan_pages_post(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Json(payload): Json<ScanRequest>,
+) -> impl IntoResponse {
+    // Load pagedb and resolve the requested pages by index
+    let pagedb_path = state.project_pagesdb_path(&machine_name);
+    let pagedb = storage::load_page_db(&pagedb_path);
+
+    let pages: Vec<_> = payload
+        .indices
+        .iter()
+        .filter_map(|&idx| pagedb.pages.iter().find(|p| p.index == idx))
+        .collect();
+
+    if pages.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "no valid pages"}))).into_response();
+    }
+
+    // Conflict check: pages with unsaved edits block a forced re-scan
+    if !payload.force {
+        let conflicts: Vec<String> = pages
+            .iter()
+            .filter(|p| storage::has_unsaved_edits(&state.projects_dir, &machine_name, &p.scan))
+            .map(|p| if p.name.is_empty() { p.scan.clone() } else { p.name.clone() })
+            .collect();
+
+        if !conflicts.is_empty() {
+            return (StatusCode::CONFLICT, Json(ScanConflict { pages: conflicts })).into_response();
+        }
+    }
+
+    // Pick the first online OCR server (priority 1 → 2)
+    let server = {
+        let settings = state.settings.read().unwrap();
+        let ocr_status = state.ocr_status.read().unwrap();
+        if matches!(ocr_status.server_1, ServerStatus::Online) {
+            settings.ocr_server_1.clone()
+        } else if matches!(ocr_status.server_2, ServerStatus::Online) {
+            settings.ocr_server_2.clone()
+        } else {
+            None
+        }
+    };
+
+    let Some(server) = server else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"error": "no OCR server available"})),
+        )
+            .into_response();
+    };
+
+    // Read scan files from disk and white out crop margins
+    let scans_dir = state.projects_dir.join(&machine_name).join("pages").join("scans");
+    let mut scan_files: Vec<(String, Vec<u8>)> = Vec::new();
+
+    for page in &pages {
+        let raw = match tokio::fs::read(scans_dir.join(&page.scan)).await {
+            Ok(b) => b,
+            Err(e) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("failed to read {}: {}", page.scan, e)})),
+            ).into_response(),
+        };
+
+        let crop = page.crop_edges;
+        let scan_name = page.scan.clone();
+        let bytes = match tokio::task::spawn_blocking(move || {
+            crate::image_utils::apply_crop_mask(&raw, crop)
+        }).await {
+            Ok(Ok(b)) => b,
+            Ok(Err(e)) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("failed to mask {}: {}", scan_name, e)})),
+            ).into_response(),
+            Err(_) => return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("image task panicked for {}", scan_name)})),
+            ).into_response(),
+        };
+
+        scan_files.push((page.scan.clone(), bytes));
+    }
+
+    // Call OCR service
+    let ocr_results = match crate::ocr_client::call_ocr_service(&server, scan_files).await {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(serde_json::json!({"error": e})),
+            )
+                .into_response();
+        }
+    };
+
+    // Save each hOCR result and build the response
+    let mut results: Vec<ScanPageResult> = Vec::new();
+
+    for ocr in ocr_results {
+        let page = pages.iter().find(|p| p.scan == ocr.upload_name);
+        let Some(page) = page else { continue };
+
+        if let Some(hocr) = ocr.hocr {
+            match storage::save_hocr_original(&state.projects_dir, &machine_name, &page.scan, &hocr) {
+                Ok(()) => results.push(ScanPageResult { scan: page.scan.clone(), success: true, error: None }),
+                Err(e) => results.push(ScanPageResult { scan: page.scan.clone(), success: false, error: Some(e.to_string()) }),
+            }
+        } else {
+            results.push(ScanPageResult { scan: page.scan.clone(), success: false, error: ocr.error });
+        }
+    }
+
+    Json(ScanResponse { results }).into_response()
 }
 
 pub async fn get_project_pagesdb(

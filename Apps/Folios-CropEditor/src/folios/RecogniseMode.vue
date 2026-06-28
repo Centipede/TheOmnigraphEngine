@@ -8,6 +8,7 @@
         :selected-page-indices="selectedPageSet"
         :current-page-index="currentPageIndex"
         :is-page-in-filter="isInFilter"
+        :page-extras="pageExtras"
         @navigate="navigatePage"
         @page-click="handleListClick"
     />
@@ -38,41 +39,58 @@
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
-        <template v-if="mode === 'crop'">
+        <br>
+        <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-input="onFilterChange">
+          <sl-radio-button value="all">All</sl-radio-button>
+          <sl-radio-button value="even">Even</sl-radio-button>
+          <sl-radio-button value="odd">Odd</sl-radio-button>
+        </sl-radio-group>
 
+        <template v-if="selectionInfo">
           <br>
-          <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-input="onFilterChange">
-            <sl-radio-button value="all">All</sl-radio-button>
-            <sl-radio-button value="even">Even</sl-radio-button>
-            <sl-radio-button value="odd">Odd</sl-radio-button>
-          </sl-radio-group>
-
-
-          <!-- Selection info -->
-          <template v-if="selectionInfo">
-            <br>
-            <div class="selection-info-panel">
-              <div class="info-row">
-                <span class="info-label">Range</span>
-                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
-                <span class="info-count">({{ selectionInfo.count }})</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Center</span>
-                <span class="info-value">{{ selectionInfo.centerName }}</span>
-              </div>
-              <sl-button-group>
-                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
-              </sl-button-group>
+          <div class="selection-info-panel">
+            <div class="info-row">
+              <span class="info-label">Range</span>
+              <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
+              <span class="info-count">({{ selectionInfo.count }})</span>
             </div>
-          </template>
-
-          <br>
-
+            <div class="info-row">
+              <span class="info-label">Center</span>
+              <span class="info-value">{{ selectionInfo.centerName }}</span>
+            </div>
+            <sl-button-group>
+              <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
+              <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
+              <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
+            </sl-button-group>
+          </div>
         </template>
 
+        <br>
+        <sl-button
+            size="small"
+            variant="primary"
+            :loading="isScanning"
+            :disabled="isScanning || !selectionInfo"
+            @click="scanPages()"
+        >
+          Scan selected
+        </sl-button>
+
+        <p v-if="scanError" class="scan-error">{{ scanError }}</p>
+
+        <div v-if="scanResults.length" class="scan-results">
+          <div
+              v-for="r in scanResults"
+              :key="r.scan"
+              class="scan-result-row"
+              :class="r.success ? 'ok' : 'fail'"
+          >
+            <span class="scan-result-icon">{{ r.success ? '✓' : '✗' }}</span>
+            <span class="scan-result-name">{{ r.scan }}</span>
+            <span v-if="r.error" class="scan-result-error">{{ r.error }}</span>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -91,8 +109,39 @@ import PageList from "./PageList.vue";
 const props = defineProps<{ machineName: string; projectName: string }>();
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
-const mode = ref('crop');
+const mode = ref('recognise');
 const filterMode = ref('all')
+
+// ── hOCR status ──────────────────────────────────────────────────────
+const hocrScanned = ref<Set<string>>(new Set());
+
+const pageExtras = computed<Map<number, string>>(() => {
+  const map = new Map<number, string>();
+  for (const page of pages.value) {
+    if (hocrScanned.value.has(page.scan)) map.set(page.index, 'hOCR');
+  }
+  return map;
+});
+
+async function fetchHocrStatus(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/hocr-status`);
+    if (resp.ok) {
+      const data = await resp.json() as { scanned: string[] };
+      hocrScanned.value = new Set(data.scanned);
+    }
+  } catch (e) {
+    console.error('Failed to fetch hOCR status:', e);
+  }
+}
+
+// ── Scan state ───────────────────────────────────────────────────────
+interface ScanPageResult { scan: string; success: boolean; error?: string }
+interface ScanConflict   { pages: string[] }
+
+const isScanning  = ref(false);
+const scanResults = ref<ScanPageResult[]>([]);
+const scanError   = ref('');
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
@@ -284,6 +333,49 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+// ── Scan ─────────────────────────────────────────────────────────────
+async function scanPages(force = false): Promise<void> {
+  const indices = filteredPages.value.map(p => p.index);
+  if (!indices.length) return;
+
+  isScanning.value = true;
+  scanError.value = '';
+  if (!force) scanResults.value = [];
+
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/scan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ indices, force }),
+    });
+
+    if (resp.status === 409) {
+      const conflict = await resp.json() as ScanConflict;
+      isScanning.value = false;
+      const msg = `${conflict.pages.length} page(s) have unsaved edits:\n${conflict.pages.join(', ')}\n\nRescanning will overwrite their originals. Continue?`;
+      if (window.confirm(msg)) await scanPages(true);
+      return;
+    }
+
+    if (!resp.ok) {
+      const err = await resp.json() as { error: string };
+      scanError.value = err.error ?? 'Scan failed.';
+      return;
+    }
+
+    const data = await resp.json() as { results: ScanPageResult[] };
+    scanResults.value = data.results;
+    void fetchHocrStatus();
+  } catch (e) {
+    console.error(e);
+    scanError.value = 'Network error.';
+  } finally {
+    isScanning.value = false;
+  }
+}
+
+let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
@@ -299,10 +391,13 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to load pages:', e);
   }
+  await fetchHocrStatus();
+  hocrStatusInterval = setInterval(() => { void fetchHocrStatus(); }, 30_000);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown);
+  if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 </script>
 
@@ -464,5 +559,49 @@ onUnmounted(() => {
 .diamond-input.bottom {
   grid-column: 2;
   grid-row: 3;
+}
+
+/* Scan results */
+.scan-error {
+  color: #dc2626;
+  font-size: 0.8rem;
+  margin: 0.5rem 0 0;
+}
+
+.scan-results {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.scan-result-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.scan-result-icon {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.scan-result-row.ok  .scan-result-icon { color: #16a34a; }
+.scan-result-row.fail .scan-result-icon { color: #dc2626; }
+
+.scan-result-name {
+  color: var(--color-text-muted, #6c757d);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scan-result-error {
+  color: #dc2626;
+  font-size: 0.75rem;
+  width: 100%;
+  padding-left: 1rem;
 }
 </style>

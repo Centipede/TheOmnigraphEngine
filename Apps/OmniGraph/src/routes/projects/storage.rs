@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::path::Path;
 use axum::http::StatusCode;
 use axum::Json;
 use secrecy::Secret;
@@ -162,4 +163,40 @@ pub fn write_project(projects_dir: &PathBuf, machine_name: &str, project: &Proje
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     fs::write(&toml_path, toml_str)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+pub fn list_scanned(projects_dir: &PathBuf, machine_name: &str, pages: &[crate::routes::projects::models::Page]) -> Vec<String> {
+    pages.iter()
+        .filter(|p| hocr_original_path(projects_dir, machine_name, &p.scan).exists())
+        .map(|p| p.scan.clone())
+        .collect()
+}
+
+fn hocr_dir(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> PathBuf {
+    let stem = Path::new(scan).file_stem()
+        .and_then(|s| s.to_str()).unwrap_or(scan);
+    projects_dir.join(machine_name).join("pages").join("hocr").join(stem)
+}
+
+pub fn hocr_original_path(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> PathBuf {
+    hocr_dir(projects_dir, machine_name, scan).join("original.html")
+}
+
+pub fn hocr_edited_path(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> PathBuf {
+    hocr_dir(projects_dir, machine_name, scan).join("edited.html")
+}
+
+pub fn save_hocr_original(projects_dir: &PathBuf, machine_name: &str, scan: &str, hocr: &str) -> std::io::Result<()> {
+    let dir = hocr_dir(projects_dir, machine_name, scan);
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("original.html"), hocr)
+}
+
+pub fn has_unsaved_edits(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> bool {
+    let edited = hocr_edited_path(projects_dir, machine_name, scan);
+    let original = hocr_original_path(projects_dir, machine_name, scan);
+    match (fs::read_to_string(&edited), fs::read_to_string(&original)) {
+        (Ok(e), Ok(o)) => e != o,
+        _ => false,
+    }
 }

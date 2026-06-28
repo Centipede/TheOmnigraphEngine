@@ -5,6 +5,7 @@ import FoliosView from '../folios/FoliosView.vue';
 import InspectMode from '../folios/InspectMode.vue';
 import CropMode from '../folios/CropMode.vue';
 import Settings from '../settings/Settings.vue';
+import RecogniseMode from "../folios/RecogniseMode.vue";
 
 const projectProps = (route: { params: Record<string, unknown> }) => ({
     machineName: String(route.params.machineName),
@@ -49,6 +50,12 @@ export const router = createRouter({
                     path: 'crop',
                     name: 'folios-crop',
                     component: CropMode,
+                    props: projectProps,
+                },
+                {
+                    path: 'recognise',
+                    name: 'folios-recognise',
+                    component: RecogniseMode,
                     props: projectProps,
                 },
             ],
