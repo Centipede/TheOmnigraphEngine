@@ -1,6 +1,9 @@
 use crate::app_settings::OcrServerConfig;
 use serde::Deserialize;
 
+const OCR_UPLOAD_LIMIT_BYTES: usize = 100 * 1024 * 1024;
+const OCR_UPLOAD_BATCH_TARGET_BYTES: usize = 95 * 1024 * 1024;
+
 #[derive(Deserialize)]
 struct OcrResponse {
     results: Vec<RemoteScannedImage>,
@@ -20,6 +23,50 @@ pub struct OcrPageResult {
 }
 
 pub async fn call_ocr_service(
+    server: &OcrServerConfig,
+    pages: Vec<(String, Vec<u8>)>,
+) -> Result<Vec<OcrPageResult>, String> {
+    let mut batches: Vec<Vec<(String, Vec<u8>)>> = Vec::new();
+    let mut current_batch: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut current_batch_bytes = 0usize;
+
+    for (filename, bytes) in pages {
+        if bytes.len() >= OCR_UPLOAD_LIMIT_BYTES {
+            return Err(format!(
+                "{} is too large for OCR upload: {} bytes, limit is {} bytes",
+                filename,
+                bytes.len(),
+                OCR_UPLOAD_LIMIT_BYTES
+            ));
+        }
+
+        if !current_batch.is_empty()
+            && current_batch_bytes + bytes.len() > OCR_UPLOAD_BATCH_TARGET_BYTES
+        {
+            batches.push(current_batch);
+            current_batch = Vec::new();
+            current_batch_bytes = 0;
+        }
+
+        current_batch_bytes += bytes.len();
+        current_batch.push((filename, bytes));
+    }
+
+    if !current_batch.is_empty() {
+        batches.push(current_batch);
+    }
+
+    let mut all_results = Vec::new();
+
+    for batch in batches {
+        let mut batch_results = call_ocr_service_batch(server, batch).await?;
+        all_results.append(&mut batch_results);
+    }
+
+    Ok(all_results)
+}
+
+async fn call_ocr_service_batch(
     server: &OcrServerConfig,
     pages: Vec<(String, Vec<u8>)>,
 ) -> Result<Vec<OcrPageResult>, String> {
