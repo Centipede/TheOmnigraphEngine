@@ -21,13 +21,13 @@
             :key="page.index"
             :data-page-idx="page.index"
             :page="page"
-            :edge="`all`"
+            :edge="stripEdge ?? 'all'"
             :thumbBaseUrl="thumbBaseUrl"
-            :fraction="1"
-            :showOverlay="mode === 'crop'"
-            :crop="pageCrops.get(page.index) ?? page.crop_edges"
-            crop-color="rgba(0, 0, 0, 0.0)"
-            discard-color="rgba(50, 50, 50, 0.35)"
+            :fraction="stripFraction ?? 1"
+            :showOverlay="showCropOverlay ?? mode === 'crop'"
+            :crop="pageCrops?.get(page.index) ?? page.crop_edges"
+            :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
+            :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
             :selected="selectedPageSet.has(page.index)"
             @click="handleStripClick(page.index, $event)"
         />
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Tools -->
-    <div class="crop-tools">
+    <div class="workspace-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
@@ -74,11 +74,15 @@
 
         <slot
             name="tools"
+            :pages="pages"
             :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
             :selection-info="selectionInfo"
             :focus-page="focusPage"
             :filter-mode="filterMode"
             :on-filter-change="onFilterChange"
+            :stored-next-batch="storedNextBatch"
+            :has-changes="hasChanges"
         />
 
       </div>
@@ -88,17 +92,52 @@
 
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PageList from "../components/PageList.vue";
 
+type PageWorkspaceKeyboardContext = {
+  pages: Page[];
+  filteredPages: Page[];
+  visiblePages: Page[];
+  selectionInfo: {
+    firstIdx: number;
+    lastIdx: number;
+    centerIdx: number;
+    firstName: string;
+    lastName: string;
+    centerName: string;
+    count: number;
+  } | null;
+  focusPage: (pageIndex: number) => void;
+  navigatePage: (delta: number) => void;
+};
+
+type PageWorkspaceKeyboardHandler = (
+    event: KeyboardEvent,
+    context: PageWorkspaceKeyboardContext,
+) => boolean | void;
+
 const props = defineProps<{
   machineName: string;
   projectName: string,
-  formatPageExtras?: (pages: Page[]) => Map<number, string>
+  formatPageExtras?: (pages: Page[]) => Map<number, string>;
+  pageCrops?: Map<number, CropEdges>;
+  isPageChanged?: (page: Page) => boolean;
+  keyboardHandler?: PageWorkspaceKeyboardHandler;
+  stripEdge?: string;
+  stripFraction?: number;
+  showCropOverlay?: boolean;
+  cropColor?: string;
+  discardColor?: string;
+}>();
+
+const emit = defineEmits<{
+  pagesLoaded: [data: PageDb];
 }>();
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
@@ -107,9 +146,7 @@ const filterMode = ref('all')
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
-const pageCrops = reactive(new Map<number, CropEdges>());
-const originalCrops = reactive(new Map<number, CropEdges>());
-
+let storedNextBatch = 0;
 
 const pageExtras = computed(() => {
   return props.formatPageExtras?.(pages.value) ?? new Map<number, string>();
@@ -168,6 +205,23 @@ const selectionInfo = computed(() => {
     count: fp.length,
   };
 });
+
+
+// ── Has changes ──────────────────────────────────────────────────────
+const hasChanges = computed(() => {
+  return props.isPageChanged
+      ? pages.value.some(props.isPageChanged)
+      : false;
+});
+
+onBeforeRouteLeave(() => {
+  if (!hasChanges.value) return true;
+
+  return window.confirm(
+      'You have uncommitted changes. Leave this page and discard them?'
+  );
+});
+
 
 // ── Refs ─────────────────────────────────────────────────────────────
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
@@ -248,38 +302,26 @@ function navigatePage(delta: number) {
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
-function onKeyDown(e: KeyboardEvent) {
-  if (mode.value !== 'crop') return;
-  const shift = e.shiftKey;
-  const alt = e.altKey;
+function makeKeyboardContext(): PageWorkspaceKeyboardContext {
+  return {
+    pages: pages.value,
+    filteredPages: filteredPages.value,
+    visiblePages: visiblePages.value,
+    selectionInfo: selectionInfo.value,
+    focusPage,
+    navigatePage,
+  };
+}
 
-  // ⇧⎇ combos — edge selection and view toggle
-  if (shift && alt) {
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        return;
-      case 'ArrowDown':
-        e.preventDefault();
-        return;
-      case 'ArrowLeft':
-        e.preventDefault();
-        return;
-      case 'ArrowRight':
-        e.preventDefault();
-        return;
-      case 'F':
-      case 'f':
-        e.preventDefault();
-        return;
-    }
+function onKeyDown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement;
+
+  if (target.closest?.('.workspace-tools')) return;
+
+  if (props.keyboardHandler?.(e, makeKeyboardContext()) === true) {
+    return;
   }
 
-  // Skip nav/adjust when focus is inside the tools panel
-  const target = e.target as HTMLElement;
-  if (target.closest?.('.crop-tools')) return;
-
-  // Page navigation: , / . and < / > (Shift+, / Shift+.)
   switch (e.key) {
     case ',':
       e.preventDefault();
@@ -300,6 +342,25 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+onMounted(async () => {
+  document.addEventListener('keydown', onKeyDown);
+  try {
+    const res = await fetch(`/api/projects/${props.machineName}/pages`);
+    const data = (await res.json()) as PageDb;
+    pages.value = data.pages;
+    storedNextBatch = data.next_batch;
+    emit('pagesLoaded', data);
+
+    if (data.pages.length > 0) setAnchor(data.pages[0].index);
+  } catch (e) {
+    console.error('Failed to load pages:', e);
+  }
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeyDown);
+});
+
 defineExpose({
   pages,
   filteredPages,
@@ -310,26 +371,6 @@ defineExpose({
   onFilterChange,
 });
 
-onMounted(async () => {
-  document.addEventListener('keydown', onKeyDown);
-  try {
-    const res = await fetch(`/api/projects/${props.machineName}/pages`);
-    const data = (await res.json()) as PageDb;
-    pages.value = data.pages;
-    for (const page of data.pages) {
-      const crop = {...page.crop_edges};
-      pageCrops.set(page.index, crop);
-      originalCrops.set(page.index, {...crop});
-    }
-    if (data.pages.length > 0) setAnchor(data.pages[0].index);
-  } catch (e) {
-    console.error('Failed to load pages:', e);
-  }
-});
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', onKeyDown);
-});
 </script>
 
 <style>
@@ -393,7 +434,7 @@ onUnmounted(() => {
   -webkit-user-select: none;
 }
 
-.crop-tools {
+.workspace-tools {
   min-height: 0;
   max-height: 100%;
   padding: 0;

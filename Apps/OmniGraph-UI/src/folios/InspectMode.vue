@@ -1,6 +1,10 @@
 <template>
-  <PageWorkspace :machine-name="machineName" :project-name="projectName">
-    <template v-slot:tools>
+  <PageWorkspace
+      :machine-name="machineName"
+      :project-name="projectName"
+      :show-crop-overlay="true"
+  >
+    <template #tools>
 
     </template>
 
