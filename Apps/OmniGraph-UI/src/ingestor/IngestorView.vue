@@ -1,7 +1,7 @@
 <template>
   <PageWorkspace :machine-name="machineName" :project-name="projectName">
     <template v-slot:tools>
-
+      <sl-button>Append</sl-button>
     </template>
 
   </PageWorkspace>

@@ -186,9 +186,9 @@ import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
 import { usePageFilterNavigation } from "../composables/usePageFilterNavigation";
-import PageStrip from './PageStrip.vue';
+import PageStrip from '../components/PageStrip.vue';
 import type {CropEdges, Page, PageDb} from '../types';
-import PageList from "./PageList.vue";
+import PageList from "../components/PageList.vue";
 
 const props = defineProps<{ machineName: string; projectName: string }>();
 

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Projects from '../projects/Projects.vue';
 import ProjectDetailView from '../projects/ProjectDetailView.vue';
+import IngestorView from '../ingestor/IngestorView.vue';
 import FoliosView from '../folios/FoliosView.vue';
 import InspectMode from '../folios/InspectMode.vue';
 import CropMode from '../folios/CropMode.vue';
@@ -29,6 +30,12 @@ export const router = createRouter({
             path: '/projects/:machineName',
             name: 'project-detail',
             component: ProjectDetailView,
+            props: projectProps,
+        },
+        {
+            path: '/projects/:machineName/ingestor',
+            name: 'ingestor',
+            component: IngestorView,
             props: projectProps,
         },
         {
