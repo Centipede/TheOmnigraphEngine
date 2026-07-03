@@ -13,24 +13,81 @@
         @page-click="handleListClick"
     />
 
-    <!-- Central: strip grid -->
-    <div class="workspace-workarea" :ref="setStripWorkareaRef">
-      <div class="strip-grid">
-        <PageStrip
-            v-for="page in visiblePages"
-            :key="page.index"
-            :data-page-idx="page.index"
-            :page="page"
-            :edge="stripEdge ?? 'all'"
-            :thumbBaseUrl="thumbBaseUrl"
-            :fraction="stripFraction ?? 1"
-            :showOverlay="showCropOverlay ?? mode === 'crop'"
-            :crop="pageCrops?.get(page.index) ?? page.crop_edges"
-            :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
-            :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
-            :selected="selectedPageSet.has(page.index)"
-            @click="handleStripClick(page.index, $event)"
-        />
+    <!-- Central: workspace panes -->
+    <div class="workspace-workarea">
+      <div
+          class="workspace-page-strips-pane"
+          :class="{ 'workspace-pane-hidden': !showPageStrips }"
+          :ref="setStripWorkareaRef"
+      >
+        <slot
+            name="page-strips"
+            :pages="pages"
+            :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :current-page="currentPage"
+            :current-page-crop="currentPageCrop"
+            :focus-page="focusPage"
+            :set-anchor="setAnchor"
+            :extend-selection="extendSelection"
+            :thumb-base-url="thumbBaseUrl"
+            :scan-base-url="scanBaseUrl"
+            :show-page-strips="showPageStrips"
+            :show-page-preview="showPagePreview"
+        >
+          <div class="strip-grid">
+            <PageStrip
+                v-for="page in visiblePages"
+                :key="page.index"
+                :data-page-idx="page.index"
+                :page="page"
+                :edge="stripEdge ?? 'all'"
+                :thumbBaseUrl="thumbBaseUrl"
+                :fraction="stripFraction ?? 1"
+                :showOverlay="showCropOverlay ?? mode === 'crop'"
+                :crop="pageCrops?.get(page.index) ?? page.crop_edges"
+                :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
+                :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
+                :selected="selectedPageSet.has(page.index)"
+                @click="handleStripClick(page.index, $event)"
+            />
+          </div>
+        </slot>
+      </div>
+
+      <div
+          class="workspace-page-preview-pane"
+          :class="{ 'workspace-pane-hidden': !showPagePreview }"
+      >
+        <slot
+            name="page-preview"
+            :pages="pages"
+            :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :current-page="currentPage"
+            :current-page-crop="currentPageCrop"
+            :focus-page="focusPage"
+            :set-anchor="setAnchor"
+            :extend-selection="extendSelection"
+            :thumb-base-url="thumbBaseUrl"
+            :scan-base-url="scanBaseUrl"
+            :show-page-strips="showPageStrips"
+            :show-page-preview="showPagePreview"
+        >
+          <PagePreview
+              v-if="currentPage && currentPageCrop"
+              :page="currentPage"
+              :image-base-url="scanBaseUrl"
+              :crop="currentPageCrop"
+              :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
+              :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
+              :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
+          />
+        </slot>
       </div>
     </div>
 
@@ -98,6 +155,7 @@ import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages"
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
 import PageStrip from '../components/PageStrip.vue';
+import PagePreview from '../components/PagePreview.vue';
 import PageList from "../components/PageList.vue";
 
 type PageWorkspaceKeyboardContext = {
@@ -122,7 +180,7 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   machineName: string;
   projectName: string,
   formatPageExtras?: (pages: Page[]) => Map<number, string>;
@@ -134,7 +192,12 @@ const props = defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
-}>();
+  initialShowPageStrips?: boolean;
+  initialShowPagePreview?: boolean;
+}>(), {
+  initialShowPageStrips: true,
+  initialShowPagePreview: false,
+});
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
@@ -143,6 +206,10 @@ const emit = defineEmits<{
 // ── Mode / tool / edge ───────────────────────────────────────────────
 const mode = ref('crop');
 const filterMode = ref('all')
+
+// ── Workspace pane visibility ─────────────────────────────────────────
+const showPageStrips = ref(props.initialShowPageStrips);
+const showPagePreview = ref(props.initialShowPagePreview);
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
@@ -228,6 +295,19 @@ const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
 
 const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
+const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
+
+const currentPage = computed(() => {
+  const index = currentPageIndex.value;
+  if (index === null) return null;
+  return pages.value.find(page => page.index === index) ?? null;
+});
+
+const currentPageCrop = computed(() => {
+  const page = currentPage.value;
+  if (!page) return null;
+  return props.pageCrops?.get(page.index) ?? page.crop_edges;
+});
 
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
@@ -369,6 +449,10 @@ defineExpose({
   focusPage,
   filterMode,
   onFilterChange,
+  currentPage,
+  currentPageCrop,
+  showPageStrips,
+  showPagePreview,
 });
 
 </script>
@@ -421,7 +505,38 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   max-height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+.workspace-page-strips-pane,
+.workspace-page-preview-pane {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  transition:
+      flex-basis 160ms ease,
+      width 160ms ease,
+      border-color 160ms ease;
+}
+
+.workspace-page-strips-pane {
+  flex: 1 1 auto;
   overflow-y: auto;
+}
+
+.workspace-page-preview-pane {
+  flex: 0 0 45%;
+  border-left: 1px solid var(--color-border, #dee2e6);
+}
+
+.workspace-pane-hidden {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  border-color: transparent;
+  overflow: hidden;
 }
 
 .strip-grid {

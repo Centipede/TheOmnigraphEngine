@@ -1,5 +1,10 @@
 <template>
-  <PageWorkspace :machine-name="machineName" :project-name="projectName">
+  <PageWorkspace
+      :machine-name="machineName"
+      :project-name="projectName"
+      :initial-show-page-preview="true"
+  >
+
     <template v-slot:tools>
       <sl-button>Append</sl-button>
     </template>
