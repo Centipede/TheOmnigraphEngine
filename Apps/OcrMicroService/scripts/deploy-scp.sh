@@ -13,7 +13,7 @@ BINARY_NAME="OcrMicroService"
 ssh "$TARGET_HOST" "mkdir -p '$TARGET_DIR'"
 
 scp "dist/$BINARY_NAME" "$TARGET_HOST:$TARGET_DIR/$BINARY_NAME"
-scp "config_examples/tesseract_docker.toml" "$TARGET_HOST:$TARGET_DIR/tesseract.toml"
+scp "config_examples/tesseract_native.toml" "$TARGET_HOST:$TARGET_DIR/tesseract.toml"
 
 ssh "$TARGET_HOST" "chmod +x '$TARGET_DIR/$BINARY_NAME'"
 

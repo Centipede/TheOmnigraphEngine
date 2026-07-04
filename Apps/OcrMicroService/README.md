@@ -319,7 +319,7 @@ The executable can be started with:
 /opt/ocr-microservice/OcrMicroService --config /opt/ocr-microservice/tesseract.toml
 ```
 
-Systemd unit example:
+Systemd unit example: `nano ocr-microservice.service`
 
 ```
 [Unit]

@@ -1,5 +1,5 @@
 <template>
-  <div class="inspect-area">
+  <div class="three-column-grid">
 
     <!-- Sidebar: page list -->
     <PageList
@@ -13,29 +13,86 @@
         @page-click="handleListClick"
     />
 
-    <!-- Central: strip grid -->
-    <div class="inspect-workarea" :ref="setStripWorkareaRef">
-      <div class="strip-grid">
-        <PageStrip
-            v-for="page in visiblePages"
-            :key="page.index"
-            :data-page-idx="page.index"
-            :page="page"
-            :edge="`all`"
-            :thumbBaseUrl="thumbBaseUrl"
-            :fraction="1"
-            :showOverlay="mode === 'crop'"
-            :crop="pageCrops.get(page.index) ?? page.crop_edges"
-            crop-color="rgba(0, 0, 0, 0.0)"
-            discard-color="rgba(50, 50, 50, 0.35)"
-            :selected="selectedPageSet.has(page.index)"
-            @click="handleStripClick(page.index, $event)"
-        />
+    <!-- Central: workspace panes -->
+    <div class="workspace-workarea">
+      <div
+          class="workspace-page-strips-pane"
+          :class="{ 'workspace-pane-hidden': !showPageStrips }"
+          :ref="setStripWorkareaRef"
+      >
+        <slot
+            name="page-strips"
+            :pages="pages"
+            :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :current-page="currentPage"
+            :current-page-crop="currentPageCrop"
+            :focus-page="focusPage"
+            :set-anchor="setAnchor"
+            :extend-selection="extendSelection"
+            :thumb-base-url="thumbBaseUrl"
+            :scan-base-url="scanBaseUrl"
+            :show-page-strips="showPageStrips"
+            :show-page-preview="showPagePreview"
+        >
+          <div class="strip-grid">
+            <PageStrip
+                v-for="page in visiblePages"
+                :key="page.index"
+                :data-page-idx="page.index"
+                :page="page"
+                :edge="stripEdge ?? 'all'"
+                :thumbBaseUrl="thumbBaseUrl"
+                :fraction="stripFraction ?? 1"
+                :showOverlay="showCropOverlay ?? mode === 'crop'"
+                :crop="pageCrops?.get(page.index) ?? page.crop_edges"
+                :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
+                :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
+                :selected="selectedPageSet.has(page.index)"
+                @click="handleStripClick(page.index, $event)"
+            />
+          </div>
+        </slot>
+      </div>
+
+      <div
+          class="workspace-page-preview-pane"
+          :class="{ 'workspace-pane-hidden': !showPagePreview }"
+      >
+        <slot
+            name="page-preview"
+            :pages="pages"
+            :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :current-page="currentPage"
+            :current-page-crop="currentPageCrop"
+            :focus-page="focusPage"
+            :set-anchor="setAnchor"
+            :extend-selection="extendSelection"
+            :thumb-base-url="thumbBaseUrl"
+            :scan-base-url="scanBaseUrl"
+            :show-page-strips="showPageStrips"
+            :show-page-preview="showPagePreview"
+        >
+          <PagePreview
+              v-if="currentPage && currentPageCrop"
+              :page="currentPage"
+              :image-base-url="scanBaseUrl"
+              :crop="currentPageCrop"
+              :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
+              :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
+              :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
+          />
+        </slot>
       </div>
     </div>
 
     <!-- Tools -->
-    <div class="crop-tools">
+    <div class="workspace-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
 
@@ -46,6 +103,8 @@
           <sl-radio-button value="odd">Odd</sl-radio-button>
         </sl-radio-group>
 
+
+        <!-- Selection info -->
         <template v-if="selectionInfo">
           <br>
           <div class="selection-info-panel">
@@ -67,30 +126,21 @@
         </template>
 
         <br>
-        <sl-button
-            size="small"
-            variant="primary"
-            :loading="isScanning"
-            :disabled="isScanning || !selectionInfo"
-            @click="scanPages()"
-        >
-          Scan selected
-        </sl-button>
 
-        <p v-if="scanError" class="scan-error">{{ scanError }}</p>
+        <!-- Tools -->
 
-        <div v-if="scanResults.length" class="scan-results">
-          <div
-              v-for="r in scanResults"
-              :key="r.scan"
-              class="scan-result-row"
-              :class="r.success ? 'ok' : 'fail'"
-          >
-            <span class="scan-result-icon">{{ r.success ? '✓' : '✗' }}</span>
-            <span class="scan-result-name">{{ r.scan }}</span>
-            <span v-if="r.error" class="scan-result-error">{{ r.error }}</span>
-          </div>
-        </div>
+        <slot
+            name="tools"
+            :pages="pages"
+            :filtered-pages="filteredPages"
+            :visible-pages="visiblePages"
+            :selection-info="selectionInfo"
+            :focus-page="focusPage"
+            :filter-mode="filterMode"
+            :on-filter-change="onFilterChange"
+            :stored-next-batch="storedNextBatch"
+            :has-changes="hasChanges"
+        />
 
       </div>
     </div>
@@ -99,54 +149,75 @@
 
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
-import { useFilteredPages, makeIsInFilter } from "../composables/useFilteredPages";
-import { usePageFilterNavigation } from "../composables/usePageFilterNavigation";
-import PageStrip from './PageStrip.vue';
+import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
+import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
+import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
-import PageList from "./PageList.vue";
+import PageStrip from '../components/PageStrip.vue';
+import PagePreview from '../components/PagePreview.vue';
+import PageList from "../components/PageList.vue";
 
-const props = defineProps<{ machineName: string; projectName: string }>();
+type PageWorkspaceKeyboardContext = {
+  pages: Page[];
+  filteredPages: Page[];
+  visiblePages: Page[];
+  selectionInfo: {
+    firstIdx: number;
+    lastIdx: number;
+    centerIdx: number;
+    firstName: string;
+    lastName: string;
+    centerName: string;
+    count: number;
+  } | null;
+  focusPage: (pageIndex: number) => void;
+  navigatePage: (delta: number) => void;
+};
 
-// ── Mode / tool / edge ───────────────────────────────────────────────
-const mode = ref('recognise');
-const filterMode = ref('all')
+type PageWorkspaceKeyboardHandler = (
+    event: KeyboardEvent,
+    context: PageWorkspaceKeyboardContext,
+) => boolean | void;
 
-// ── hOCR status ──────────────────────────────────────────────────────
-const hocrScanned = ref<Set<string>>(new Set());
-
-const pageExtras = computed<Map<number, string>>(() => {
-  const map = new Map<number, string>();
-  for (const page of pages.value) {
-    if (hocrScanned.value.has(page.scan)) map.set(page.index, 'hOCR');
-  }
-  return map;
+const props = withDefaults(defineProps<{
+  machineName: string;
+  projectName: string,
+  formatPageExtras?: (pages: Page[]) => Map<number, string>;
+  pageCrops?: Map<number, CropEdges>;
+  isPageChanged?: (page: Page) => boolean;
+  keyboardHandler?: PageWorkspaceKeyboardHandler;
+  stripEdge?: string;
+  stripFraction?: number;
+  showCropOverlay?: boolean;
+  cropColor?: string;
+  discardColor?: string;
+  initialShowPageStrips?: boolean;
+  initialShowPagePreview?: boolean;
+}>(), {
+  initialShowPageStrips: true,
+  initialShowPagePreview: false,
 });
 
-async function fetchHocrStatus(): Promise<void> {
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/hocr-status`);
-    if (resp.ok) {
-      const data = await resp.json() as { scanned: string[] };
-      hocrScanned.value = new Set(data.scanned);
-    }
-  } catch (e) {
-    console.error('Failed to fetch hOCR status:', e);
-  }
-}
+const emit = defineEmits<{
+  pagesLoaded: [data: PageDb];
+}>();
 
-// ── Scan state ───────────────────────────────────────────────────────
-interface ScanPageResult { scan: string; success: boolean; error?: string }
-interface ScanConflict   { pages: string[] }
+// ── Mode / tool / edge ───────────────────────────────────────────────
+const mode = ref('crop');
+const filterMode = ref('all')
 
-const isScanning  = ref(false);
-const scanResults = ref<ScanPageResult[]>([]);
-const scanError   = ref('');
+// ── Workspace pane visibility ─────────────────────────────────────────
+const showPageStrips = ref(props.initialShowPageStrips);
+const showPagePreview = ref(props.initialShowPagePreview);
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
-const pageCrops = reactive(new Map<number, CropEdges>());
-const originalCrops = reactive(new Map<number, CropEdges>());
+let storedNextBatch = 0;
+
+const pageExtras = computed(() => {
+  return props.formatPageExtras?.(pages.value) ?? new Map<number, string>();
+});
 
 // ── Selection ────────────────────────────────────────────────────────
 // selectionAnchor = first-clicked page (plain click resets accumulator).
@@ -202,11 +273,41 @@ const selectionInfo = computed(() => {
   };
 });
 
+
+// ── Has changes ──────────────────────────────────────────────────────
+const hasChanges = computed(() => {
+  return props.isPageChanged
+      ? pages.value.some(props.isPageChanged)
+      : false;
+});
+
+onBeforeRouteLeave(() => {
+  if (!hasChanges.value) return true;
+
+  return window.confirm(
+      'You have uncommitted changes. Leave this page and discard them?'
+  );
+});
+
+
 // ── Refs ─────────────────────────────────────────────────────────────
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
 
 const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
+const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
+
+const currentPage = computed(() => {
+  const index = currentPageIndex.value;
+  if (index === null) return null;
+  return pages.value.find(page => page.index === index) ?? null;
+});
+
+const currentPageCrop = computed(() => {
+  const page = currentPage.value;
+  if (!page) return null;
+  return props.pageCrops?.get(page.index) ?? page.crop_edges;
+});
 
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
@@ -254,7 +355,7 @@ function handleStripClick(pageIndex: number, e: MouseEvent) {
   (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
-const { onFilterChange } = usePageFilterNavigation({
+const {onFilterChange} = usePageFilterNavigation({
   filterMode,
   pages,
   visiblePages,
@@ -281,38 +382,26 @@ function navigatePage(delta: number) {
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
-function onKeyDown(e: KeyboardEvent) {
-  if (mode.value !== 'crop') return;
-  const shift = e.shiftKey;
-  const alt = e.altKey;
+function makeKeyboardContext(): PageWorkspaceKeyboardContext {
+  return {
+    pages: pages.value,
+    filteredPages: filteredPages.value,
+    visiblePages: visiblePages.value,
+    selectionInfo: selectionInfo.value,
+    focusPage,
+    navigatePage,
+  };
+}
 
-  // ⇧⎇ combos — edge selection and view toggle
-  if (shift && alt) {
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        return;
-      case 'ArrowDown':
-        e.preventDefault();
-        return;
-      case 'ArrowLeft':
-        e.preventDefault();
-        return;
-      case 'ArrowRight':
-        e.preventDefault();
-        return;
-      case 'F':
-      case 'f':
-        e.preventDefault();
-        return;
-    }
+function onKeyDown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement;
+
+  if (target.closest?.('.workspace-tools')) return;
+
+  if (props.keyboardHandler?.(e, makeKeyboardContext()) === true) {
+    return;
   }
 
-  // Skip nav/adjust when focus is inside the tools panel
-  const target = e.target as HTMLElement;
-  if (target.closest?.('.crop-tools')) return;
-
-  // Page navigation: , / . and < / > (Shift+, / Shift+.)
   switch (e.key) {
     case ',':
       e.preventDefault();
@@ -333,77 +422,44 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
-// ── Scan ─────────────────────────────────────────────────────────────
-async function scanPages(force = false): Promise<void> {
-  const indices = filteredPages.value.map(p => p.index);
-  if (!indices.length) return;
-
-  isScanning.value = true;
-  scanError.value = '';
-  if (!force) scanResults.value = [];
-
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/scan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ indices, force }),
-    });
-
-    if (resp.status === 409) {
-      const conflict = await resp.json() as ScanConflict;
-      isScanning.value = false;
-      const msg = `${conflict.pages.length} page(s) have unsaved edits:\n${conflict.pages.join(', ')}\n\nRescanning will overwrite their originals. Continue?`;
-      if (window.confirm(msg)) await scanPages(true);
-      return;
-    }
-
-    if (!resp.ok) {
-      const err = await resp.json() as { error: string };
-      scanError.value = err.error ?? 'Scan failed.';
-      return;
-    }
-
-    const data = await resp.json() as { results: ScanPageResult[] };
-    scanResults.value = data.results;
-    void fetchHocrStatus();
-  } catch (e) {
-    console.error(e);
-    scanError.value = 'Network error.';
-  } finally {
-    isScanning.value = false;
-  }
-}
-
-let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
-
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
     const res = await fetch(`/api/projects/${props.machineName}/pages`);
     const data = (await res.json()) as PageDb;
     pages.value = data.pages;
-    for (const page of data.pages) {
-      const crop = {...page.crop_edges};
-      pageCrops.set(page.index, crop);
-      originalCrops.set(page.index, {...crop});
-    }
+    storedNextBatch = data.next_batch;
+    emit('pagesLoaded', data);
+
     if (data.pages.length > 0) setAnchor(data.pages[0].index);
   } catch (e) {
     console.error('Failed to load pages:', e);
   }
-  await fetchHocrStatus();
-  hocrStatusInterval = setInterval(() => { void fetchHocrStatus(); }, 30_000);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown);
-  if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
+
+defineExpose({
+  pages,
+  filteredPages,
+  visiblePages,
+  selectionInfo,
+  focusPage,
+  filterMode,
+  onFilterChange,
+  currentPage,
+  currentPageCrop,
+  showPageStrips,
+  showPagePreview,
+});
+
 </script>
 
 <style>
 
-.inspect-area {
+.three-column-grid {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
@@ -412,15 +468,17 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.inspect-area > * {
+.three-column-grid > * {
   min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
   border-right: 1px solid var(--color-border, #dee2e6);
 }
 
-.inspect-area > *:last-child {
+.three-column-grid > *:last-child {
   border-right: none;
 }
+
 
 .sidebar-lead {
   font-size: 0.75rem;
@@ -443,10 +501,42 @@ onUnmounted(() => {
   color: var(--color-text-muted, #6c757d);
 }
 
-.inspect-workarea {
+.workspace-workarea {
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  max-height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+.workspace-page-strips-pane,
+.workspace-page-preview-pane {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  transition:
+      flex-basis 160ms ease,
+      width 160ms ease,
+      border-color 160ms ease;
+}
+
+.workspace-page-strips-pane {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.workspace-page-preview-pane {
+  flex: 0 0 45%;
+  border-left: 1px solid var(--color-border, #dee2e6);
+}
+
+.workspace-pane-hidden {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  border-color: transparent;
+  overflow: hidden;
 }
 
 .strip-grid {
@@ -459,9 +549,12 @@ onUnmounted(() => {
   -webkit-user-select: none;
 }
 
-.crop-tools {
+.workspace-tools {
+  min-height: 0;
+  max-height: 100%;
   padding: 0;
 }
+
 
 /* Page list */
 
@@ -520,88 +613,4 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* Accumulator display */
-.accumulator-display {
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-accent, #2563eb);
-  padding: 0.15rem 0;
-}
-
-
-.diamond-inputs {
-  display: grid;
-  grid-template-columns: max-content max-content max-content;
-  gap: 0.5rem;
-  justify-content: center;
-  align-items: center;
-}
-
-.diamond-input {
-  width: 5rem;
-}
-
-.diamond-input.top {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.diamond-input.left {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.diamond-input.right {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.diamond-input.bottom {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-/* Scan results */
-.scan-error {
-  color: #dc2626;
-  font-size: 0.8rem;
-  margin: 0.5rem 0 0;
-}
-
-.scan-results {
-  margin-top: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.8rem;
-}
-
-.scan-result-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.scan-result-icon {
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.scan-result-row.ok  .scan-result-icon { color: #16a34a; }
-.scan-result-row.fail .scan-result-icon { color: #dc2626; }
-
-.scan-result-name {
-  color: var(--color-text-muted, #6c757d);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scan-result-error {
-  color: #dc2626;
-  font-size: 0.75rem;
-  width: 100%;
-  padding-left: 1rem;
-}
 </style>

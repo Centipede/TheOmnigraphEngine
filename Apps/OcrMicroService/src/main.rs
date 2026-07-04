@@ -1,6 +1,7 @@
 use axum::{
     extract::{Multipart, State},
     routing::post,
+    extract::DefaultBodyLimit,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -52,6 +53,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/ocr/tesseract", post(ocr_tesseract))
+        .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
