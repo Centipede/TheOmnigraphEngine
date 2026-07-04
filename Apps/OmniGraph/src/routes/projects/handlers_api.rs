@@ -95,6 +95,34 @@ pub async fn put_project_metadata(
     }
 }
 
+pub async fn get_hocr_json(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let Some(hocr_path) = storage::hocr_active_path(&state.projects_dir, &machine_name, &stem)
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    let html = match tokio::fs::read_to_string(&hocr_path).await {
+        Ok(s) => s,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+        .await
+        .unwrap_or(None);
+
+    match page {
+        Some(p) => Json(p).into_response(),
+        None => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(serde_json::json!({"error": "failed to parse hOCR"})),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn get_hocr_status(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,

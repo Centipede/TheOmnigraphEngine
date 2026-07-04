@@ -165,6 +165,14 @@ pub fn write_project(projects_dir: &PathBuf, machine_name: &str, project: &Proje
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+pub fn hocr_active_path(projects_dir: &PathBuf, machine_name: &str, stem: &str) -> Option<PathBuf> {
+    let edited = hocr_edited_path(projects_dir, machine_name, stem);
+    if edited.exists() { return Some(edited); }
+    let original = hocr_original_path(projects_dir, machine_name, stem);
+    if original.exists() { return Some(original); }
+    None
+}
+
 pub fn list_scanned(projects_dir: &PathBuf, machine_name: &str, pages: &[crate::routes::projects::models::Page]) -> Vec<String> {
     pages.iter()
         .filter(|p| hocr_original_path(projects_dir, machine_name, &p.scan).exists())

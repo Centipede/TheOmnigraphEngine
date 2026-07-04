@@ -174,7 +174,7 @@
 
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
@@ -225,6 +225,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
+  currentPageChange: [page: Page | null];
 }>();
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
@@ -444,6 +445,8 @@ function onKeyDown(e: KeyboardEvent) {
       return;
   }
 }
+
+watch(currentPage, (page) => emit('currentPageChange', page));
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
