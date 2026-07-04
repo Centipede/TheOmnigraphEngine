@@ -4,27 +4,19 @@
       :project-name="projectName"
       :panels="panels"
   >
-
-    <template v-slot:tools>
-      <sl-button>Append</sl-button>
+    <template #tools>
+      <!-- Edit tools — to be implemented -->
     </template>
-
   </PageWorkspace>
 </template>
 
 <script setup lang="ts">
-import PageWorkspace from "../components/PageWorkspace.vue";
-import type {PanelVisibility} from "../types";
+import PageWorkspace from '../components/PageWorkspace.vue';
+import type { PanelVisibility } from '../types';
 
-const props = defineProps<{
+defineProps<{
   machineName: string;
   projectName: string;
   panels: PanelVisibility;
 }>();
-
 </script>
-
-<style scoped>
-
-</style>
-

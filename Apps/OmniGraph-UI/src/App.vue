@@ -1,19 +1,46 @@
 <template>
   <div class="vue-app-root">
-    <NavBar :machineName="machineName" :projectName="projectName"/>
-    <RouterView/>
+    <NavBar
+        :machineName="machineName"
+        :projectName="projectName"
+        :panels="panels"
+        @toggle-panel="togglePanel"
+    />
+    <RouterView v-slot="{ Component }">
+      <component
+          :is="Component"
+          :panels="panels"
+      />
+    </RouterView>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, reactive} from 'vue';
 import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
+import type {PanelId, PanelVisibility} from './types';
 
 const route = useRoute();
 
 const machineName = computed(() => String(route.params.machineName ?? ''));
 const projectName = computed(() => machineName.value);
+
+
+const panels = reactive<PanelVisibility>({
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+function togglePanel(panelId: PanelId) {
+  panels[panelId] = !panels[panelId];
+}
+
 </script>
 
 <style>

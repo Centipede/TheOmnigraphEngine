@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :panels="panels"
       :strip-edge="edge"
       :strip-fraction="viewPercent / 100"
       :show-crop-overlay="true"
@@ -197,9 +198,14 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import type {CropEdges, Page, PageDb} from '../types';
+import type {CropEdges, Page, PageDb, PanelVisibility} from '../types';
 
-const props = defineProps<{ machineName: string; projectName: string }>();
+const props = defineProps<{
+  machineName: string;
+  projectName: string;
+  panels: PanelVisibility;
+}>();
+
 
 // ── Tool / edge ─────────────────────────────────────────────────────────
 const tool = ref('adjust');

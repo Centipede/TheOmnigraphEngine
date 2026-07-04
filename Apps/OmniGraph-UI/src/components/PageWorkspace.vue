@@ -2,22 +2,27 @@
   <div class="three-column-grid">
 
     <!-- Sidebar: page list -->
-    <PageList
-        ref="pageListComponentRef"
-        :pages="pages"
-        :selected-page-indices="selectedPageSet"
-        :current-page-index="currentPageIndex"
-        :is-page-in-filter="isInFilter"
-        :page-extras="pageExtras"
-        @navigate="navigatePage"
-        @page-click="handleListClick"
-    />
+    <div
+        class="workspace-page-list-pane"
+        :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
+    >
+      <PageList
+          ref="pageListComponentRef"
+          :pages="pages"
+          :selected-page-indices="selectedPageSet"
+          :current-page-index="currentPageIndex"
+          :is-page-in-filter="isInFilter"
+          :page-extras="pageExtras"
+          @navigate="navigatePage"
+          @page-click="handleListClick"
+      />
+    </div>
 
     <!-- Central: workspace panes -->
     <div class="workspace-workarea">
       <div
           class="workspace-page-strips-pane"
-          :class="{ 'workspace-pane-hidden': !showPageStrips }"
+          :class="{ 'workspace-pane-hidden': !panels['page-strips'] }"
           :ref="setStripWorkareaRef"
       >
         <slot
@@ -34,8 +39,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="showPageStrips"
-            :show-page-preview="showPagePreview"
+            :show-page-strips="!panels['page-strips']"
+            :show-page-preview="!panels['page-preview']"
         >
           <div class="strip-grid">
             <PageStrip
@@ -59,7 +64,7 @@
 
       <div
           class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !showPagePreview }"
+          :class="{ 'workspace-pane-hidden': !panels['page-preview'] }"
       >
         <slot
             name="page-preview"
@@ -75,8 +80,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="showPageStrips"
-            :show-page-preview="showPagePreview"
+            :show-page-strips="!panels['page-strips']"
+            :show-page-preview="!panels['page-preview']"
         >
           <PagePreview
               v-if="currentPage && currentPageCrop"
@@ -154,6 +159,7 @@ import { onBeforeRouteLeave } from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
+import type {PanelVisibility} from '../types/panels';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
 import PageList from "../components/PageList.vue";
@@ -180,7 +186,7 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   machineName: string;
   projectName: string,
   formatPageExtras?: (pages: Page[]) => Map<number, string>;
@@ -192,12 +198,8 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
-  initialShowPageStrips?: boolean;
-  initialShowPagePreview?: boolean;
-}>(), {
-  initialShowPageStrips: true,
-  initialShowPagePreview: false,
-});
+  panels: PanelVisibility;
+}>();
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
@@ -208,8 +210,7 @@ const mode = ref('crop');
 const filterMode = ref('all')
 
 // ── Workspace pane visibility ─────────────────────────────────────────
-const showPageStrips = ref(props.initialShowPageStrips);
-const showPagePreview = ref(props.initialShowPagePreview);
+
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
@@ -451,8 +452,6 @@ defineExpose({
   onFilterChange,
   currentPage,
   currentPageCrop,
-  showPageStrips,
-  showPagePreview,
 });
 
 </script>
@@ -463,20 +462,29 @@ defineExpose({
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 20rem;
+  display: flex;
   overflow: hidden;
 }
 
-.three-column-grid > * {
+.workspace-page-list-pane {
+  flex: 0 0 8rem;
   min-height: 0;
   max-height: 100%;
   overflow-y: auto;
   border-right: 1px solid var(--color-border, #dee2e6);
+  transition: flex-basis 160ms ease, border-color 160ms ease;
 }
 
-.three-column-grid > *:last-child {
-  border-right: none;
+.workspace-workarea {
+  flex: 1 1 auto;
+  border-right: 1px solid var(--color-border, #dee2e6);
+}
+
+.workspace-tools {
+  flex: 0 0 20rem;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 
