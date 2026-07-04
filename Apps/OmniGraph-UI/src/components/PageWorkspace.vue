@@ -1,21 +1,30 @@
 <template>
   <div class="three-column-grid">
 
-    <!-- Sidebar: page list -->
-    <div
-        class="workspace-page-list-pane"
-        :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
-    >
-      <PageList
-          ref="pageListComponentRef"
-          :pages="pages"
-          :selected-page-indices="selectedPageSet"
-          :current-page-index="currentPageIndex"
-          :is-page-in-filter="isInFilter"
-          :page-extras="pageExtras"
-          @navigate="navigatePage"
-          @page-click="handleListClick"
-      />
+    <!-- Left sidebar -->
+    <div class="workspace-left-sidebar">
+      <div
+          class="workspace-page-list-pane"
+          :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
+      >
+        <PageList
+            ref="pageListComponentRef"
+            :pages="pages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :is-page-in-filter="isInFilter"
+            :page-extras="pageExtras"
+            @navigate="navigatePage"
+            @page-click="handleListClick"
+        />
+      </div>
+      <div
+          class="workspace-section-outline-pane"
+          :class="{ 'workspace-pane-hidden': !panels['section-structure'] }"
+      >
+        <div class="sidebar-lead">Sections</div>
+        <SectionOutline />
+      </div>
     </div>
 
     <!-- Central: workspace panes -->
@@ -96,7 +105,8 @@
       </div>
     </div>
 
-    <!-- Tools -->
+    <!-- Right sidebar -->
+    <div class="workspace-right-sidebar">
     <div class="workspace-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
@@ -149,6 +159,16 @@
 
       </div>
     </div>
+    <div
+        class="workspace-hocr-outline-pane"
+        :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
+    >
+      <div class="sidebar-lead">hOCR</div>
+      <HocrOutline />
+    </div>
+    </div><!-- end workspace-right-sidebar -->
+
+
   </div>
 </template>
 
@@ -163,6 +183,8 @@ import type {PanelVisibility} from '../types/panels';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
 import PageList from "../components/PageList.vue";
+import HocrOutline from "../components/HocrOutline.vue";
+import SectionOutline from "../components/SectionOutline.vue";
 
 type PageWorkspaceKeyboardContext = {
   pages: Page[];
@@ -466,24 +488,55 @@ defineExpose({
   overflow: hidden;
 }
 
-.workspace-page-list-pane {
-  flex: 0 0 8rem;
+/* Left sidebar — vertical flex column */
+.workspace-left-sidebar {
+  flex: 0 0 14rem;
   min-height: 0;
   max-height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--color-border, #dee2e6);
-  transition: flex-basis 160ms ease, border-color 160ms ease;
 }
 
+.workspace-page-list-pane {
+  flex: 2 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.workspace-section-outline-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border, #dee2e6);
+}
+
+/* Centre */
 .workspace-workarea {
   flex: 1 1 auto;
   border-right: 1px solid var(--color-border, #dee2e6);
 }
 
-.workspace-tools {
+/* Right sidebar — vertical flex column */
+.workspace-right-sidebar {
   flex: 0 0 20rem;
   min-height: 0;
   max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-tools {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+}
+
+.workspace-hocr-outline-pane {
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
 }
 

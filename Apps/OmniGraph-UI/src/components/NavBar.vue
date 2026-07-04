@@ -13,10 +13,16 @@
 
       <div>
         <sl-icon-button
-            name="layout-sidebar"
+            name="list"
             label="Toggle page selector"
             :class="{ active: panels['page-list'] }"
             @click="emit('togglePanel', 'page-list')"
+        />
+        <sl-icon-button
+            name="list-nested"
+            label="Toggle sections"
+            :class="{ active: panels['section-structure'] }"
+            @click="emit('togglePanel', 'section-structure')"
         />
         <sl-icon-button
             name="grid"
@@ -26,15 +32,15 @@
         />
         <sl-icon-button
             name="file-earmark-image"
-            label="Toggle page icons"
+            label="Toggle page preview"
             :class="{ active: panels['page-preview'] }"
             @click="emit('togglePanel', 'page-preview')"
         />
         <sl-icon-button
-            name="layout-sidebar-reverse"
-            label="Toggle sections"
-            :class="{ active: panels['section-structure'] }"
-            @click="emit('togglePanel', 'section-structure')"
+            name="columns-gap"
+            label="Toggle hOCR outline"
+            :class="{ active: panels['ocr-structure'] }"
+            @click="emit('togglePanel', 'ocr-structure')"
         />
       </div>
 
