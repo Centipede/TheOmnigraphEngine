@@ -1,10 +1,13 @@
 use scraper::{Html, Selector};
 use serde::Serialize;
 
+/// Bounding box in scan pixel coordinates: [left, top, right, bottom]
+pub type HocrBbox = [i32; 4];
+
 #[derive(Serialize)]
 pub struct HocrWord {
     pub id: String,
-    pub bbox: [i32; 4],
+    pub bbox: HocrBbox,
     pub text: String,
     pub wconf: i32,
 }
@@ -12,14 +15,14 @@ pub struct HocrWord {
 #[derive(Serialize)]
 pub struct HocrLine {
     pub id: String,
-    pub bbox: [i32; 4],
+    pub bbox: HocrBbox,
     pub words: Vec<HocrWord>,
 }
 
 #[derive(Serialize)]
 pub struct HocrPar {
     pub id: String,
-    pub bbox: [i32; 4],
+    pub bbox: HocrBbox,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     pub lines: Vec<HocrLine>,
@@ -28,14 +31,14 @@ pub struct HocrPar {
 #[derive(Serialize)]
 pub struct HocrCarea {
     pub id: String,
-    pub bbox: [i32; 4],
+    pub bbox: HocrBbox,
     pub pars: Vec<HocrPar>,
 }
 
 #[derive(Serialize)]
 pub struct HocrPage {
     pub page_id: String,
-    pub bbox: [i32; 4],
+    pub bbox: HocrBbox,
     pub careas: Vec<HocrCarea>,
 }
 

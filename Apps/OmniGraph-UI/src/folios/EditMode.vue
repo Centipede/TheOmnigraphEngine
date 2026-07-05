@@ -4,7 +4,7 @@
       :project-name="projectName"
       :panels="panels"
       :show-crop-overlay="false"
-      hocr-level="carea"
+      hocr-level="block"
       carea-overlay-color="rgba(249, 115, 22, 0.28)"
       block-overlay-color="rgba(168, 85, 247, 0.28)"
       line-overlay-color="rgba(59, 130, 246, 0.24)"
