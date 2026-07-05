@@ -1,23 +1,37 @@
 <template>
   <div class="three-column-grid">
 
-    <!-- Sidebar: page list -->
-    <PageList
-        ref="pageListComponentRef"
-        :pages="pages"
-        :selected-page-indices="selectedPageSet"
-        :current-page-index="currentPageIndex"
-        :is-page-in-filter="isInFilter"
-        :page-extras="pageExtras"
-        @navigate="navigatePage"
-        @page-click="handleListClick"
-    />
+    <!-- Left sidebar -->
+    <div class="workspace-left-sidebar">
+      <div
+          class="workspace-page-list-pane"
+          :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
+      >
+        <PageList
+            ref="pageListComponentRef"
+            :pages="pages"
+            :selected-page-indices="selectedPageSet"
+            :current-page-index="currentPageIndex"
+            :is-page-in-filter="isInFilter"
+            :page-extras="pageExtras"
+            @navigate="navigatePage"
+            @page-click="handleListClick"
+        />
+      </div>
+      <div
+          class="workspace-section-outline-pane"
+          :class="{ 'workspace-pane-hidden': !panels['section-structure'] }"
+      >
+        <div class="sidebar-lead">Sections</div>
+        <SectionOutline />
+      </div>
+    </div>
 
     <!-- Central: workspace panes -->
     <div class="workspace-workarea">
       <div
           class="workspace-page-strips-pane"
-          :class="{ 'workspace-pane-hidden': !showPageStrips }"
+          :class="{ 'workspace-pane-hidden': !panels['page-strips'] }"
           :ref="setStripWorkareaRef"
       >
         <slot
@@ -34,8 +48,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="showPageStrips"
-            :show-page-preview="showPagePreview"
+            :show-page-strips="!panels['page-strips']"
+            :show-page-preview="!panels['page-preview']"
         >
           <div class="strip-grid">
             <PageStrip
@@ -59,7 +73,7 @@
 
       <div
           class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !showPagePreview }"
+          :class="{ 'workspace-pane-hidden': !panels['page-preview'] }"
       >
         <slot
             name="page-preview"
@@ -75,8 +89,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="showPageStrips"
-            :show-page-preview="showPagePreview"
+            :show-page-strips="!panels['page-strips']"
+            :show-page-preview="!panels['page-preview']"
         >
           <PagePreview
               v-if="currentPage && currentPageCrop"
@@ -86,12 +100,18 @@
               :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
               :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
               :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
+              :hocr-level="hocrLevel"
+              :carea-overlay-color="careaOverlayColor"
+              :block-overlay-color="blockOverlayColor"
+              :line-overlay-color="lineOverlayColor"
+              :word-overlay-color="wordOverlayColor"
           />
         </slot>
       </div>
     </div>
 
-    <!-- Tools -->
+    <!-- Right sidebar -->
+    <div class="workspace-right-sidebar">
     <div class="workspace-tools">
       <div class="sidebar-lead">Tools</div>
       <div class="sidebar-content">
@@ -144,19 +164,32 @@
 
       </div>
     </div>
+    <div
+        class="workspace-hocr-outline-pane"
+        :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
+    >
+      <div class="sidebar-lead">hOCR</div>
+      <HocrOutline />
+    </div>
+    </div><!-- end workspace-right-sidebar -->
+
+
   </div>
 </template>
 
 <script setup lang="ts">
 import type {VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
+import type {PanelVisibility} from '../types/panels';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
 import PageList from "../components/PageList.vue";
+import HocrOutline from "../components/HocrOutline.vue";
+import SectionOutline from "../components/SectionOutline.vue";
 
 type PageWorkspaceKeyboardContext = {
   pages: Page[];
@@ -180,7 +213,9 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
-const props = withDefaults(defineProps<{
+type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
+
+const props = defineProps<{
   machineName: string;
   projectName: string,
   formatPageExtras?: (pages: Page[]) => Map<number, string>;
@@ -192,15 +227,17 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
-  initialShowPageStrips?: boolean;
-  initialShowPagePreview?: boolean;
-}>(), {
-  initialShowPageStrips: true,
-  initialShowPagePreview: false,
-});
+  hocrLevel?: HocrOverlayLevel | null;
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  lineOverlayColor?: string;
+  wordOverlayColor?: string;
+  panels: PanelVisibility;
+}>();
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
+  currentPageChange: [page: Page | null];
 }>();
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
@@ -208,8 +245,7 @@ const mode = ref('crop');
 const filterMode = ref('all')
 
 // ── Workspace pane visibility ─────────────────────────────────────────
-const showPageStrips = ref(props.initialShowPageStrips);
-const showPagePreview = ref(props.initialShowPagePreview);
+
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
@@ -422,6 +458,8 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+watch(currentPage, (page) => emit('currentPageChange', page));
+
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   try {
@@ -451,8 +489,6 @@ defineExpose({
   onFilterChange,
   currentPage,
   currentPageCrop,
-  showPageStrips,
-  showPagePreview,
 });
 
 </script>
@@ -463,20 +499,60 @@ defineExpose({
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 20rem;
+  display: flex;
   overflow: hidden;
 }
 
-.three-column-grid > * {
+/* Left sidebar — vertical flex column */
+.workspace-left-sidebar {
+  flex: 0 0 14rem;
   min-height: 0;
   max-height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--color-border, #dee2e6);
 }
 
-.three-column-grid > *:last-child {
-  border-right: none;
+.workspace-page-list-pane {
+  flex: 2 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.workspace-section-outline-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border, #dee2e6);
+}
+
+/* Centre */
+.workspace-workarea {
+  flex: 1 1 auto;
+  border-right: 1px solid var(--color-border, #dee2e6);
+}
+
+/* Right sidebar — vertical flex column */
+.workspace-right-sidebar {
+  flex: 0 0 20rem;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-tools {
+  flex: 0 0 auto;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+}
+
+.workspace-hocr-outline-pane {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 

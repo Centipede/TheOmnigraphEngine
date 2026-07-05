@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :panels="panels"
       :show-crop-overlay="true"
   >
     <template #tools>
@@ -14,8 +15,13 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-/*const props = */defineProps<{ machineName: string; projectName: string }>();
+import type { PanelVisibility } from '../types';
 
+const props = defineProps<{
+  machineName: string;
+  projectName: string;
+  panels: PanelVisibility;
+}>();
 
 </script>
 

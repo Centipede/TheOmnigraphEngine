@@ -5,6 +5,7 @@ import IngestorView from '../ingestor/IngestorView.vue';
 import FoliosView from '../folios/FoliosView.vue';
 import InspectMode from '../folios/InspectMode.vue';
 import CropMode from '../folios/CropMode.vue';
+import EditMode from '../folios/EditMode.vue';
 import Settings from '../settings/Settings.vue';
 import RecogniseMode from "../folios/RecogniseMode.vue";
 
@@ -63,6 +64,12 @@ export const router = createRouter({
                     path: 'recognise',
                     name: 'folios-recognise',
                     component: RecogniseMode,
+                    props: projectProps,
+                },
+                {
+                    path: 'edit',
+                    name: 'folios-edit',
+                    component: EditMode,
                     props: projectProps,
                 },
             ],

@@ -10,12 +10,20 @@
         />
 
         <template v-if="showCropOverlay && crop">
-          <div class="preview-discard preview-discard-top" :style="topDiscardStyle" />
-          <div class="preview-discard preview-discard-bottom" :style="bottomDiscardStyle" />
-          <div class="preview-discard preview-discard-left" :style="leftDiscardStyle" />
-          <div class="preview-discard preview-discard-right" :style="rightDiscardStyle" />
-          <div class="preview-crop-area" :style="cropAreaStyle" />
+          <div class="preview-discard" :style="topDiscardStyle"/>
+          <div class="preview-discard" :style="bottomDiscardStyle"/>
+          <div class="preview-discard" :style="leftDiscardStyle"/>
+          <div class="preview-discard" :style="rightDiscardStyle"/>
+          <div class="preview-crop-area" :style="cropAreaStyle"/>
         </template>
+
+        <div
+            v-for="item in overlayItems"
+            :key="item.id"
+            class="hocr-overlay"
+            :class="`hocr-overlay--${item.role}`"
+            :style="overlayItemStyle(item)"
+        />
       </div>
     </div>
 
@@ -27,8 +35,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { CropEdges, Page } from '../types';
+import {computed, inject, type Ref} from 'vue';
+import type {CropEdges, HocrBbox, HocrPage, Page} from '../types';
+
+type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
+type OverlayRole = 'parent' | 'active' | 'child';
+
+interface OverlayItem {
+  id: string;
+  bbox: HocrBbox;
+  role: OverlayRole;
+  color: string;
+}
+
+const LEVELS: HocrOverlayLevel[] = ['carea', 'block', 'line', 'word'];
 
 const props = withDefaults(defineProps<{
   page: Page;
@@ -37,14 +57,72 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
+  hocrLevel?: HocrOverlayLevel | null;
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  lineOverlayColor?: string;
+  wordOverlayColor?: string;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
   discardColor: 'rgba(220, 0, 0, 0.28)',
+  hocrLevel: null,
+  careaOverlayColor: 'rgba(249, 115, 22)',
+  blockOverlayColor: 'rgba(168, 85, 247)',
+  lineOverlayColor: 'rgba(34, 197, 94)',
+  wordOverlayColor: 'rgba(59, 130, 246)',
 });
+
+const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
+
+const colorByLevel = computed(() => [
+  props.careaOverlayColor!,
+  props.blockOverlayColor!,
+  props.lineOverlayColor!,
+  props.wordOverlayColor!,
+]);
+
+const overlayItems = computed((): OverlayItem[] => {
+  const page = hocrPage?.value;
+  if (!page || !props.hocrLevel) return [];
+
+  const activeIdx = LEVELS.indexOf(props.hocrLevel);
+  const colors = colorByLevel.value;
+  const items: OverlayItem[] = [];
+
+  function roleFor(levelIdx: number): OverlayRole | null {
+    const d = levelIdx - activeIdx;
+    if (d === -1) return 'parent';
+    if (d === 0) return 'active';
+    if (d === 1) return 'child';
+    return null;
+  }
+
+  for (const carea of page.careas) {
+    const cr = roleFor(0);
+    if (cr) items.push({ id: carea.id, bbox: carea.bbox, role: cr, color: colors[0] });
+
+    for (const par of carea.pars) {
+      const pr = roleFor(1);
+      if (pr) items.push({ id: par.id, bbox: par.bbox, role: pr, color: colors[1] });
+
+      for (const line of par.lines) {
+        const lr = roleFor(2);
+        if (lr) items.push({ id: line.id, bbox: line.bbox, role: lr, color: colors[2] });
+
+        for (const word of line.words) {
+          const wr = roleFor(3);
+          if (wr) items.push({ id: word.id, bbox: word.bbox, role: wr, color: colors[3] });
+        }
+      }
+    }
+  }
+
+  return items;
+});
 
 function scanXPct(value: number): string {
   return props.page.scan_width > 0
@@ -114,6 +192,20 @@ const rightDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
+
+function overlayItemStyle(item: OverlayItem) {
+  const [l, t, r, b] = item.bbox;
+  return {
+    position: 'absolute' as const,
+    left: scanXPct(l),
+    top: scanYPct(t),
+    width: scanXPct(r - l),
+    height: scanYPct(b - t),
+    '--hocr-color': item.color,
+    background: item.role === 'parent' ? 'transparent' : item.color,
+  };
+}
+
 </script>
 
 <style scoped>
@@ -179,5 +271,38 @@ const rightDiscardStyle = computed(() => ({
 .preview-discard,
 .preview-crop-area {
   box-sizing: border-box;
+}
+
+.hocr-overlay {
+  box-sizing: border-box;
+}
+
+/* N-1: parent context — faint dashed outline, no fill, non-interactive */
+.hocr-overlay--parent {
+  pointer-events: none;
+  outline: 2px dotted var(--hocr-color);
+  outline-offset: 0.2rem;
+  opacity: 0.85;
+}
+
+/* N: active level — solid outline + translucent fill */
+.hocr-overlay--active {
+  pointer-events: none;
+  outline: 2px solid var(--hocr-color);
+}
+
+/* N+1: children — lighter fill, thin outline, selectable */
+.hocr-overlay--child {
+  pointer-events: auto;
+  cursor: pointer;
+  outline: 1px solid var(--hocr-color);
+  outline-offset: -0.2rem;
+  opacity: 0.75;
+}
+
+img {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 </style>

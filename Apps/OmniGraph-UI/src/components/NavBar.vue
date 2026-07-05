@@ -11,6 +11,39 @@
         </sl-button>
       </RouterLink>
 
+      <div>
+        <sl-icon-button
+            name="list"
+            label="Toggle page selector"
+            :class="{ active: panels['page-list'] }"
+            @click="emit('togglePanel', 'page-list')"
+        />
+        <sl-icon-button
+            name="list-nested"
+            label="Toggle sections"
+            :class="{ active: panels['section-structure'] }"
+            @click="emit('togglePanel', 'section-structure')"
+        />
+        <sl-icon-button
+            name="grid"
+            label="Toggle page icons"
+            :class="{ active: panels['page-strips'] }"
+            @click="emit('togglePanel', 'page-strips')"
+        />
+        <sl-icon-button
+            name="file-earmark-image"
+            label="Toggle page preview"
+            :class="{ active: panels['page-preview'] }"
+            @click="emit('togglePanel', 'page-preview')"
+        />
+        <sl-icon-button
+            name="columns-gap"
+            label="Toggle hOCR outline"
+            :class="{ active: panels['ocr-structure'] }"
+            @click="emit('togglePanel', 'ocr-structure')"
+        />
+      </div>
+
       <div class="nav-start">
         <RouterLink
             :to="`/projects/${machineName}`"
@@ -86,6 +119,16 @@
                   Recognise
                 </sl-button>
               </RouterLink>
+
+              <RouterLink
+                  :to="`/projects/${machineName}/folios/edit`"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Edit
+                </sl-button>
+              </RouterLink>
             </sl-button-group>
 
           </template>
@@ -105,9 +148,18 @@
         <sl-dropdown @sl-select="(e: Event) => setTheme((e as CustomEvent).detail.item.value)">
           <sl-icon-button slot="trigger" :name="themeIcon" label="Theme"></sl-icon-button>
           <sl-menu>
-            <sl-menu-item value="light"><sl-icon slot="prefix" name="sun"></sl-icon>Light</sl-menu-item>
-            <sl-menu-item value="system"><sl-icon slot="prefix" name="circle-half"></sl-icon>System</sl-menu-item>
-            <sl-menu-item value="dark"><sl-icon slot="prefix" name="moon"></sl-icon>Dark</sl-menu-item>
+            <sl-menu-item value="light">
+              <sl-icon slot="prefix" name="sun"></sl-icon>
+              Light
+            </sl-menu-item>
+            <sl-menu-item value="system">
+              <sl-icon slot="prefix" name="circle-half"></sl-icon>
+              System
+            </sl-menu-item>
+            <sl-menu-item value="dark">
+              <sl-icon slot="prefix" name="moon"></sl-icon>
+              Dark
+            </sl-menu-item>
           </sl-menu>
         </sl-dropdown>
       </div>
@@ -116,12 +168,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { RouterLink } from 'vue-router';
+import {ref, computed, onMounted, onUnmounted} from 'vue';
+import {RouterLink} from 'vue-router';
+import type {PanelVisibility, PanelId} from '../types';
 
-defineProps<{ machineName: string; projectName: string }>();
+const props = defineProps<{
+  machineName: string;
+  projectName: string;
+  panels: PanelVisibility;
+}>();
 
-const ICONS: Record<string, string> = { light: 'sun', system: 'circle-half', dark: 'moon' };
+const emit = defineEmits<{
+  togglePanel: [panelId: PanelId];
+}>();
+
+const ICONS: Record<string, string> = {light: 'sun', system: 'circle-half', dark: 'moon'};
 
 const themeMode = ref(localStorage.getItem('theme') || 'system');
 const themeIcon = computed(() => ICONS[themeMode.value] ?? 'circle-half');

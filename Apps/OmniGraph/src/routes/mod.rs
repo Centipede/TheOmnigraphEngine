@@ -42,6 +42,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}", get(handlers_api::get_project_metadata).put(handlers_api::put_project_metadata))
         .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb).put(handlers_api::put_project_pagesdb))
         .route("/projects/{machine_name}/pages/hocr-status", get(handlers_api::get_hocr_status))
+        .route("/projects/{machine_name}/pages/{stem}/hocr-json", get(handlers_api::get_hocr_json))
         .route("/projects/{machine_name}/pages/scan", post(handlers_api::scan_pages_post))
         ;
 

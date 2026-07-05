@@ -1,6 +1,7 @@
 <template>
   <PageWorkspace :machine-name="machineName"
                  :project-name="projectName"
+                 :panels="panels"
                  :format-page-extras="formatPageExtras">
 
     <template #tools="{ selectionInfo, filteredPages }">
@@ -37,9 +38,13 @@
 import PageWorkspace from "../components/PageWorkspace.vue";
 
 import {onMounted, onUnmounted, ref} from 'vue';
-import type {Page} from '../types';
+import type {Page, PanelVisibility} from '../types';
 
-const props = defineProps<{ machineName: string; projectName: string }>();
+const props = defineProps<{
+  machineName: string;
+  projectName: string;
+  panels: PanelVisibility;
+}>();
 
 // ── hOCR status ──────────────────────────────────────────────────────
 const hocrScanned = ref<Set<string>>(new Set());
