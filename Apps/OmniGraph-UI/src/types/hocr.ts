@@ -1,4 +1,4 @@
-/** Bounding box in scan pixel coordinates: [x1, y1, x2, y2] */
+/** Bounding box in scan pixel coordinates: [l, t, r, b] */
 export type HocrBbox = [number, number, number, number];
 
 export interface HocrWord {

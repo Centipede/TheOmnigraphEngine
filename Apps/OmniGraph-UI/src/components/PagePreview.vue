@@ -10,11 +10,59 @@
         />
 
         <template v-if="showCropOverlay && crop">
-          <div class="preview-discard preview-discard-top" :style="topDiscardStyle" />
-          <div class="preview-discard preview-discard-bottom" :style="bottomDiscardStyle" />
-          <div class="preview-discard preview-discard-left" :style="leftDiscardStyle" />
-          <div class="preview-discard preview-discard-right" :style="rightDiscardStyle" />
-          <div class="preview-crop-area" :style="cropAreaStyle" />
+          <div class="preview-discard" :style="topDiscardStyle"/>
+          <div class="preview-discard" :style="bottomDiscardStyle"/>
+          <div class="preview-discard" :style="leftDiscardStyle"/>
+          <div class="preview-discard" :style="rightDiscardStyle"/>
+          <div class="preview-crop-area" :style="cropAreaStyle"/>
+        </template>
+
+        <template v-if="hocrPage && hocrLevel === 'carea'">
+          <div
+              v-for="carea in hocrPage.careas"
+              :key="carea.id"
+              class="hocr-overlay hocr-carea-overlay"
+              :style="hocrBoundingBoxStyler(carea.bbox, careaOverlayColor)"
+          />
+        </template>
+
+        <template v-if="hocrPage && hocrLevel === 'block'">
+          <template v-for="carea in hocrPage.careas" :key="carea.id">
+            <div
+                v-for="block in carea.pars"
+                :key="block.id"
+                class="hocr-overlay hocr-block-overlay"
+                :style="hocrBoundingBoxStyler(block.bbox, blockOverlayColor)"
+            />
+          </template>
+        </template>
+
+        <template v-if="hocrPage && hocrLevel === 'line'">
+          <template v-for="carea in hocrPage.careas" :key="carea.id">
+            <template v-for="block in carea.pars" :key="block.id">
+              <div
+                  v-for="line in block.lines"
+                  :key="line.id"
+                  class="hocr-overlay hocr-line-overlay"
+                  :style="hocrBoundingBoxStyler(line.bbox, lineOverlayColor)"
+              />
+            </template>
+          </template>
+        </template>
+
+        <template v-if="hocrPage && hocrLevel === 'word'">
+          <template v-for="carea in hocrPage.careas" :key="carea.id">
+            <template v-for="block in carea.pars" :key="block.id">
+              <template v-for="line in block.lines" :key="line.id">
+                <div
+                    v-for="word in line.words"
+                    :key="word.id"
+                    class="hocr-overlay hocr-word-overlay"
+                    :style="hocrBoundingBoxStyler(word.bbox, wordOverlayColor)"
+                />
+              </template>
+            </template>
+          </template>
         </template>
       </div>
     </div>
@@ -27,8 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { CropEdges, Page } from '../types';
+import {computed, inject, type Ref} from 'vue';
+import type {CropEdges, HocrBbox, HocrPage, Page} from '../types';
+
+type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
 
 const props = withDefaults(defineProps<{
   page: Page;
@@ -37,14 +87,32 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
+  hocrLevel?: HocrOverlayLevel | null;
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  lineOverlayColor?: string;
+  wordOverlayColor?: string;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
   discardColor: 'rgba(220, 0, 0, 0.28)',
+  hocrLevel: null,
+  careaOverlayColor: 'rgba(249, 115, 22, 0.28)',
+  blockOverlayColor: 'rgba(168, 85, 247, 0.28)',
+  lineOverlayColor: 'rgba(59, 130, 246, 0.24)',
+  wordOverlayColor: 'rgba(34, 197, 94, 0.22)',
 });
+
+const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
+
+const hocrLevel = computed(() => props.hocrLevel);
+const careaOverlayColor = computed(() => props.careaOverlayColor);
+const blockOverlayColor = computed(() => props.blockOverlayColor);
+const lineOverlayColor = computed(() => props.lineOverlayColor);
+const wordOverlayColor = computed(() => props.wordOverlayColor);
 
 function scanXPct(value: number): string {
   return props.page.scan_width > 0
@@ -114,6 +182,19 @@ const rightDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
+
+function hocrBoundingBoxStyler(boundingBox: HocrBbox, color: string) {
+  const [l, t, r, b] = boundingBox;
+  return {
+    position: 'absolute' as const,
+    left: scanXPct(l),
+    top: scanYPct(t),
+    width: scanXPct(r - l) ,
+    height: scanYPct(b - t),
+    background: color,
+  };
+}
+
 </script>
 
 <style scoped>
@@ -179,5 +260,26 @@ const rightDiscardStyle = computed(() => ({
 .preview-discard,
 .preview-crop-area {
   box-sizing: border-box;
+}
+
+.hocr-overlay {
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.hocr-carea-overlay {
+  outline: 2px solid rgba(249, 115, 22, 0.85);
+}
+
+.hocr-block-overlay {
+  outline: 2px solid rgba(168, 85, 247, 0.85);
+}
+
+.hocr-line-overlay {
+  outline: 1px solid rgba(59, 130, 246, 0.8);
+}
+
+.hocr-word-overlay {
+  outline: 1px solid rgba(34, 197, 94, 0.8);
 }
 </style>

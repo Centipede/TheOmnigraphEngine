@@ -100,6 +100,11 @@
               :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
               :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
               :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
+              :hocr-level="hocrLevel"
+              :carea-overlay-color="careaOverlayColor"
+              :block-overlay-color="blockOverlayColor"
+              :line-overlay-color="lineOverlayColor"
+              :word-overlay-color="wordOverlayColor"
           />
         </slot>
       </div>
@@ -208,6 +213,8 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
+type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
+
 const props = defineProps<{
   machineName: string;
   projectName: string,
@@ -220,6 +227,11 @@ const props = defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
+  hocrLevel?: HocrOverlayLevel | null;
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  lineOverlayColor?: string;
+  wordOverlayColor?: string;
   panels: PanelVisibility;
 }>();
 
