@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use secrecy::Secret;
 use crate::app_settings::OcrServerConfig;
+use crate::ocr_poll::OcrServerStatus;
 use crate::routes::projects::forms::{OcrServerData, SettingsResponse, SettingsUpdate};
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
@@ -71,6 +72,10 @@ pub fn reindex(db: &mut PageDb) {
 pub fn sort_by_import_order(db: &mut PageDb) {
     db.pages.sort_by(|a, b| a.import_order.cmp(&b.import_order).then_with(|| a.scan.cmp(&b.scan)));
     reindex(db);
+}
+
+pub fn check_service_status(state: &AppState) -> OcrServerStatus {
+    state.ocr_status.read().unwrap().clone()
 }
 
 pub fn read_settings(state: &AppState) -> SettingsResponse {

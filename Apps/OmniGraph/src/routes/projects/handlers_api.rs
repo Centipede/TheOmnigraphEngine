@@ -7,8 +7,12 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use tokio::fs;
+use crate::routes::projects::storage::hocr_edited_path;
 
-
+pub async fn settings_service_status_get(State(state): State<AppState>) -> impl IntoResponse {
+    Json(storage::check_service_status(&state))
+}
 
 pub async fn settings_get(State(state): State<AppState>) -> impl IntoResponse {
     Json(storage::read_settings(&state))
@@ -238,7 +242,20 @@ pub async fn scan_pages_post(
 
         if let Some(hocr) = ocr.hocr {
             match storage::save_hocr_original(&state.projects_dir, &machine_name, &page.scan, &hocr) {
-                Ok(()) => results.push(ScanPageResult { scan: page.scan.clone(), success: true, error: None }),
+                Ok(()) => {
+                    // For now we delete any edited hOCRs when we save a new hOCR.
+                    // The user has accepted that by now.
+                    let edited_path = hocr_edited_path(&state.projects_dir, &machine_name, &page.scan);
+                    match fs::remove_file(edited_path).await {
+                        Ok(()) => {}
+                        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+                        Err(e) => return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({"error": format!("failed to delete edited hOCR: {}", e)})),
+                        ).into_response(),
+                    }
+                    results.push(ScanPageResult { scan: page.scan.clone(), success: true, error: None })
+                },
                 Err(e) => results.push(ScanPageResult { scan: page.scan.clone(), success: false, error: Some(e.to_string()) }),
             }
         } else {
