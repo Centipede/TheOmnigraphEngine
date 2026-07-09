@@ -1,6 +1,10 @@
 use crate::ocr_poll::ServerStatus;
-use crate::routes::projects::forms::{CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest, ScanResponse, SettingsUpdate};
-use crate::routes::projects::models::{Page, PageDb, IMPORT_ORDER_GAP};
+use crate::routes::projects::forms::{
+    CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest,
+    ScanResponse, SettingsUpdate,
+};
+use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb};
+use crate::routes::projects::storage::hocr_edited_path;
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
 use axum::Json;
@@ -8,7 +12,6 @@ use axum::extract::{Multipart, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use tokio::fs;
-use crate::routes::projects::storage::hocr_edited_path;
 
 pub async fn settings_service_status_get(State(state): State<AppState>) -> impl IntoResponse {
     Json(storage::check_service_status(&state))
@@ -73,6 +76,7 @@ pub async fn create_project(
             .into_response(),
     }
 }
+
 pub async fn get_project_metadata(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
@@ -91,10 +95,7 @@ pub async fn put_project_metadata(
     Json(project): Json<crate::routes::projects::models::Project>,
 ) -> impl IntoResponse {
     match storage::write_project(&state.projects_dir, &machine_name, &project) {
-        Ok(_) => (
-            StatusCode::OK,
-            Json(project),
-        ).into_response(),
+        Ok(_) => (StatusCode::OK, Json(project)).into_response(),
         Err(status) => status.into_response(),
     }
 }
@@ -111,7 +112,8 @@ pub async fn post_append_images(
     }
     let scans_dir = pages_dir.join("scans");
     let thumbs_dir = pages_dir.join("thumbs");
-    if std::fs::create_dir_all(&scans_dir).is_err() || std::fs::create_dir_all(&thumbs_dir).is_err() {
+    if std::fs::create_dir_all(&scans_dir).is_err() || std::fs::create_dir_all(&thumbs_dir).is_err()
+    {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
@@ -206,7 +208,9 @@ pub async fn post_append_images(
     if storage::save_page_db(&pagedb_path, &pagedb).is_err() {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
-    get_project_pagesdb(State(state), Path(machine_name)).await.into_response()
+    get_project_pagesdb(State(state), Path(machine_name))
+        .await
+        .into_response()
 }
 
 pub async fn post_remove_images(
@@ -220,16 +224,14 @@ pub async fn post_remove_images(
         .join("pages")
         .join("pagedata.json");
     let mut db = storage::load_page_db(&db_path);
-    let to_remove: std::collections::HashSet<usize> = payload
-        .indices
-        .into_iter()
-        .collect();
+    let to_remove: std::collections::HashSet<usize> = payload.indices.into_iter().collect();
     db.pages.retain(|p| !to_remove.contains(&p.index));
     storage::reindex(&mut db);
     let _ = storage::save_page_db(&db_path, &db);
-    get_project_pagesdb(State(state), Path(machine_name)).await.into_response()
+    get_project_pagesdb(State(state), Path(machine_name))
+        .await
+        .into_response()
 }
-
 
 pub async fn get_hocr_json(
     State(state): State<AppState>,
@@ -284,7 +286,11 @@ pub async fn scan_pages_post(
         .collect();
 
     if pages.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": "no valid pages"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "no valid pages"})),
+        )
+            .into_response();
     }
 
     // Conflict check: pages with unsaved edits block a forced re-scan
@@ -292,11 +298,21 @@ pub async fn scan_pages_post(
         let conflicts: Vec<String> = pages
             .iter()
             .filter(|p| storage::has_unsaved_edits(&state.projects_dir, &machine_name, &p.scan))
-            .map(|p| if p.name.is_empty() { p.scan.clone() } else { p.name.clone() })
+            .map(|p| {
+                if p.name.is_empty() {
+                    p.scan.clone()
+                } else {
+                    p.name.clone()
+                }
+            })
             .collect();
 
         if !conflicts.is_empty() {
-            return (StatusCode::CONFLICT, Json(ScanConflict { pages: conflicts })).into_response();
+            return (
+                StatusCode::CONFLICT,
+                Json(ScanConflict { pages: conflicts }),
+            )
+                .into_response();
         }
     }
 
@@ -322,7 +338,11 @@ pub async fn scan_pages_post(
     };
 
     // Read scan files from disk and white out crop margins
-    let scans_dir = state.projects_dir.join(&machine_name).join("pages").join("scans");
+    let scans_dir = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("scans");
     let mut scan_files: Vec<(String, Vec<u8>)> = Vec::new();
 
     for page in &pages {
@@ -331,23 +351,30 @@ pub async fn scan_pages_post(
             Err(e) => return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("failed to read {}: {}", page.scan, e)})),
-            ).into_response(),
+            )
+                .into_response(),
         };
 
         let crop = page.crop_edges;
         let scan_name = page.scan.clone();
         let bytes = match tokio::task::spawn_blocking(move || {
             crate::image_utils::apply_crop_mask(&raw, crop)
-        }).await {
+        })
+        .await
+        {
             Ok(Ok(b)) => b,
             Ok(Err(e)) => return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": format!("failed to mask {}: {}", scan_name, e)})),
-            ).into_response(),
+            )
+                .into_response(),
             Err(_) => return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("image task panicked for {}", scan_name)})),
-            ).into_response(),
+                Json(
+                    serde_json::json!({"error": format!("image task panicked for {}", scan_name)}),
+                ),
+            )
+                .into_response(),
         };
 
         scan_files.push((page.scan.clone(), bytes));
@@ -373,11 +400,13 @@ pub async fn scan_pages_post(
         let Some(page) = page else { continue };
 
         if let Some(hocr) = ocr.hocr {
-            match storage::save_hocr_original(&state.projects_dir, &machine_name, &page.scan, &hocr) {
+            match storage::save_hocr_original(&state.projects_dir, &machine_name, &page.scan, &hocr)
+            {
                 Ok(()) => {
                     // For now we delete any edited hOCRs when we save a new hOCR.
                     // The user has accepted that by now.
-                    let edited_path = hocr_edited_path(&state.projects_dir, &machine_name, &page.scan);
+                    let edited_path =
+                        hocr_edited_path(&state.projects_dir, &machine_name, &page.scan);
                     match fs::remove_file(edited_path).await {
                         Ok(()) => {}
                         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
@@ -386,12 +415,24 @@ pub async fn scan_pages_post(
                             Json(serde_json::json!({"error": format!("failed to delete edited hOCR: {}", e)})),
                         ).into_response(),
                     }
-                    results.push(ScanPageResult { scan: page.scan.clone(), success: true, error: None })
-                },
-                Err(e) => results.push(ScanPageResult { scan: page.scan.clone(), success: false, error: Some(e.to_string()) }),
+                    results.push(ScanPageResult {
+                        scan: page.scan.clone(),
+                        success: true,
+                        error: None,
+                    })
+                }
+                Err(e) => results.push(ScanPageResult {
+                    scan: page.scan.clone(),
+                    success: false,
+                    error: Some(e.to_string()),
+                }),
             }
         } else {
-            results.push(ScanPageResult { scan: page.scan.clone(), success: false, error: ocr.error });
+            results.push(ScanPageResult {
+                scan: page.scan.clone(),
+                success: false,
+                error: ocr.error,
+            });
         }
     }
 

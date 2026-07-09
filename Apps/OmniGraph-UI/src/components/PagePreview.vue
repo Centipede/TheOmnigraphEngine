@@ -105,11 +105,11 @@ const overlayItems = computed((): OverlayItem[] => {
     const cr = roleFor(0);
     if (cr) items.push({ id: carea.id, bbox: carea.bbox, role: cr, color: colors[0] });
 
-    for (const par of carea.pars) {
+    for (const block of carea.blocks) {
       const pr = roleFor(1);
-      if (pr) items.push({ id: par.id, bbox: par.bbox, role: pr, color: colors[1] });
+      if (pr) items.push({ id: block.id, bbox: block.bbox, role: pr, color: colors[1] });
 
-      for (const line of par.lines) {
+      for (const line of block.lines) {
         const lr = roleFor(2);
         if (lr) items.push({ id: line.id, bbox: line.bbox, role: lr, color: colors[2] });
 

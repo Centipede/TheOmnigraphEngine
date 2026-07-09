@@ -14,9 +14,10 @@ export interface HocrLine {
     words: HocrWord[];
 }
 
-export interface HocrPar {
+export interface HocrBlock {
     id: string;
     bbox: HocrBbox;
+    kind: string;
     lang?: string;
     lines: HocrLine[];
 }
@@ -24,7 +25,7 @@ export interface HocrPar {
 export interface HocrCarea {
     id: string;
     bbox: HocrBbox;
-    pars: HocrPar[];
+    blocks: HocrBlock[];
 }
 
 export interface HocrPage {

@@ -273,6 +273,18 @@ const effectiveFilterMode = computed(() => canPagesBeFiltered.value ? filterMode
 const pages = ref<Page[]>([]);
 let pageDbNextBatch = 0;
 
+const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
+const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
+const currentPage = computed(() => {
+  const index = currentPageIndex.value;
+  if (index === null) return null;
+  return pages.value.find(page => page.index === index) ?? null;
+});
+const currentPageCrop = computed(() => {
+  const page = currentPage.value;
+  if (!page) return null;
+  return props.pageCrops?.get(page.index) ?? page.crop_edges;
+});
 const pageExtras = computed(() => {
   return props.formatPageExtras?.(pages.value) ?? new Map<number, string>();
 });
@@ -280,6 +292,7 @@ const pageExtras = computed(() => {
 // ── Selection ────────────────────────────────────────────────────────
 // selectionAnchor = first-clicked page (plain click resets accumulator).
 // currentPageIndex = free end of range (also used for zoom focus).
+
 const selectionAnchor = ref<number | null>(null);
 const currentPageIndex = ref<number | null>(null);
 
@@ -349,29 +362,16 @@ onBeforeRouteLeave(() => {
 
 
 // ── Refs ─────────────────────────────────────────────────────────────
+
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
-
-const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
-const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
-
-const currentPage = computed(() => {
-  const index = currentPageIndex.value;
-  if (index === null) return null;
-  return pages.value.find(page => page.index === index) ?? null;
-});
-
-const currentPageCrop = computed(() => {
-  const page = currentPage.value;
-  if (!page) return null;
-  return props.pageCrops?.get(page.index) ?? page.crop_edges;
-});
 
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
 };
 
 // ── Scroll helpers ───────────────────────────────────────────────────
+
 async function scrollPageListItemIntoView(pageIndex: number) {
   await pageListComponentRef.value?.scrollPageIntoView(pageIndex);
 }
@@ -391,6 +391,7 @@ function focusPage(pageIndex: number) {
 // ── Selection actions ────────────────────────────────────────────────
 // Plain click: new anchor = apply+reset accumulator.
 // click: start new selection and reset adjust-accumulator.
+
 function setAnchor(pageIndex: number) {
   selectionAnchor.value = pageIndex;
   currentPageIndex.value = pageIndex;
@@ -437,6 +438,7 @@ const {onFilterChange} = usePageFilterNavigation({
 });
 
 // ── Page navigation ──────────────────────────────────────────────────
+
 function isTypingTarget(): boolean {
   const active = document.activeElement;
   if (!(active instanceof HTMLElement)) return false;
@@ -454,6 +456,7 @@ function navigatePage(delta: number) {
 }
 
 // ── Keyboard shortcuts ───────────────────────────────────────────────
+
 function makeKeyboardContext(): PageWorkspaceKeyboardContext {
   return {
     pages: pages.value,

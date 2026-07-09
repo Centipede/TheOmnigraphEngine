@@ -11,14 +11,14 @@
 
       <div v-if="!collapsed.has(carea.id)" class="hocr-pars">
         <div
-            v-for="par in carea.pars"
-            :key="par.id"
+            v-for="block in carea.blocks"
+            :key="block.id"
             class="hocr-row hocr-par-row"
         >
           <span class="hocr-badge hocr-badge-p">P</span>
-          <span class="hocr-id" :title="par.id">{{ par.id }}</span>
-          <span v-if="par.lang" class="hocr-lang">{{ par.lang }}</span>
-          <span class="hocr-preview">{{ parPreview(par) }}</span>
+          <span class="hocr-id" :title="block.id">{{ block.id }}</span>
+          <span v-if="block.lang" class="hocr-lang">{{ block.lang }}</span>
+          <span class="hocr-preview">{{ blockPreview(block) }}</span>
         </div>
       </div>
 
@@ -33,11 +33,13 @@
 <script setup lang="ts">
 import { inject, reactive } from 'vue';
 import type { Ref } from 'vue';
-import type { HocrCarea, HocrLine, HocrPage, HocrPar } from '../types/hocr';
+import type { HocrCarea, HocrLine, HocrPage, HocrBlock } from '../types/hocr';
 
 const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
 
 const collapsed = reactive(new Set<string>());
+
+const blockKinds = ['part', 'chapter', 'section', 'subsection', 'subsubsection', 'paragraph'];
 
 function toggleCarea(id: string) {
   if (collapsed.has(id)) collapsed.delete(id);
@@ -48,13 +50,13 @@ function lineText(line: HocrLine): string {
   return line.words.map(w => w.text).join(' ');
 }
 
-function parPreview(par: HocrPar, maxLen = 80): string {
-  const text = par.lines.map(lineText).join(' ');
+function blockPreview(block: HocrBlock, maxLen = 80): string {
+  const text = blockKinds.includes(block.kind) ? block.lines.map(lineText).join(' ') : `--unknown block: ${block.kind}`;
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
 function careaPreview(carea: HocrCarea, maxLen = 80): string {
-  const text = carea.pars.flatMap(p => p.lines).map(lineText).join(' ');
+  const text = carea.blocks.flatMap(p => blockKinds.includes(p.kind) ? p.lines : []).map(lineText).join(' ');
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 </script>
