@@ -45,6 +45,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages/hocr-status", get(handlers_api::get_hocr_status))
         .route("/projects/{machine_name}/pages/{stem}/hocr-json", get(handlers_api::get_hocr_json))
         .route("/projects/{machine_name}/pages/scan", post(handlers_api::scan_pages_post))
+        .route("/projects/{machine_name}/pages/append", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/insert", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/remove", post(handlers_api::post_remove_images))
         ;
 
     let projects = Router::new()

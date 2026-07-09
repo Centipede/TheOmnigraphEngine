@@ -1,12 +1,12 @@
 use crate::ocr_poll::ServerStatus;
-use crate::routes::projects::forms::{CreateProject, ScanConflict, ScanPageResult, ScanRequest, ScanResponse, SettingsUpdate};
-use crate::routes::projects::models::PageDb;
-use crate::routes::projects::{storage};
+use crate::routes::projects::forms::{CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest, ScanResponse, SettingsUpdate};
+use crate::routes::projects::models::{Page, PageDb, IMPORT_ORDER_GAP};
+use crate::routes::projects::{images, storage};
 use crate::state::AppState;
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Multipart, Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Redirect};
 use tokio::fs;
 use crate::routes::projects::storage::hocr_edited_path;
 
@@ -98,6 +98,138 @@ pub async fn put_project_metadata(
         Err(status) => status.into_response(),
     }
 }
+
+pub async fn post_append_images(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Query(query): Query<IngestQuery>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    let pages_dir = state.projects_dir.join(&machine_name).join("pages");
+    if !pages_dir.exists() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let scans_dir = pages_dir.join("scans");
+    let thumbs_dir = pages_dir.join("thumbs");
+    if std::fs::create_dir_all(&scans_dir).is_err() || std::fs::create_dir_all(&thumbs_dir).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    let pagedb_path = pages_dir.join("pagedata.json");
+    let mut pagedb = storage::load_page_db(&pagedb_path);
+
+    // Collect and validate all files before writing anything, so we can sort
+    // by filename and assign contiguous order keys within the batch.
+    let mut incoming: Vec<(String, axum::body::Bytes)> = Vec::new();
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let filename = match field.file_name() {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => continue,
+        };
+        let ext = std::path::Path::new(&filename)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase());
+        if !matches!(
+            ext.as_deref(),
+            Some("jpg") | Some("jpeg") | Some("png") | Some("tif") | Some("tiff") | Some("webp")
+        ) {
+            continue;
+        }
+        let Ok(data) = field.bytes().await else {
+            continue;
+        };
+        incoming.push((filename, data));
+    }
+    incoming.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    let batch = pagedb.next_batch;
+    pagedb.next_batch += 1;
+    let base_import_order = pagedb
+        .pages
+        .iter()
+        .map(|p| p.import_order)
+        .max()
+        .map_or(0, |max| max + IMPORT_ORDER_GAP);
+
+    let mut new_pages: Vec<Page> = Vec::new();
+    for (i, (filename, data)) in incoming.into_iter().enumerate() {
+        let final_name = images::resolve_scan_filename(&scans_dir, &filename);
+        if std::fs::write(scans_dir.join(&final_name), &data).is_err() {
+            continue;
+        }
+        let stem = std::path::Path::new(&final_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&final_name);
+        let thumb_name = format!("{stem}.jpg");
+        let (sw, sh, tw, th) =
+            images::generate_thumb(&data, &thumbs_dir.join(&thumb_name)).unwrap_or((0, 0, 0, 0));
+        let import_order = base_import_order + (i as u32) * IMPORT_ORDER_GAP;
+        new_pages.push(Page {
+            index: 0,
+            name: String::new(),
+            scan: final_name,
+            scan_width: sw,
+            scan_height: sh,
+            thumb: thumb_name,
+            thumb_width: tw,
+            thumb_height: th,
+            batch,
+            import_order,
+            ..Page::default()
+        });
+    }
+
+    match (query.after, query.before) {
+        (Some(_), Some(_)) => {
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+        (None, None) => {
+            pagedb.pages.extend(new_pages);
+        }
+        (Some(after), None) => {
+            let insert_pos = (after + 1).min(pagedb.pages.len());
+            for (i, page) in new_pages.into_iter().enumerate() {
+                pagedb.pages.insert(insert_pos + i, page);
+            }
+        }
+        (None, Some(before)) => {
+            let insert_pos = before.min(pagedb.pages.len());
+            for (i, page) in new_pages.into_iter().enumerate() {
+                pagedb.pages.insert(insert_pos + i, page);
+            }
+        }
+    }
+
+    storage::reindex(&mut pagedb);
+    if storage::save_page_db(&pagedb_path, &pagedb).is_err() {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+    get_project_pagesdb(State(state), Path(machine_name)).await.into_response()
+}
+
+pub async fn post_remove_images(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Json(payload): Json<RemoveRequest>,
+) -> impl IntoResponse {
+    let db_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
+    let mut db = storage::load_page_db(&db_path);
+    let to_remove: std::collections::HashSet<usize> = payload
+        .indices
+        .into_iter()
+        .collect();
+    db.pages.retain(|p| !to_remove.contains(&p.index));
+    storage::reindex(&mut db);
+    let _ = storage::save_page_db(&db_path, &db);
+    get_project_pagesdb(State(state), Path(machine_name)).await.into_response()
+}
+
 
 pub async fn get_hocr_json(
     State(state): State<AppState>,

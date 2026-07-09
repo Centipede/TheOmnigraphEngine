@@ -186,7 +186,7 @@
         <sl-button
             variant="primary"
             :disabled="!workspace.hasChanges"
-            @click="commitCrops(workspace.pages, workspace.storedNextBatch)"
+            @click="commitCrops(workspace.pages, workspace.pageDbNextBatch)"
         >
           Commit
         </sl-button>
@@ -519,9 +519,9 @@ function abandonCrop(pages: Page[]) {
 }
 
 async function commitCrops(pages: Page[],
-                           storedNextBatch: number) {
+                           pageDbNextBatch: number) {
   const updatedPageDb = {
-    next_batch: storedNextBatch,
+    next_batch: pageDbNextBatch,
     pages: pages.map(page => ({
       ...page,
       crop_edges: pageCrops.get(page.index) ?? page.crop_edges,

@@ -154,11 +154,14 @@
             :pages="pages"
             :filtered-pages="filteredPages"
             :visible-pages="visiblePages"
+            :selected-pages="selectedPages"
             :selection-info="selectionInfo"
+            :current-page-index="currentPageIndex"
+            :current-page="currentPage"
             :focus-page="focusPage"
             :filter-mode="filterMode"
             :on-filter-change="onFilterChange"
-            :stored-next-batch="storedNextBatch"
+            :page-db-next-batch="pageDbNextBatch"
             :has-changes="hasChanges"
         />
 
@@ -249,7 +252,7 @@ const filterMode = ref('all')
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
-let storedNextBatch = 0;
+let pageDbNextBatch = 0;
 
 const pageExtras = computed(() => {
   return props.formatPageExtras?.(pages.value) ?? new Map<number, string>();
@@ -458,21 +461,33 @@ function onKeyDown(e: KeyboardEvent) {
   }
 }
 
+function setPageDb(data: PageDb) {
+  pages.value = data.pages;
+  pageDbNextBatch = data.next_batch;
+  emit('pagesLoaded', data);
+  if (data.pages.length > 0) setAnchor(data.pages[0].index);
+}
+
+async function loadPageDb(data?: PageDb) {
+  if (data) {
+
+  }
+  else {
+    try {
+      const res = await fetch(`/api/projects/${props.machineName}/pages`);
+      const data = (await res.json()) as PageDb;
+      setPageDb(data);
+    } catch (e) {
+      console.error('Failed to load pages:', e);
+    }
+  }
+}
+
 watch(currentPage, (page) => emit('currentPageChange', page));
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
-  try {
-    const res = await fetch(`/api/projects/${props.machineName}/pages`);
-    const data = (await res.json()) as PageDb;
-    pages.value = data.pages;
-    storedNextBatch = data.next_batch;
-    emit('pagesLoaded', data);
-
-    if (data.pages.length > 0) setAnchor(data.pages[0].index);
-  } catch (e) {
-    console.error('Failed to load pages:', e);
-  }
+  await loadPageDb();
 });
 
 onUnmounted(() => {
@@ -480,15 +495,7 @@ onUnmounted(() => {
 });
 
 defineExpose({
-  pages,
-  filteredPages,
-  visiblePages,
-  selectionInfo,
-  focusPage,
-  filterMode,
-  onFilterChange,
-  currentPage,
-  currentPageCrop,
+  setPageDb,
 });
 
 </script>
