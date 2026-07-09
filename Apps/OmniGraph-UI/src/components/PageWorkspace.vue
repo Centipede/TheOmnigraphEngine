@@ -13,9 +13,12 @@
             :selected-page-indices="selectedPageSet"
             :current-page-index="currentPageIndex"
             :is-page-in-filter="isInFilter"
+            :columns="pageListColumns"
             :page-extras="pageExtras"
             @navigate="navigatePage"
             @page-click="handleListClick"
+            @select-all="selectAll"
+            @select-none="selectNone"
         />
       </div>
       <div
@@ -23,7 +26,7 @@
           :class="{ 'workspace-pane-hidden': !panels['section-structure'] }"
       >
         <div class="sidebar-lead">Sections</div>
-        <SectionOutline />
+        <SectionOutline/>
       </div>
     </div>
 
@@ -112,68 +115,73 @@
 
     <!-- Right sidebar -->
     <div class="workspace-right-sidebar">
-    <div class="workspace-tools">
-      <div class="sidebar-lead">Tools</div>
-      <div class="sidebar-content">
+      <div class="workspace-tools">
+        <div class="sidebar-lead">Tools</div>
+        <div class="sidebar-content">
 
-        <br>
-        <sl-radio-group label="Even/Odd pages" size="small" :value="filterMode" @sl-input="onFilterChange">
-          <sl-radio-button value="all">All</sl-radio-button>
-          <sl-radio-button value="even">Even</sl-radio-button>
-          <sl-radio-button value="odd">Odd</sl-radio-button>
-        </sl-radio-group>
-
-
-        <!-- Selection info -->
-        <template v-if="selectionInfo">
           <br>
-          <div class="selection-info-panel">
-            <div class="info-row">
-              <span class="info-label">Range</span>
-              <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
-              <span class="info-count">({{ selectionInfo.count }})</span>
+          <sl-radio-group
+              label="Even/Odd pages"
+              size="small"
+              :value="effectiveFilterMode"
+              @sl-input="onFilterChange"
+          >
+            <sl-radio-button value="all" :disabled="!canPagesBeFiltered">All</sl-radio-button>
+            <sl-radio-button value="even" :disabled="!canPagesBeFiltered">Even</sl-radio-button>
+            <sl-radio-button value="odd" :disabled="!canPagesBeFiltered">Odd</sl-radio-button>
+          </sl-radio-group>
+
+
+          <!-- Selection info -->
+          <template v-if="selectionInfo">
+            <br>
+            <div class="info-panel">
+              <div class="info-row">
+                <span class="info-label">Range</span>
+                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
+                <span class="info-count">({{ selectionInfo.count }})</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Center</span>
+                <span class="info-value">{{ selectionInfo.centerName }}</span>
+              </div>
+              <sl-button-group>
+                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
+                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
+                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
+              </sl-button-group>
             </div>
-            <div class="info-row">
-              <span class="info-label">Center</span>
-              <span class="info-value">{{ selectionInfo.centerName }}</span>
-            </div>
-            <sl-button-group>
-              <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
-              <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
-              <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
-            </sl-button-group>
-          </div>
-        </template>
+          </template>
 
-        <br>
+          <br>
 
-        <!-- Tools -->
+          <!-- Tools -->
 
-        <slot
-            name="tools"
-            :pages="pages"
-            :filtered-pages="filteredPages"
-            :visible-pages="visiblePages"
-            :selected-pages="selectedPages"
-            :selection-info="selectionInfo"
-            :current-page-index="currentPageIndex"
-            :current-page="currentPage"
-            :focus-page="focusPage"
-            :filter-mode="filterMode"
-            :on-filter-change="onFilterChange"
-            :page-db-next-batch="pageDbNextBatch"
-            :has-changes="hasChanges"
-        />
+          <slot
+              name="tools"
+              :pages="pages"
+              :filtered-pages="filteredPages"
+              :visible-pages="visiblePages"
+              :selected-pages="selectedPages"
+              :selection-info="selectionInfo"
+              :current-page-index="currentPageIndex"
+              :current-page="currentPage"
+              :focus-page="focusPage"
+              :filter-mode="filterMode"
+              :on-filter-change="onFilterChange"
+              :page-db-next-batch="pageDbNextBatch"
+              :has-changes="hasChanges"
+          />
 
+        </div>
       </div>
-    </div>
-    <div
-        class="workspace-hocr-outline-pane"
-        :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
-    >
-      <div class="sidebar-lead">hOCR</div>
-      <HocrOutline />
-    </div>
+      <div
+          class="workspace-hocr-outline-pane"
+          :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
+      >
+        <div class="sidebar-lead">hOCR</div>
+        <HocrOutline/>
+      </div>
     </div><!-- end workspace-right-sidebar -->
 
 
@@ -181,18 +189,20 @@
 </template>
 
 <script setup lang="ts">
-import type {VNodeRef} from 'vue';
+import type {Ref, VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
-import { onBeforeRouteLeave } from 'vue-router';
+import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, Page, PageDb} from '../types';
-import type {PanelVisibility} from '../types/panels';
+import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
 import PageList from "../components/PageList.vue";
 import HocrOutline from "../components/HocrOutline.vue";
 import SectionOutline from "../components/SectionOutline.vue";
+
+type PageListColumn = "index" | "batch" | "name" | "scan" | "name-or-scan" | "extras";
 
 type PageWorkspaceKeyboardContext = {
   pages: Page[];
@@ -218,36 +228,45 @@ type PageWorkspaceKeyboardHandler = (
 
 type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
 
-const props = defineProps<{
-  machineName: string;
-  projectName: string,
-  formatPageExtras?: (pages: Page[]) => Map<number, string>;
-  pageCrops?: Map<number, CropEdges>;
-  isPageChanged?: (page: Page) => boolean;
-  keyboardHandler?: PageWorkspaceKeyboardHandler;
-  stripEdge?: string;
-  stripFraction?: number;
-  showCropOverlay?: boolean;
-  cropColor?: string;
-  discardColor?: string;
-  hocrLevel?: HocrOverlayLevel | null;
-  careaOverlayColor?: string;
-  blockOverlayColor?: string;
-  lineOverlayColor?: string;
-  wordOverlayColor?: string;
-  panels: PanelVisibility;
-}>();
+const props = withDefaults(defineProps<{
+      machineName: string;
+      projectName: string,
+      canPagesBeFiltered?: boolean;
+      formatPageExtras?: (pages: Page[]) => Map<number, string>;
+      pageListColumns?: PageListColumn[];
+      pageCrops?: Map<number, CropEdges>;
+      isPageChanged?: (page: Page) => boolean;
+      keyboardHandler?: PageWorkspaceKeyboardHandler;
+      stripEdge?: string;
+      stripFraction?: number;
+      showCropOverlay?: boolean;
+      cropColor?: string;
+      discardColor?: string;
+      hocrLevel?: HocrOverlayLevel | null;
+      careaOverlayColor?: string;
+      blockOverlayColor?: string;
+      lineOverlayColor?: string;
+      wordOverlayColor?: string;
+      panels: PanelVisibility;
+    }>(), {
+      canPagesBeFiltered: true,
+    }
+);
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
   currentPageChange: [page: Page | null];
 }>();
 
+const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
+const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
+
 // ── Mode / tool / edge ───────────────────────────────────────────────
 const mode = ref('crop');
 const filterMode = ref('all')
+const effectiveFilterMode = computed(() => canPagesBeFiltered.value ? filterMode.value : 'all');
 
-// ── Workspace pane visibility ─────────────────────────────────────────
+// ── Workspace pane visibility ────────────────────────────────────────
 
 
 // ── Pages & crop data ────────────────────────────────────────────────
@@ -281,17 +300,17 @@ const selectedPages = computed(() => {
   return all.slice(lo, hi + 1);
 });
 
-const isInFilter = makeIsInFilter(filterMode);
+const isInFilter = makeIsInFilter(effectiveFilterMode);
 
 // filteredPages: selectedPages narrowed to pages that pass the filter.
 // ALL edit operations iterate this — pages outside the filter are never touched.
-const filteredPages = useFilteredPages(filterMode, selectedPages);
+const filteredPages = useFilteredPages(effectiveFilterMode, selectedPages);
 
 // selectedPageSet: set of indices in filteredPages (for highlight/overlay).
 const selectedPageSet = computed(() => new Set(filteredPages.value.map(p => p.index)));
 
 // visiblePages: pages shown in the strip grid — only those passing the filter.
-const visiblePages = useFilteredPages(filterMode, pages);
+const visiblePages = useFilteredPages(effectiveFilterMode, pages);
 
 
 // ── Selection info (for tools panel) ────────────────────────────────
@@ -394,6 +413,20 @@ function handleStripClick(pageIndex: number, e: MouseEvent) {
   (e.shiftKey) ? extendSelection(pageIndex) : setAnchor(pageIndex);
 }
 
+function selectAll() {
+  if (pages.value.length) {
+    setAnchor(pages.value[0].index);
+    extendSelection(pages.value[pages.value.length - 1].index);
+    console.log('Select all', filteredPages.value.map(p => p.name || p.scan));
+  }
+}
+
+function selectNone() {
+  selectionAnchor.value = null;
+  currentPageIndex.value = null;
+  console.log('Select none', filteredPages.value.map(p => p.name || p.scan));
+}
+
 const {onFilterChange} = usePageFilterNavigation({
   filterMode,
   pages,
@@ -471,8 +504,7 @@ function setPageDb(data: PageDb) {
 async function loadPageDb(data?: PageDb) {
   if (data) {
 
-  }
-  else {
+  } else {
     try {
       const res = await fetch(`/api/projects/${props.machineName}/pages`);
       const data = (await res.json()) as PageDb;
@@ -482,6 +514,27 @@ async function loadPageDb(data?: PageDb) {
     }
   }
 }
+
+async function savePageDb(): Promise<void> {
+  const pageDb: PageDb = {
+    pages: pages.value,
+    next_batch: pageDbNextBatch,
+  };
+
+  const resp = await fetch(`/api/projects/${props.machineName}/pages`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(pageDb),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => null) as { error?: string } | null;
+    throw new Error(err?.error ?? 'Failed to save pages.');
+  }
+}
+
 
 watch(currentPage, (page) => emit('currentPageChange', page));
 
@@ -496,6 +549,7 @@ onUnmounted(() => {
 
 defineExpose({
   setPageDb,
+  savePageDb
 });
 
 </script>
@@ -598,10 +652,9 @@ defineExpose({
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
-  transition:
-      flex-basis 160ms ease,
-      width 160ms ease,
-      border-color 160ms ease;
+  transition: flex-basis 160ms ease,
+  width 160ms ease,
+  border-color 160ms ease;
 }
 
 .workspace-page-strips-pane {
@@ -655,8 +708,8 @@ defineExpose({
   background: var(--color-bg-muted, #f1f3f5);
 }
 
-/* Selection info panel */
-.selection-info-panel {
+/* Info panels */
+.info-panel {
   border: 1px solid var(--color-border, #dee2e6);
   border-radius: 0.375rem;
   padding: 0.5rem;

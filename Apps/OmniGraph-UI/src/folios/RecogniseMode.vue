@@ -2,7 +2,10 @@
   <PageWorkspace :machine-name="machineName"
                  :project-name="projectName"
                  :panels="panels"
-                 :format-page-extras="formatPageExtras">
+                 hocr-level="block"
+                 :page-list-columns="['name-or-scan', 'extras']"
+                 :format-page-extras="formatPageExtras"
+  >
 
     <template #tools="{ selectionInfo, filteredPages }">
       <sl-button

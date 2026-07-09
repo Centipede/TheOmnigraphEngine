@@ -4,9 +4,62 @@
       :machine-name="machineName"
       :project-name="projectName"
       :panels="panels"
+      :page-list-columns="['index', 'batch', 'name', 'scan']"
+      :can-pages-be-filtered="false"
   >
 
     <template #tools="{ currentPageIndex, selectionInfo, selectedPages }">
+
+      <!-- Rename tools -->
+
+      <div class="form-actions">
+        <sl-button @click="openRenameForm()">Rename</sl-button>
+      </div>
+
+      <template v-if="showRenameForm">
+        <form
+            ref="renameFormRef"
+            class="form-grid"
+            @submit.prevent="performRename(selectedPages)"
+        >
+          <sl-radio-group
+              name="scheme"
+              label="Scheme"
+              help-text="Naming method"
+              :value="renameForm.scheme"
+              @sl-change="renameForm.scheme = ($event.target as HTMLInputElement).value as RenameScheme"
+          >
+            <sl-radio-button value="T">Text</sl-radio-button>
+            <sl-radio-button value="1">1,2,3,...</sl-radio-button>
+            <sl-radio-button value="i">i,ii,iii,iv,...</sl-radio-button>
+            <sl-radio-button value="I">I,II,III,IV,...</sl-radio-button>
+          </sl-radio-group>
+
+          <sl-input
+              name="page_name"
+              placeholder="Page name"
+              clearable
+              :value="renameForm.pageName"
+              @sl-input="renameForm.pageName = ($event.target as HTMLInputElement).value"
+          ></sl-input>
+
+          <div class="form-actions">
+            <sl-button
+                type="submit"
+                variant="primary"
+            >
+              Rename pages
+            </sl-button>
+
+            <sl-button type="button" @click="showRenameForm = false">
+              Cancel
+            </sl-button>
+          </div>
+        </form>
+      </template>
+
+
+      <!-- Append / Insert / Rename tools -->
 
       <div class="form-actions">
         <sl-button @click="openAppendForm()">Append</sl-button>
@@ -81,9 +134,9 @@
 </template>
 
 <script setup lang="ts">
-import PageWorkspace from "../components/PageWorkspace.vue";
+import {reactive, ref} from 'vue';
 import type {Page, PanelVisibility} from "../types";
-import {ref} from 'vue';
+import PageWorkspace from "../components/PageWorkspace.vue";
 
 
 const props = defineProps<{
@@ -94,11 +147,155 @@ const props = defineProps<{
 
 const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 
+// ── Rename ───────────────────────────────────────────────────────────
+
+type RenameScheme = 'T' | '1' | 'i' | 'I';
+
+type RenameForm = {
+  pageName: string;
+  scheme: RenameScheme;
+}
+
+const renameFormRef = ref<HTMLFormElement | null>(null);
+const showRenameForm = ref(false);
+const renameForm = reactive<RenameForm>({
+  pageName: '',
+  scheme: '1' as RenameScheme,
+});
+
+function openRenameForm() {
+  showRenameForm.value = true;
+}
+
+async function performRename(selectedPages: Page[]): Promise<void> {
+  const renamed = rename(selectedPages, renameForm.pageName, renameForm.scheme);
+
+  if (!renamed) {
+    return;
+  }
+
+  try {
+    await workspaceRef.value?.savePageDb();
+    showRenameForm.value = false;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renameToNumbers(filteredPages: Page[], start: number) {
+  if(filteredPages.length === 0) return [];
+  const indexOffset = filteredPages[0].index;
+  return filteredPages.map(page => page.index - indexOffset + start)
+}
+
+function rename(filteredPages: Page[], page_name: string, scheme: 'T' | '1' | 'i' | 'I'): boolean {
+  if(filteredPages.length === 0) return false;
+
+  console.log('rename', filteredPages.map(p=>p.index), page_name, scheme)
+
+  if (scheme === 'i' || scheme === 'I') {
+    const start = parseRoman(page_name);
+
+    if (start === null) {
+      return false;
+    }
+
+    const names = renameToNumbers(filteredPages, start);
+    console.log(scheme==='i' ? 'i,ii,iii...': 'I,II,III...', names)
+    for (let i = 0; i < filteredPages.length; i++) {
+      const name = toRoman(names[i]);
+      filteredPages[i].name = scheme === 'I' ? name.toUpperCase() : name.toLowerCase();
+    }
+  }
+  else if (scheme === '1') {
+    const start = parseInt(page_name, 10);
+
+    if (Number.isNaN(start)) {
+      return false;
+    }
+
+    const names = renameToNumbers(filteredPages, start);
+    console.log('1,2,3...', names)
+    for (let i = 0; i < filteredPages.length; i++) {
+      filteredPages[i].name = names[i].toString();
+    }
+  }
+  else if (scheme === 'T') {
+    console.log('T', page_name)
+    filteredPages.forEach(page => {page.name = page_name})
+  }
+
+  return true;
+}
+
+const romanValues: Record<string, number> = {
+  I: 1,
+  V: 5,
+  X: 10,
+  L: 50,
+  C: 100,
+  D: 500,
+  M: 1000,
+};
+
+const valuesRoman: readonly [number, string][] = [
+  [1000, 'M'],
+  [900, 'CM'],
+  [500, 'D'],
+  [400, 'CD'],
+  [100, 'C'],
+  [90, 'XC'],
+  [50, 'L'],
+  [40, 'XL'],
+  [10, 'X'],
+  [9, 'IX'],
+  [5, 'V'],
+  [4, 'IV'],
+  [1, 'I'],
+];
+
+function parseRoman(s: string): number | null {
+  const upper = s.toUpperCase();
+
+  let total = 0;
+  let prev = 0;
+
+  for (let i = upper.length - 1; i >= 0; i--) {
+    const ch = upper[i];
+    const val = romanValues[ch];
+
+    if (val === undefined) {
+      return null;
+    }
+
+    total += val < prev ? -val : val;
+    prev = val;
+  }
+
+  return total > 0 ? total : null;
+}
+
+
+function toRoman(n: number): string {
+  let out = '';
+
+  for (const [value, symbol] of valuesRoman) {
+    while (n >= value) {
+      out += symbol;
+      n -= value;
+    }
+  }
+
+  return out;
+}
+
+
+// ── Append/Insert/Remove ─────────────────────────────────────────────
+
 const uploadFormRef = ref<HTMLFormElement | null>(null);
+const showUploadForm = ref(false);
 const isUploading = ref(false);
 const uploadError = ref('');
-
-const showUploadForm = ref(false);
 type UploadMode = 'append' | 'insert-before' | 'insert-after';
 const uploadMode = ref<UploadMode>('append');
 const targetPageIndex = ref<number | null>(null);
@@ -207,6 +404,41 @@ async function removePages(pages: Page[]) {
 </script>
 
 <style scoped>
+.form-grid {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
 
+  display: grid;
+  gap: 0.75rem;
+}
+
+.form-grid h3 {
+  margin: 1rem 0 0;
+  font-size: 1rem;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.form-grid small {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.form-grid input[type="text"],
+.form-grid input[type="number"] {
+  padding: 0.5rem 0.625rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
+}
 </style>
 
