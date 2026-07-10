@@ -6,6 +6,7 @@ mod ocr_poll;
 mod routes;
 mod secrets;
 mod state;
+pub mod hocr_editor;
 
 use state::AppState;
 use tokio::net::TcpListener;

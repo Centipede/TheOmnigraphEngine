@@ -4,12 +4,13 @@ pub mod projects;
 use axum::{
     extract::DefaultBodyLimit,
     http::{header, StatusCode},
-    response::{IntoResponse, Redirect},
+    response::{IntoResponse},
     routing::{get, post},
     Router,
 };
 use rust_embed::RustEmbed;
 use projects::{handlers_api, handlers_web};
+use crate::routes::projects::handlers_api_hocr;
 use crate::state::AppState;
 
 #[derive(RustEmbed)]
@@ -44,6 +45,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb).put(handlers_api::put_project_pagesdb))
         .route("/projects/{machine_name}/pages/hocr-status", get(handlers_api::get_hocr_status))
         .route("/projects/{machine_name}/pages/{stem}/hocr-json", get(handlers_api::get_hocr_json))
+        .route("/projects/{machine_name}/pages/{stem}/test-edit", post(handlers_api_hocr::test_edit_page))
         .route("/projects/{machine_name}/pages/scan", post(handlers_api::scan_pages_post))
         .route("/projects/{machine_name}/pages/append", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
         .route("/projects/{machine_name}/pages/insert", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))

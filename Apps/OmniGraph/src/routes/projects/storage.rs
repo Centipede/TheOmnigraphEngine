@@ -2,7 +2,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::path::Path;
 use axum::http::StatusCode;
-use axum::Json;
 use secrecy::Secret;
 use crate::app_settings::OcrServerConfig;
 use crate::ocr_poll::OcrServerStatus;
@@ -203,6 +202,12 @@ pub fn save_hocr_original(projects_dir: &PathBuf, machine_name: &str, scan: &str
     let dir = hocr_dir(projects_dir, machine_name, scan);
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("original.html"), hocr)
+}
+
+pub fn save_hocr_edited(projects_dir: &PathBuf, machine_name: &str, scan: &str, hocr: &str) -> std::io::Result<()> {
+    let dir = hocr_dir(projects_dir, machine_name, scan);
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("edited.html"), hocr)
 }
 
 pub fn has_unsaved_edits(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> bool {
