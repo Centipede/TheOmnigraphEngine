@@ -18,7 +18,6 @@
 
       <template v-if="showRenameForm">
         <form
-            ref="renameFormRef"
             class="form-grid"
             @submit.prevent="performRename(selectedPages)"
         >
@@ -156,7 +155,6 @@ type RenameForm = {
   scheme: RenameScheme;
 }
 
-const renameFormRef = ref<HTMLFormElement | null>(null);
 const showRenameForm = ref(false);
 const renameForm = reactive<RenameForm>({
   pageName: '',

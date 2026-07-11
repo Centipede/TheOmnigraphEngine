@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import {computed, inject, type Ref} from 'vue';
 import type {CropEdges, HocrBbox, HocrPage, Page} from '../types';
-
+import {makeVariedPalette} from '../utils/colors';
 type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
 type OverlayRole = 'parent' | 'active' | 'child';
 
@@ -91,6 +91,8 @@ const overlayItems = computed((): OverlayItem[] => {
 
   const activeIdx = LEVELS.indexOf(props.hocrLevel);
   const colors = colorByLevel.value;
+  const colorVars = colors.map(color => makeVariedPalette(color));
+  console.log(colorVars);
   const items: OverlayItem[] = [];
 
   function roleFor(levelIdx: number): OverlayRole | null {
@@ -101,21 +103,21 @@ const overlayItems = computed((): OverlayItem[] => {
     return null;
   }
 
-  for (const carea of page.careas) {
+  for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(0);
-    if (cr) items.push({ id: carea.id, bbox: carea.bbox, role: cr, color: colors[0] });
+    if (cr) items.push({id: carea.id, bbox: carea.bbox, role: cr, color: colorVars[0][i%8]});
 
-    for (const block of carea.blocks) {
-      const pr = roleFor(1);
-      if (pr) items.push({ id: block.id, bbox: block.bbox, role: pr, color: colors[1] });
+    for (const [j, block] of carea.blocks.entries()) {
+      const br = roleFor(1);
+      if (br) items.push({id: block.id, bbox: block.bbox, role: br, color: colorVars[1][j%8]});
 
-      for (const line of block.lines) {
+      for (const [k, line] of block.lines.entries()) {
         const lr = roleFor(2);
-        if (lr) items.push({ id: line.id, bbox: line.bbox, role: lr, color: colors[2] });
+        if (lr) items.push({id: line.id, bbox: line.bbox, role: lr, color: colorVars[2][k%8]});
 
-        for (const word of line.words) {
+        for (const [l, word] of line.words.entries()) {
           const wr = roleFor(3);
-          if (wr) items.push({ id: word.id, bbox: word.bbox, role: wr, color: colors[3] });
+          if (wr) items.push({id: word.id, bbox: word.bbox, role: wr, color: colorVars[3][l%8]});
         }
       }
     }
@@ -123,18 +125,6 @@ const overlayItems = computed((): OverlayItem[] => {
 
   return items;
 });
-
-function scanXPct(value: number): string {
-  return props.page.scan_width > 0
-      ? `${(value / props.page.scan_width) * 100}%`
-      : '0%';
-}
-
-function scanYPct(value: number): string {
-  return props.page.scan_height > 0
-      ? `${(value / props.page.scan_height) * 100}%`
-      : '0%';
-}
 
 const cropLeft = computed(() => props.crop ? scanXPct(props.crop.left) : '0%');
 const cropTop = computed(() => props.crop ? scanYPct(props.crop.top) : '0%');
@@ -152,7 +142,6 @@ const cropAreaStyle = computed(() => ({
   outlineOffset: '-1px',
   pointerEvents: 'none' as const,
 }));
-
 const topDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left: '0',
@@ -162,7 +151,6 @@ const topDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
-
 const bottomDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left: '0',
@@ -172,7 +160,6 @@ const bottomDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
-
 const leftDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left: '0',
@@ -182,7 +169,6 @@ const leftDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
-
 const rightDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   right: '0',
@@ -192,6 +178,18 @@ const rightDiscardStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
+
+function scanXPct(value: number): string {
+  return props.page.scan_width > 0
+      ? `${(value / props.page.scan_width) * 100}%`
+      : '0%';
+}
+
+function scanYPct(value: number): string {
+  return props.page.scan_height > 0
+      ? `${(value / props.page.scan_height) * 100}%`
+      : '0%';
+}
 
 function overlayItemStyle(item: OverlayItem) {
   const [l, t, r, b] = item.bbox;
