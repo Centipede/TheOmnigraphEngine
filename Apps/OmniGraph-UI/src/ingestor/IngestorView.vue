@@ -189,8 +189,6 @@ function renameToNumbers(filteredPages: Page[], start: number) {
 function rename(filteredPages: Page[], page_name: string, scheme: 'T' | '1' | 'i' | 'I'): boolean {
   if(filteredPages.length === 0) return false;
 
-  console.log('rename', filteredPages.map(p=>p.index), page_name, scheme)
-
   if (scheme === 'i' || scheme === 'I') {
     const start = parseRoman(page_name);
 
@@ -199,7 +197,6 @@ function rename(filteredPages: Page[], page_name: string, scheme: 'T' | '1' | 'i
     }
 
     const names = renameToNumbers(filteredPages, start);
-    console.log(scheme==='i' ? 'i,ii,iii...': 'I,II,III...', names)
     for (let i = 0; i < filteredPages.length; i++) {
       const name = toRoman(names[i]);
       filteredPages[i].name = scheme === 'I' ? name.toUpperCase() : name.toLowerCase();
@@ -213,13 +210,11 @@ function rename(filteredPages: Page[], page_name: string, scheme: 'T' | '1' | 'i
     }
 
     const names = renameToNumbers(filteredPages, start);
-    console.log('1,2,3...', names)
     for (let i = 0; i < filteredPages.length; i++) {
       filteredPages[i].name = names[i].toString();
     }
   }
   else if (scheme === 'T') {
-    console.log('T', page_name)
     filteredPages.forEach(page => {page.name = page_name})
   }
 

@@ -63,7 +63,7 @@
                 :edge="stripEdge ?? 'all'"
                 :thumbBaseUrl="thumbBaseUrl"
                 :fraction="stripFraction ?? 1"
-                :showOverlay="showCropOverlay ?? mode === 'crop'"
+                :showOverlay="showCropOverlay ?? false"
                 :crop="pageCrops?.get(page.index) ?? page.crop_edges"
                 :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
                 :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
@@ -100,7 +100,7 @@
               :page="currentPage"
               :image-base-url="scanBaseUrl"
               :crop="currentPageCrop"
-              :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
+              :show-crop-overlay="showCropOverlay ?? false"
               :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
               :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
               :hocr-level="hocrLevel"
@@ -108,6 +108,7 @@
               :block-overlay-color="blockOverlayColor"
               :line-overlay-color="lineOverlayColor"
               :word-overlay-color="wordOverlayColor"
+              :interaction-update="pageInteractionUpdate"
           />
         </slot>
       </div>
@@ -194,7 +195,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
-import type {CropEdges, Page, PageDb} from '../types';
+import type {CropEdges, HocrBbox, Page, PageDb} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -227,6 +228,20 @@ type PageWorkspaceKeyboardHandler = (
 ) => boolean | void;
 
 type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
+type OverlayRole = 'parent' | 'active' | 'child';
+
+interface OverlayItem {
+  id: string;
+  bbox: HocrBbox;
+  role: OverlayRole;
+  color: string;
+}
+
+type PageInteractionUpdate = (
+    x: number,
+    y: number,
+    overlappingOverlayItems: OverlayItem[],
+) => void;
 
 const props = withDefaults(defineProps<{
       machineName: string;
@@ -248,6 +263,7 @@ const props = withDefaults(defineProps<{
       lineOverlayColor?: string;
       wordOverlayColor?: string;
       panels: PanelVisibility;
+      pageInteractionUpdate?: PageInteractionUpdate;
     }>(), {
       canPagesBeFiltered: true,
     }
@@ -262,12 +278,8 @@ const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
-const mode = ref('crop');
 const filterMode = ref('all')
 const effectiveFilterMode = computed(() => canPagesBeFiltered.value ? filterMode.value : 'all');
-
-// ── Workspace pane visibility ────────────────────────────────────────
-
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
