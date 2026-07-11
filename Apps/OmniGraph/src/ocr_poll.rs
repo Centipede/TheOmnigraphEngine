@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::sync::{Arc, RwLock};
 use tokio::time::{Duration, interval};
 
-pub const POLL_INTERVAL_SECS: u64 = 30;
+pub const POLL_INTERVAL_SECS: u64 = 1;
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "snake_case")]

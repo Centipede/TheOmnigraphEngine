@@ -118,8 +118,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
-import type { OcrCommandFormat, OcrServerStatus, SettingsStatus } from '../types/settings';
+import {onMounted, onUnmounted, reactive, ref} from 'vue';
+import type {OcrCommandFormat, OcrServerStatus, ServiceStatus, SettingsStatus} from '../types/settings';
 
 const SETTINGS_ENDPOINT = '/api/settings';
 
@@ -169,6 +169,20 @@ function applyStatus(status: SettingsStatus): void {
 
 function statusLabel(s: OcrServerStatus): string {
   return s === 'online' ? 'Online' : s === 'offline' ? 'Offline' : 'Not configured';
+}
+
+async function fetchServiceStatus(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/settings/service/status`);
+    if (resp.ok) {
+      const data = await resp.json() as ServiceStatus;
+      settingsStatus.ocr_server_1_status = data.server_1;
+      settingsStatus.ocr_server_2_status = data.server_2;
+      console.log(data)
+    }
+  } catch (e) {
+    console.error('Failed to fetch hOCR status:', e);
+  }
 }
 
 async function loadSettingsStatus(): Promise<void> {
@@ -225,9 +239,20 @@ async function saveSettings(): Promise<void> {
   }
 }
 
-onMounted(() => {
+let fetchServiceInterval: ReturnType<typeof setInterval> | null = null;
+
+onMounted(async () => {
   void loadSettingsStatus();
+  await fetchServiceStatus();
+  fetchServiceInterval = setInterval(() => {
+    void fetchServiceStatus();
+  }, 1_000);
 });
+
+onUnmounted(() => {
+  if (fetchServiceInterval !== null) clearInterval(fetchServiceInterval);
+});
+
 </script>
 
 <style scoped>

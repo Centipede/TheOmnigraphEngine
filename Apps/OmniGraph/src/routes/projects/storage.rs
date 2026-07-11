@@ -2,9 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::path::Path;
 use axum::http::StatusCode;
-use axum::Json;
 use secrecy::Secret;
 use crate::app_settings::OcrServerConfig;
+use crate::ocr_poll::OcrServerStatus;
 use crate::routes::projects::forms::{OcrServerData, SettingsResponse, SettingsUpdate};
 use crate::routes::projects::models::{Page, PageDb, Project};
 use crate::state::AppState;
@@ -71,6 +71,10 @@ pub fn reindex(db: &mut PageDb) {
 pub fn sort_by_import_order(db: &mut PageDb) {
     db.pages.sort_by(|a, b| a.import_order.cmp(&b.import_order).then_with(|| a.scan.cmp(&b.scan)));
     reindex(db);
+}
+
+pub fn check_service_status(state: &AppState) -> OcrServerStatus {
+    state.ocr_status.read().unwrap().clone()
 }
 
 pub fn read_settings(state: &AppState) -> SettingsResponse {
@@ -198,6 +202,12 @@ pub fn save_hocr_original(projects_dir: &PathBuf, machine_name: &str, scan: &str
     let dir = hocr_dir(projects_dir, machine_name, scan);
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("original.html"), hocr)
+}
+
+pub fn save_hocr_edited(projects_dir: &PathBuf, machine_name: &str, scan: &str, hocr: &str) -> std::io::Result<()> {
+    let dir = hocr_dir(projects_dir, machine_name, scan);
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("edited.html"), hocr)
 }
 
 pub fn has_unsaved_edits(projects_dir: &PathBuf, machine_name: &str, scan: &str) -> bool {

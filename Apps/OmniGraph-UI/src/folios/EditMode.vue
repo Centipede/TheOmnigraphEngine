@@ -11,17 +11,19 @@
       word-overlay-color="rgba(34, 197, 94, 0.22)"
       @current-page-change="loadHocrPage"
   >
-    <template #tools>
+    <template #tools="{ currentPage }">
       <!-- Edit tools — to be implemented -->
+
+      <sl-button @click="testEditPage(currentPage)">Test Edit</sl-button>
     </template>
   </PageWorkspace>
 </template>
 
 <script setup lang="ts">
-import { provide, ref } from 'vue';
+import {provide, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import type { PanelVisibility, Page } from '../types';
-import type { HocrPage } from '../types/hocr';
+import type {PanelVisibility, Page} from '../types';
+import type {HocrPage} from '../types/hocr';
 
 const props = defineProps<{
   machineName: string;
@@ -31,6 +33,29 @@ const props = defineProps<{
 
 const hocrPage = ref<HocrPage | null>(null);
 provide('hocrPage', hocrPage);
+
+async function testEditPage(page: Page | null): Promise<void> {
+  if (!page) {
+    return
+  }
+
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/test-edit`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({page}),
+    });
+    if (resp.ok) {
+      const data = await resp.json() as { success: boolean };
+      if (data.success) {
+        alert('Page edited successfully!');
+      } else {
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 async function loadHocrPage(page: Page | null): Promise<void> {
   if (!page) {

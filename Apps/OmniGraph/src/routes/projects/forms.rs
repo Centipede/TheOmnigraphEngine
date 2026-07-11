@@ -105,6 +105,11 @@ pub struct RemoveQuery {
 }
 
 #[derive(Deserialize)]
+pub struct RemoveRequest {
+    pub indices: Vec<usize>,
+}
+
+#[derive(Deserialize)]
 pub struct RemoveForm {
     pub indices: String,
 }

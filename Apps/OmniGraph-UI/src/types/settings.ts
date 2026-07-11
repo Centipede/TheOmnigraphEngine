@@ -1,10 +1,10 @@
+export type OcrCommandFormat = 'native' | 'docker';
+export type OcrServerStatus = 'unconfigured' | 'online' | 'offline';
+
 export interface OcrServer {
     host: string;
     port: number;
 }
-
-export type OcrCommandFormat = 'native' | 'docker';
-export type OcrServerStatus = 'unconfigured' | 'online' | 'offline';
 
 export interface OcrSettingsUpdate {
     server_1: OcrServer | null;
@@ -16,6 +16,11 @@ export interface SettingsForm {
     openai_api_key: string;
     perplexity_api_key: string;
     ocr: OcrSettingsUpdate;
+}
+
+export interface ServiceStatus {
+    server_1: OcrServerStatus;
+    server_2: OcrServerStatus;
 }
 
 export interface SettingsStatus {

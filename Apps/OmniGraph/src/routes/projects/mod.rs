@@ -4,7 +4,7 @@ pub mod storage;
 pub mod images;
 pub mod handlers_web;
 pub mod handlers_api;
-
+pub mod handlers_api_hocr;
 
 fn parse_date(s: &str) -> Option<time::Date> {
     let mut parts = s.splitn(3, '-');

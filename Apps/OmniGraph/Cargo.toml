@@ -20,3 +20,4 @@ image = "0.25"
 time = { version = "0.3", features = ["serde", "macros", "formatting", "parsing"] }
 reqwest = { version = "0.12", features = ["multipart", "json"] }
 scraper = "0.21"
+xmlparser = "0.13"

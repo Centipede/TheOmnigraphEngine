@@ -4,12 +4,13 @@ pub mod projects;
 use axum::{
     extract::DefaultBodyLimit,
     http::{header, StatusCode},
-    response::{IntoResponse, Redirect},
+    response::{IntoResponse},
     routing::{get, post},
     Router,
 };
 use rust_embed::RustEmbed;
 use projects::{handlers_api, handlers_web};
+use crate::routes::projects::handlers_api_hocr;
 use crate::state::AppState;
 
 #[derive(RustEmbed)]
@@ -38,12 +39,17 @@ async fn static_handler(uri: axum::http::Uri) -> impl IntoResponse {
 pub fn build_router(state: AppState) -> Router {
     let api = Router::new()
         .route("/settings", get(handlers_api::settings_get).post(handlers_api::settings_post))
+        .route("/settings/service/status", get(handlers_api::settings_service_status_get))
         .route("/projects", get(handlers_api::list_projects).post(handlers_api::create_project))
         .route("/projects/{machine_name}", get(handlers_api::get_project_metadata).put(handlers_api::put_project_metadata))
         .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb).put(handlers_api::put_project_pagesdb))
         .route("/projects/{machine_name}/pages/hocr-status", get(handlers_api::get_hocr_status))
         .route("/projects/{machine_name}/pages/{stem}/hocr-json", get(handlers_api::get_hocr_json))
+        .route("/projects/{machine_name}/pages/{stem}/test-edit", post(handlers_api_hocr::test_edit_page))
         .route("/projects/{machine_name}/pages/scan", post(handlers_api::scan_pages_post))
+        .route("/projects/{machine_name}/pages/append", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/insert", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
+        .route("/projects/{machine_name}/pages/remove", post(handlers_api::post_remove_images))
         ;
 
     let projects = Router::new()

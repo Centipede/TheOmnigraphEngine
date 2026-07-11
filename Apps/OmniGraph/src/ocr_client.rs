@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 const OCR_UPLOAD_LIMIT_BYTES: usize = 100 * 1024 * 1024;
 const OCR_UPLOAD_BATCH_TARGET_BYTES: usize = 95 * 1024 * 1024;
+const OCR_SERVICE_TIMEOUT_SECONDS: u64 = 120;
 
 #[derive(Deserialize)]
 struct OcrResponse {
@@ -88,7 +89,7 @@ async fn call_ocr_service_batch(
     let resp = client
         .post(&url)
         .multipart(form)
-        .timeout(std::time::Duration::from_secs(120))
+        .timeout(std::time::Duration::from_secs(OCR_SERVICE_TIMEOUT_SECONDS))
         .send()
         .await
         .map_err(|e| e.to_string())?;

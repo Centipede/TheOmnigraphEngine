@@ -1,7 +1,6 @@
 use axum::{Form, extract::State, response::{Html, IntoResponse, Redirect}};
 use minijinja::context;
 use secrecy::Secret;
-use serde::Deserialize;
 use crate::state::AppState;
 use crate::routes::projects::forms::SettingsForm;
 
