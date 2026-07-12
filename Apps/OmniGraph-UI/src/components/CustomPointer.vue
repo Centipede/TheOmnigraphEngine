@@ -2,10 +2,9 @@
   <div
       v-if="visible"
       class="custom-pointer"
-      :class="pointerClass"
       :style="pointerStyle"
   >
-    <span class="custom-pointer-icon">{{ icon }}</span>
+    <sl-icon class="custom-pointer-icon" :name="icon" :style="iconStyle"></sl-icon>
     <span v-if="label" class="custom-pointer-label">{{ label }}</span>
   </div>
 </template>
@@ -15,32 +14,23 @@ import { computed } from 'vue';
 
 const props = defineProps<{
   visible: boolean;
+  enabled: boolean;
   x: number;
   y: number;
-  mode: 'select' | 'add' | 'remove' | 'disabled';
+  icon: string;
+  color: string;
   label?: string;
 }>();
 
-const pointerClass = computed(() => `custom-pointer--${props.mode}`);
-
-const icon = computed(() => {
-  switch (props.mode) {
-    case 'select':
-      return '⌖';
-    case 'add':
-      return '+';
-    case 'remove':
-      return '−';
-    case 'disabled':
-      return '×';
-  }
-});
-
 const pointerStyle = computed(() => ({
   transform: `translate(${props.x}px, ${props.y}px)`,
-  //transform: `translate(${props.x + 12}px, ${props.y + 12}px)`,
-  //transform: `translate(${props.x}px, ${props.y}px) translate(-50%, -50%)`,
+  opacity: props.enabled ? 1 : 0.5,
 }));
+
+const iconStyle = computed(() => ({
+  color: props.color,
+}));
+
 </script>
 
 <style scoped>
@@ -85,19 +75,4 @@ const pointerStyle = computed(() => ({
   white-space: nowrap;
 }
 
-.custom-pointer--select .custom-pointer-icon {
-  background: #2563eb;
-}
-
-.custom-pointer--add .custom-pointer-icon {
-  background: #16a34a;
-}
-
-.custom-pointer--remove .custom-pointer-icon {
-  background: #dc2626;
-}
-
-.custom-pointer--disabled .custom-pointer-icon {
-  background: #6b7280;
-}
 </style>

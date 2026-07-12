@@ -94,6 +94,7 @@
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!panels['page-strips']"
             :show-page-preview="!panels['page-preview']"
+            :pointer-settings="pointerSettings"
         >
           <PagePreview
               v-if="currentPage && currentPageCrop"
@@ -108,6 +109,7 @@
               :block-overlay-color="blockOverlayColor"
               :line-overlay-color="lineOverlayColor"
               :word-overlay-color="wordOverlayColor"
+              :pointer-settings="pointerSettings"
               :interaction-update="pageInteractionUpdate"
           />
         </slot>
@@ -195,7 +197,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
-import type {CropEdges, HocrBbox, Page, PageDb} from '../types';
+import type {CropEdges, HocrOverlayLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -227,22 +229,6 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
-type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
-type OverlayRole = 'parent' | 'active' | 'child';
-
-interface OverlayItem {
-  id: string;
-  bbox: HocrBbox;
-  role: OverlayRole;
-  color: string;
-}
-
-type PageInteractionUpdate = (
-    x: number,
-    y: number,
-    overlappingOverlayItems: OverlayItem[],
-) => void;
-
 const props = withDefaults(defineProps<{
       machineName: string;
       projectName: string,
@@ -262,6 +248,7 @@ const props = withDefaults(defineProps<{
       blockOverlayColor?: string;
       lineOverlayColor?: string;
       wordOverlayColor?: string;
+      pointerSettings?: PointerSettings;
       panels: PanelVisibility;
       pageInteractionUpdate?: PageInteractionUpdate;
     }>(), {
