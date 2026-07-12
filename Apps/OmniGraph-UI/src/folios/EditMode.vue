@@ -12,6 +12,7 @@
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
       @current-page-change="loadHocrPage"
       :page-interaction-update="pageInteractionUpdate"
+      :page-interaction-click="pageInteractionClick"
   >
     <template #tools>
 
@@ -51,6 +52,8 @@ const props = defineProps<{
 
 const hocrPage = ref<HocrPage | null>(null);
 provide('hocrPage', hocrPage);
+
+const currentStem = ref<string | null>(null);
 
 type OcrTool = 'none' | 'carea' | 'block' | 'line' | 'word';
 type OcrMode = 'none' | 'select' | 'join' | 'split' | 'remove';
@@ -138,16 +141,43 @@ function pageInteractionUpdate(
     betweenOverlaySubItems: [HocrSibling | null, HocrSibling | null],
 ) {
   overTarget.value = null;
-  betweenTargets.value = betweenOverlayItems
-  betweenSubTargets.value = betweenOverlaySubItems
-  console.log(betweenOverlaySubItems.map(i => i?.id))
+  betweenTargets.value = betweenOverlayItems;
+  betweenSubTargets.value = betweenOverlaySubItems;
 
-  for(const item of overlappingOverlayItems) {
-    if (item.level == ocrTool.value) {
-      overTarget.value = item.id
+  for (const item of overlappingOverlayItems) {
+    if (item.level === ocrTool.value) {
+      overTarget.value = item.id;
     }
   }
-  //console.log('Page interaction update', x, y, overlappingOverlayItems);
+}
+
+const LEVEL_SEGMENT: Record<string, string> = {
+  carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
+};
+
+async function pageInteractionClick(): Promise<void> {
+  const stem = currentStem.value;
+  const level = ocrTool.value;
+  const mode = effectiveOcrMode.value;
+  if (!stem || level === 'none' || mode === 'none' || mode === 'select') return;
+
+  const seg = LEVEL_SEGMENT[level];
+  const base = `/api/projects/${props.machineName}/pages/${stem}/hocr/${seg}`;
+  const json = (body: object) => ({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (mode === 'remove' && overTarget.value) {
+    await fetch(`${base}/${overTarget.value}/remove`, { method: 'POST' });
+  } else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
+    await fetch(`${base}/${betweenTargets.value[0].id}/merge`,
+        json({ other_id: betweenTargets.value[1].id }));
+  } else if (mode === 'split' && overTarget.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
+    await fetch(`${base}/${overTarget.value}/split`,
+        json({ before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id }));
+  }
 }
 
 // async function testEditPage(page: Page | null): Promise<void> {
@@ -160,9 +190,11 @@ function pageInteractionUpdate(
 async function loadHocrPage(page: Page | null): Promise<void> {
   if (!page) {
     hocrPage.value = null;
+    currentStem.value = null;
     return;
   }
   const stem = page.scan.replace(/\.[^.]+$/, '');
+  currentStem.value = stem;
   try {
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/hocr-json`);
     hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;

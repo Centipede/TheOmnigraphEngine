@@ -111,6 +111,7 @@
               :word-overlay-color="wordOverlayColor"
               :pointer-settings="pointerSettings"
               :interaction-update="pageInteractionUpdate"
+              :interaction-click="pageInteractionClick"
           />
         </slot>
       </div>
@@ -251,6 +252,7 @@ const props = withDefaults(defineProps<{
       pointerSettings?: PointerSettings;
       panels: PanelVisibility;
       pageInteractionUpdate?: PageInteractionUpdate;
+      pageInteractionClick?: () => void;
     }>(), {
       canPagesBeFiltered: true,
     }

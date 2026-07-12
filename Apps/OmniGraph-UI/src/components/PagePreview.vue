@@ -100,6 +100,7 @@ const props = withDefaults(defineProps<{
   wordOverlayColor?: string;
   pointerSettings?: PointerSettings;
   interactionUpdate?: PageInteractionUpdate;
+  interactionClick?: () => void;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
@@ -305,21 +306,7 @@ function updatePointerAction(event: MouseEvent) {
 
 
 function performPendingAction() {
-  console.log('performPendingAction');
-  // switch (pointerMode.value) {
-  //   case 'select':
-  //     console.log('select');
-  //     break;
-  //   case 'add':
-  //     console.log('add');
-  //     break;
-  //   case 'remove':
-  //     console.log('remove');
-  //     break;
-  //   case 'disabled':
-  //     console.log('disabled');
-  //     break;
-  // }
+  props.interactionClick?.();
 }
 
 function getScanPointForEvent(event: MouseEvent): { x: number; y: number } | null {
