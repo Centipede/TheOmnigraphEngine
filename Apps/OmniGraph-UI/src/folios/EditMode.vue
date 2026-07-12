@@ -13,7 +13,7 @@
       @current-page-change="loadHocrPage"
       :page-interaction-update="pageInteractionUpdate"
   >
-    <template #tools="{ currentPage }">
+    <template #tools>
 
       <sl-button-group >
         <sl-button :variant="ocrMode==='none' ? 'primary' : 'default'" size="small"  @click="setOcrMode('none')">None</sl-button>
@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, provide, type Ref, ref} from 'vue';
+import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import type {PanelVisibility, Page, OverlayItem, HocrSibling} from '../types';
 import type {HocrPage} from '../types/hocr';
@@ -59,59 +59,66 @@ const ocrTool:Ref<OcrTool> = ref('none');
 const ocrMode:Ref<OcrMode> = ref('select');
 
 const overTarget = ref<string | null>(null);
-const betweenTargets = ref<[HocrSibling | null, HocrSibling | null]>([null,null]);
-const betweenSubTargets = ref<[HocrSibling | null, HocrSibling | null]>([null,null]);
+const betweenTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
+const betweenSubTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
+
+// ── Modifier key state ───────────────────────────────────────────────
+const shiftDown = ref(false);
+const altDown   = ref(false);
+const metaDown  = ref(false);
+const ctrlDown  = ref(false);
+
+// ── Effective mode (modifier keys override manual ocrMode) ────────────
+const effectiveOcrMode = computed<OcrMode>(() => {
+  if (ocrTool.value === 'none') return 'none';
+  if (altDown.value) return 'remove';
+  if (shiftDown.value) {
+    if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
+    if (betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null) return 'split';
+    return 'none';
+  }
+  return 'select';
+});
 
 const pointerLabel = computed(() => {
-  switch (ocrMode.value) {
-    case 'none':
-      return '';
-    case 'select':
-      return 'Select';
-    case 'split':
-      return 'Split';
-    case 'join':
-      return 'Join';
-    case 'remove':
-      return 'Remove';
+  switch (effectiveOcrMode.value) {
+    case 'none':   return '';
+    case 'select': return 'Select';
+    case 'split':  return 'Split';
+    case 'join':   return 'Join';
+    case 'remove': return 'Remove';
   }
 });
+
 const pointerColor = computed(() => {
-  switch (ocrMode.value) {
-    case 'none':
-      return '';
-    case 'select':
-      return '#2563eb'; // blue
-    case 'split':
-      return '#f97316'; // orange
-    case 'join':
-      return '#16a34a'; // green
-    case 'remove':
-      return '#dc2626'; // red
+  switch (effectiveOcrMode.value) {
+    case 'none':   return '';
+    case 'select': return '#2563eb';
+    case 'split':  return '#f97316';
+    case 'join':   return '#16a34a';
+    case 'remove': return '#dc2626';
   }
 });
+
 const pointerIcon = computed(() => {
-  switch (ocrMode.value) {
-    case 'none':
-      return '';
-    case 'select':
-      return 'crosshair';
-    case 'split':
-      return 'view-stacked';
-    case 'join':
-      return 'view-list';
-    case 'remove':
-      return 'x-square';
+  switch (effectiveOcrMode.value) {
+    case 'none':   return '';
+    case 'select': return 'crosshair';
+    case 'split':  return 'view-stacked';
+    case 'join':   return 'view-list';
+    case 'remove': return 'x-square';
   }
 });
+
 const pointerEnabled = computed(() => {
-  if(ocrMode.value === 'select' || ocrMode.value === 'remove')
-    return overTarget.value != null;
-  else if (ocrMode.value === 'split' || ocrMode.value === 'join') {
-    return true;
+  switch (effectiveOcrMode.value) {
+    case 'select':
+    case 'remove': return overTarget.value !== null;
+    case 'join':   return betweenTargets.value[0] !== null && betweenTargets.value[1] !== null;
+    case 'split':  return betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null;
+    default:       return false;
   }
-  return false;
-})
+});
 
 function setOcrMode(mode: OcrMode) {
   ocrMode.value = mode;
@@ -123,13 +130,17 @@ function setOcrTool(tool: OcrTool) {
 
 
 function pageInteractionUpdate(
-    x: number,
-    y: number,
+    _x: number,
+    _y: number,
     overlappingOverlayItems: OverlayItem[],
+    _activeItem: HocrSibling | null,
     betweenOverlayItems: [HocrSibling | null, HocrSibling | null],
+    betweenOverlaySubItems: [HocrSibling | null, HocrSibling | null],
 ) {
   overTarget.value = null;
   betweenTargets.value = betweenOverlayItems
+  betweenSubTargets.value = betweenOverlaySubItems
+  console.log(betweenOverlaySubItems.map(i => i?.id))
 
   for(const item of overlappingOverlayItems) {
     if (item.level == ocrTool.value) {
@@ -139,28 +150,12 @@ function pageInteractionUpdate(
   //console.log('Page interaction update', x, y, overlappingOverlayItems);
 }
 
-async function testEditPage(page: Page | null): Promise<void> {
-  if (!page) {
-    return
-  }
-
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/test-edit`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({page}),
-    });
-    if (resp.ok) {
-      const data = await resp.json() as { success: boolean };
-      if (data.success) {
-        alert('Page edited successfully!');
-      } else {
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
+// async function testEditPage(page: Page | null): Promise<void> {
+//   const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/test-edit`, {
+//     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
+//   });
+//   if (resp.ok && (await resp.json() as { success: boolean }).success) alert('Page edited!');
+// }
 
 async function loadHocrPage(page: Page | null): Promise<void> {
   if (!page) {
@@ -176,31 +171,20 @@ async function loadHocrPage(page: Page | null): Promise<void> {
   }
 }
 
-window.addEventListener('keydown', refreshOperationalMode);
-window.addEventListener('keyup', refreshOperationalMode);
-
-function refreshOperationalMode(event: MouseEvent | KeyboardEvent) {
-  if (event.altKey) {
-    setOcrMode('remove');
-    return;
-  }
-
-  if (event.ctrlKey) {
-    return;
-  }
-
-  if (event.metaKey) {
-    return;
-  }
-
-  if (event.shiftKey) {
-    console.log(betweenTargets.value)
-    if(betweenTargets.value[0] && betweenTargets.value[1]) {
-      setOcrMode('join')
-    }
-    return;
-  }
-
-  setOcrMode('select');
+function updateModifiers(e: KeyboardEvent) {
+  shiftDown.value = e.shiftKey;
+  altDown.value   = e.altKey;
+  metaDown.value  = e.metaKey;
+  ctrlDown.value  = e.ctrlKey;
 }
+
+onMounted(() => {
+  window.addEventListener('keydown', updateModifiers);
+  window.addEventListener('keyup',   updateModifiers);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', updateModifiers);
+  window.removeEventListener('keyup',   updateModifiers);
+});
 </script>

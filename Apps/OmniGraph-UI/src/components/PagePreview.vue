@@ -77,7 +77,8 @@ import {
   type OverlayRole,
   type Page,
   type PageInteractionUpdate,
-  type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor
+  type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
+  type HocrSibling
 } from '../types';
 import {makeVariedPalette} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
@@ -246,6 +247,10 @@ function updatePointerAction(event: MouseEvent) {
           bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === props.hocrLevel
       );
 
+      let active : HocrSibling | null = null;
+      if (overlappingOverlayItems.length == 1)
+        active = findItem(page, overlappingOverlayItems[0].id);
+
       let siblings : (HocrCarea | HocrBlock | HocrLine | HocrWord)[] = []
 
       // If in block, line or word mode, we should search inside the parent item.
@@ -267,18 +272,29 @@ function updatePointerAction(event: MouseEvent) {
         siblings = hocrPage.value.careas;
       }
 
-      let betweenOverlayItems = findSiblingsAroundCursor(
+      let betweenSiblings = findSiblingsAroundCursor(
           siblings,
           pagePoint.x,
           pagePoint.y,
           8,
       );
 
+      let childrenElements = active? getChildren(active): [];
+
+      let betweenSubSiblings = findSiblingsAroundCursor(
+          childrenElements,
+          pagePoint.x,
+          pagePoint.y,
+          8,
+      )
+
       props.interactionUpdate(
           pagePoint.x,
           pagePoint.y,
           overlappingOverlayItems,
-          betweenOverlayItems,
+          active,
+          betweenSiblings,
+          betweenSubSiblings,
       );
 
     }

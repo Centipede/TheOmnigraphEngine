@@ -15,7 +15,9 @@ export type PageInteractionUpdate = (
     x: number,
     y: number,
     overlappingOverlayItems: OverlayItem[],
+    activeItem: HocrSibling | null,
     betweenOverlayItems: [HocrSibling | null, HocrSibling | null],
+    betweenOverlaySubItems: [HocrSibling | null, HocrSibling | null],
 ) => void;
 
 export interface PointerSettings {

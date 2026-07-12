@@ -110,5 +110,16 @@ export function findSiblingsAroundCursor(
         }
     }
 
+
+    if(above && below) {
+        const aboveIndex = siblings.indexOf(above);
+        const belowIndex = siblings.indexOf(below);
+        const adjacentInInput = Math.abs(aboveIndex - belowIndex) === 1;
+
+        if (! adjacentInInput)
+            return [null, null]
+    }
+
+
     return [above, below];
 }
