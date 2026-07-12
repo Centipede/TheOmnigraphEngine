@@ -33,6 +33,16 @@ pub async fn carea_split(
     Json(_payload): Json<SplitRequest>,
 ) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
 
+pub async fn carea_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
 pub async fn carea_remove(
     State(_state): State<AppState>,
     Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
@@ -52,6 +62,16 @@ pub async fn block_split(
     Json(_payload): Json<SplitRequest>,
 ) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
 
+pub async fn block_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn block_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
 pub async fn block_remove(
     State(_state): State<AppState>,
     Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
@@ -65,6 +85,16 @@ pub async fn line_merge(
     Json(_payload): Json<MergeRequest>,
 ) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
 
+pub async fn line_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn line_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
 pub async fn line_remove(
     State(_state): State<AppState>,
     Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
@@ -76,6 +106,16 @@ pub async fn word_merge(
     State(_state): State<AppState>,
     Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
     Json(_payload): Json<MergeRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn word_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn word_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
 ) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
 
 pub async fn word_remove(

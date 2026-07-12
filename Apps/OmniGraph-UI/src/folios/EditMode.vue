@@ -62,6 +62,7 @@ const ocrTool:Ref<OcrTool> = ref('none');
 const ocrMode:Ref<OcrMode> = ref('select');
 
 const overTarget = ref<string | null>(null);
+const selectedTarget = ref<string | null>(null);
 const betweenTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
 const betweenSubTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
 
@@ -155,28 +156,53 @@ const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
 };
 
-async function pageInteractionClick(): Promise<void> {
+async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
   const level = ocrTool.value;
+  if (!stem || level === 'none') return;
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[level]}/${id}/${action}`;
+  await fetch(url, body
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : { method: 'POST' });
+}
+
+async function pageInteractionClick(): Promise<void> {
   const mode = effectiveOcrMode.value;
-  if (!stem || level === 'none' || mode === 'none' || mode === 'select') return;
+  if (ocrTool.value === 'none' || mode === 'none') return;
 
-  const seg = LEVEL_SEGMENT[level];
-  const base = `/api/projects/${props.machineName}/pages/${stem}/hocr/${seg}`;
-  const json = (body: object) => ({
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
+  if (mode === 'select') {
+    selectedTarget.value = overTarget.value;
+    return;
+  }
   if (mode === 'remove' && overTarget.value) {
-    await fetch(`${base}/${overTarget.value}/remove`, { method: 'POST' });
+    await callHocrEndpoint(overTarget.value, 'remove');
+    if (selectedTarget.value === overTarget.value) selectedTarget.value = null;
   } else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
-    await fetch(`${base}/${betweenTargets.value[0].id}/merge`,
-        json({ other_id: betweenTargets.value[1].id }));
+    await callHocrEndpoint(betweenTargets.value[0].id, 'merge', { other_id: betweenTargets.value[1].id });
   } else if (mode === 'split' && overTarget.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
-    await fetch(`${base}/${overTarget.value}/split`,
-        json({ before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id }));
+    await callHocrEndpoint(overTarget.value, 'split',
+        { before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id });
+  }
+}
+
+function isTypingTarget(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable;
+}
+
+async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
+  if (!selectedTarget.value || isTypingTarget()) return;
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    await callHocrEndpoint(selectedTarget.value, 'move-up');
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    await callHocrEndpoint(selectedTarget.value, 'move-down');
+  } else if (e.key === 'Backspace' || e.key === 'Delete') {
+    e.preventDefault();
+    await callHocrEndpoint(selectedTarget.value, 'remove');
+    selectedTarget.value = null;
   }
 }
 
@@ -213,10 +239,12 @@ function updateModifiers(e: KeyboardEvent) {
 onMounted(() => {
   window.addEventListener('keydown', updateModifiers);
   window.addEventListener('keyup',   updateModifiers);
+  window.addEventListener('keydown', handleKeyboardAction);
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', updateModifiers);
   window.removeEventListener('keyup',   updateModifiers);
+  window.removeEventListener('keydown', handleKeyboardAction);
 });
 </script>
