@@ -6,6 +6,122 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use crate::hocr_editor::prepare_hocr_for_edit;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct MergeRequest {
+    pub other_id: String,
+}
+
+#[derive(Deserialize)]
+pub struct SplitRequest {
+    pub before_id: String,
+    pub after_id: String,
+}
+
+// ── CAREA ────────────────────────────────────────────────────────────
+
+pub async fn carea_merge(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MergeRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_split(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<SplitRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_remove(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+// ── BLOCK ────────────────────────────────────────────────────────────
+
+pub async fn block_merge(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MergeRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn block_split(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<SplitRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn block_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn block_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn block_remove(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+// ── LINE ─────────────────────────────────────────────────────────────
+
+pub async fn line_merge(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MergeRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn line_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn line_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn line_remove(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+// ── WORD ─────────────────────────────────────────────────────────────
+
+pub async fn word_merge(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MergeRequest>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn word_move_up(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn word_move_down(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn word_remove(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
 
 pub async fn parse_page(
     State(state): State<AppState>,

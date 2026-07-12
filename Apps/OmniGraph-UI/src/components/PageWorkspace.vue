@@ -63,7 +63,7 @@
                 :edge="stripEdge ?? 'all'"
                 :thumbBaseUrl="thumbBaseUrl"
                 :fraction="stripFraction ?? 1"
-                :showOverlay="showCropOverlay ?? mode === 'crop'"
+                :showOverlay="showCropOverlay ?? false"
                 :crop="pageCrops?.get(page.index) ?? page.crop_edges"
                 :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
                 :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
@@ -94,13 +94,14 @@
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!panels['page-strips']"
             :show-page-preview="!panels['page-preview']"
+            :pointer-settings="pointerSettings"
         >
           <PagePreview
               v-if="currentPage && currentPageCrop"
               :page="currentPage"
               :image-base-url="scanBaseUrl"
               :crop="currentPageCrop"
-              :show-crop-overlay="showCropOverlay ?? mode === 'crop'"
+              :show-crop-overlay="showCropOverlay ?? false"
               :crop-color="cropColor ?? 'rgba(0, 180, 0, 0.12)'"
               :discard-color="discardColor ?? 'rgba(220, 0, 0, 0.28)'"
               :hocr-level="hocrLevel"
@@ -108,6 +109,9 @@
               :block-overlay-color="blockOverlayColor"
               :line-overlay-color="lineOverlayColor"
               :word-overlay-color="wordOverlayColor"
+              :pointer-settings="pointerSettings"
+              :interaction-update="pageInteractionUpdate"
+              :interaction-click="pageInteractionClick"
           />
         </slot>
       </div>
@@ -194,7 +198,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
-import type {CropEdges, Page, PageDb} from '../types';
+import type {CropEdges, HocrOverlayLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -226,8 +230,6 @@ type PageWorkspaceKeyboardHandler = (
     context: PageWorkspaceKeyboardContext,
 ) => boolean | void;
 
-type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
-
 const props = withDefaults(defineProps<{
       machineName: string;
       projectName: string,
@@ -247,7 +249,10 @@ const props = withDefaults(defineProps<{
       blockOverlayColor?: string;
       lineOverlayColor?: string;
       wordOverlayColor?: string;
+      pointerSettings?: PointerSettings;
       panels: PanelVisibility;
+      pageInteractionUpdate?: PageInteractionUpdate;
+      pageInteractionClick?: () => void;
     }>(), {
       canPagesBeFiltered: true,
     }
@@ -262,12 +267,8 @@ const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
-const mode = ref('crop');
 const filterMode = ref('all')
 const effectiveFilterMode = computed(() => canPagesBeFiltered.value ? filterMode.value : 'all');
-
-// ── Workspace pane visibility ────────────────────────────────────────
-
 
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);

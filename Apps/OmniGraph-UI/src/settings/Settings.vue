@@ -178,7 +178,6 @@ async function fetchServiceStatus(): Promise<void> {
       const data = await resp.json() as ServiceStatus;
       settingsStatus.ocr_server_1_status = data.server_1;
       settingsStatus.ocr_server_2_status = data.server_2;
-      console.log(data)
     }
   } catch (e) {
     console.error('Failed to fetch hOCR status:', e);

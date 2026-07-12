@@ -1,30 +1,59 @@
 <template>
   <div class="page-preview">
-    <div class="page-preview-image-frame">
-      <div class="page-preview-image-wrap">
-        <img
-            :src="src"
-            class="page-preview-image"
-            :alt="label"
-            :title="label"
-        />
-
-        <template v-if="showCropOverlay && crop">
-          <div class="preview-discard" :style="topDiscardStyle"/>
-          <div class="preview-discard" :style="bottomDiscardStyle"/>
-          <div class="preview-discard" :style="leftDiscardStyle"/>
-          <div class="preview-discard" :style="rightDiscardStyle"/>
-          <div class="preview-crop-area" :style="cropAreaStyle"/>
-        </template>
-
+    <div
+        class="interactive-area"
+        :class="pointerVisible ? 'cursor-mode-off' : ''"
+        @mousemove="updatePointerAction"
+        @mouseenter="pointerVisible = true"
+        @mouseleave="pointerVisible = false"
+        @click="performPendingAction"
+    >
+      <!-- page / overlays / workspace content -->
+      <div
+          ref="imageFrameRef"
+          class="page-preview-image-frame"
+      >
         <div
-            v-for="item in overlayItems"
-            :key="item.id"
-            class="hocr-overlay"
-            :class="`hocr-overlay--${item.role}`"
-            :style="overlayItemStyle(item)"
-        />
+            ref="imageWrapRef"
+            class="page-preview-image-wrap"
+        >
+          <img id="scan-image"
+               :src="src"
+               class="page-preview-image"
+               :alt="label"
+               :title="label"
+          />
+
+          <template v-if="showCropOverlay && crop">
+            <div class="preview-discard" :style="topDiscardStyle"/>
+            <div class="preview-discard" :style="bottomDiscardStyle"/>
+            <div class="preview-discard" :style="leftDiscardStyle"/>
+            <div class="preview-discard" :style="rightDiscardStyle"/>
+            <div class="preview-crop-area" :style="cropAreaStyle"/>
+          </template>
+
+          <div id="hocr-overlay-items"
+               v-for="item in overlayItems"
+               :key="item.id"
+               class="hocr-overlay"
+               :class="`hocr-overlay--${item.role}`"
+               :style="overlayItemStyle(item)"
+          />
+
+
+        </div>
+
       </div>
+
+      <CustomPointer
+          :visible="pointerVisible"
+          :enabled="pointerSettings?.enabled ?? true"
+          :x="pointerX"
+          :y="pointerY"
+          :color="pointerSettings?.color ?? '#000000'"
+          :icon="pointerSettings?.icon ?? ''"
+          :label="pointerSettings?.label ?? ''"
+      />
     </div>
 
     <div class="page-preview-info">
@@ -35,18 +64,25 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject, type Ref} from 'vue';
-import type {CropEdges, HocrBbox, HocrPage, Page} from '../types';
+import {computed, inject, ref, type Ref} from 'vue';
+import {
+  type CropEdges,
+  findItem,
+  getChildren,
+  getParentLevel,
+  bboxContainsPoint,
+  type HocrOverlayLevel,
+  type HocrPage,
+  type OverlayItem,
+  type OverlayRole,
+  type Page,
+  type PageInteractionUpdate,
+  type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
+  type HocrSibling
+} from '../types';
 import {makeVariedPalette} from '../utils/colors';
-type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
-type OverlayRole = 'parent' | 'active' | 'child';
+import CustomPointer from "./CustomPointer.vue";
 
-interface OverlayItem {
-  id: string;
-  bbox: HocrBbox;
-  role: OverlayRole;
-  color: string;
-}
 
 const LEVELS: HocrOverlayLevel[] = ['carea', 'block', 'line', 'word'];
 
@@ -62,6 +98,9 @@ const props = withDefaults(defineProps<{
   blockOverlayColor?: string;
   lineOverlayColor?: string;
   wordOverlayColor?: string;
+  pointerSettings?: PointerSettings;
+  interactionUpdate?: PageInteractionUpdate;
+  interactionClick?: () => void;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
@@ -78,6 +117,13 @@ const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
 
+const imageFrameRef = ref<HTMLElement | null>(null);
+const imageWrapRef = ref<HTMLElement | null>(null);
+
+const pointerVisible = ref(false);
+const pointerX = ref(0);
+const pointerY = ref(0);
+
 const colorByLevel = computed(() => [
   props.careaOverlayColor!,
   props.blockOverlayColor!,
@@ -92,8 +138,14 @@ const overlayItems = computed((): OverlayItem[] => {
   const activeIdx = LEVELS.indexOf(props.hocrLevel);
   const colors = colorByLevel.value;
   const colorVars = colors.map(color => makeVariedPalette(color));
-  console.log(colorVars);
   const items: OverlayItem[] = [];
+
+  function colorFor(levelIdx: number, n: number, role: OverlayRole): string {
+    if (role == 'child')
+      return colorVars[levelIdx][n % 8];
+    else
+      return colorByLevel.value[levelIdx];
+  }
 
   function roleFor(levelIdx: number): OverlayRole | null {
     const d = levelIdx - activeIdx;
@@ -105,19 +157,19 @@ const overlayItems = computed((): OverlayItem[] => {
 
   for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(0);
-    if (cr) items.push({id: carea.id, bbox: carea.bbox, role: cr, color: colorVars[0][i%8]});
+    if (cr) items.push({id: carea.id, level: 'carea', bbox: carea.bbox, role: cr, color: colorFor(0, i, cr)});
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(1);
-      if (br) items.push({id: block.id, bbox: block.bbox, role: br, color: colorVars[1][j%8]});
+      if (br) items.push({id: block.id, level: 'block', bbox: block.bbox, role: br, color: colorFor(1, j, br)});
 
       for (const [k, line] of block.lines.entries()) {
         const lr = roleFor(2);
-        if (lr) items.push({id: line.id, bbox: line.bbox, role: lr, color: colorVars[2][k%8]});
+        if (lr) items.push({id: line.id, level: 'line', bbox: line.bbox, role: lr, color: colorFor(2, k, lr)});
 
         for (const [l, word] of line.words.entries()) {
           const wr = roleFor(3);
-          if (wr) items.push({id: word.id, bbox: word.bbox, role: wr, color: colorVars[3][l%8]});
+          if (wr) items.push({id: word.id, level: 'word', bbox: word.bbox, role: wr, color: colorFor(3, l, wr)});
         }
       }
     }
@@ -179,6 +231,118 @@ const rightDiscardStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
+function updatePointerAction(event: MouseEvent) {
+  if(hocrPage === undefined || hocrPage.value === null)
+    return;
+
+  const page:HocrPage = hocrPage.value
+
+  pointerX.value = event.clientX;
+  pointerY.value = event.clientY;
+
+  if (props.interactionUpdate) {
+    const pagePoint = getScanPointForEvent(event);
+
+    if (pagePoint) {
+      const overlappingOverlayItems = overlayItems.value.filter(item =>
+          bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === props.hocrLevel
+      );
+
+      let active : HocrSibling | null = null;
+      if (overlappingOverlayItems.length == 1)
+        active = findItem(page, overlappingOverlayItems[0].id);
+
+      let siblings : (HocrCarea | HocrBlock | HocrLine | HocrWord)[] = []
+
+      // If in block, line or word mode, we should search inside the parent item.
+      if (props.hocrLevel != null && props.hocrLevel !== 'carea') {
+
+        const parentLevel = getParentLevel(props.hocrLevel);
+        const inWhichParent = overlayItems.value.filter(item =>
+            bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === parentLevel
+        );
+
+        if (inWhichParent.length > 0) {
+          const parent = findItem(page, inWhichParent[0].id);
+          if(parent) {
+            siblings = getChildren(parent);
+          }
+        }
+      }
+      else {
+        siblings = hocrPage.value.careas;
+      }
+
+      let betweenSiblings = findSiblingsAroundCursor(
+          siblings,
+          pagePoint.x,
+          pagePoint.y,
+          8,
+      );
+
+      let childrenElements = active? getChildren(active): [];
+
+      let betweenSubSiblings = findSiblingsAroundCursor(
+          childrenElements,
+          pagePoint.x,
+          pagePoint.y,
+          8,
+      )
+
+      props.interactionUpdate(
+          pagePoint.x,
+          pagePoint.y,
+          overlappingOverlayItems,
+          active,
+          betweenSiblings,
+          betweenSubSiblings,
+      );
+
+    }
+  }
+
+  //refreshPendingClickState(event);
+}
+
+
+function performPendingAction() {
+  props.interactionClick?.();
+}
+
+function getScanPointForEvent(event: MouseEvent): { x: number; y: number } | null {
+  const imageWrap = imageWrapRef.value;
+  const imageFrame = imageFrameRef.value;
+
+  if (!imageWrap || !imageFrame) return null;
+
+  const frameRect = imageFrame.getBoundingClientRect();
+
+  const clientX = clamp(event.clientX, frameRect.left, frameRect.right);
+  const clientY = clamp(event.clientY, frameRect.top, frameRect.bottom);
+
+  const imageRect = imageWrap.getBoundingClientRect();
+
+  const imageX = clamp(clientX - imageRect.left, 0, imageRect.width);
+  const imageY = clamp(clientY - imageRect.top, 0, imageRect.height);
+
+  const scanX = imageRect.width > 0
+      ? Math.round((imageX / imageRect.width) * props.page.scan_width)
+      : 0;
+
+  const scanY = imageRect.height > 0
+      ? Math.round((imageY / imageRect.height) * props.page.scan_height)
+      : 0;
+
+  return {
+    x: clamp(scanX, 0, props.page.scan_width),
+    y: clamp(scanY, 0, props.page.scan_height),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 function scanXPct(value: number): string {
   return props.page.scan_width > 0
       ? `${(value / props.page.scan_width) * 100}%`
@@ -200,13 +364,23 @@ function overlayItemStyle(item: OverlayItem) {
     width: scanXPct(r - l),
     height: scanYPct(b - t),
     '--hocr-color': item.color,
-    background: item.role === 'parent' ? 'transparent' : item.color,
+    background: item.role !== 'active' ? 'transparent' : item.color,
   };
 }
+
 
 </script>
 
 <style scoped>
+
+.interactive-area {
+  position: relative;
+}
+
+.cursor-mode-off {
+  cursor: none;
+}
+
 .page-preview {
   min-width: 0;
   min-height: 0;
@@ -285,18 +459,19 @@ function overlayItemStyle(item: OverlayItem) {
 
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active {
-  pointer-events: none;
   outline: 2px solid var(--hocr-color);
+  opacity: 0.25;
 }
 
 /* N+1: children — lighter fill, thin outline, selectable */
 .hocr-overlay--child {
-  pointer-events: auto;
-  cursor: pointer;
+  pointer-events: none;
   outline: 1px solid var(--hocr-color);
   outline-offset: -0.2rem;
-  opacity: 0.75;
+  opacity: 0.35;
+  transition: opacity 120ms ease;
 }
+
 
 img {
   -webkit-user-select: none;
