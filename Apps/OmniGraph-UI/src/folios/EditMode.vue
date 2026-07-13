@@ -16,6 +16,26 @@
   >
     <template #tools>
 
+      <div class="ocr-info-panel">
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Mode</span>
+          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
+        </div>
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Target</span>
+          <span class="ocr-info-value">{{ ocrTool }}</span>
+        </div>
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Keys</span>
+          <span class="ocr-info-value">Shift join/split · Alt remove</span>
+        </div>
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Selected</span>
+          <span class="ocr-info-value"><template v-if="selectedTarget">{{ selectedTarget?.id }} ({{ selectedTarget?.level }})"></template></span>
+        </div>
+      </div>
+
+
       <sl-button-group >
         <sl-button :variant="ocrMode==='none' ? 'primary' : 'default'" size="small"  @click="setOcrMode('none')">None</sl-button>
         <sl-button :variant="ocrMode==='select' ? 'primary' : 'default'" size="small"  @click="setOcrMode('select')">Select</sl-button>
@@ -41,7 +61,7 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import type {PanelVisibility, Page, OverlayItem, HocrSibling} from '../types';
+import {type PanelVisibility, type Page, type OverlayItem, type HocrNode, findItem} from '../types';
 import type {HocrPage} from '../types/hocr';
 
 const props = defineProps<{
@@ -61,10 +81,11 @@ type OcrMode = 'none' | 'select' | 'join' | 'split' | 'remove';
 const ocrTool:Ref<OcrTool> = ref('none');
 const ocrMode:Ref<OcrMode> = ref('select');
 
-const overTarget = ref<string | null>(null);
-const selectedTarget = ref<string | null>(null);
-const betweenTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
-const betweenSubTargets = ref<[HocrSibling | null, HocrSibling | null]>([null, null]);
+const overItemId = ref<string | null>(null);
+const selectedItemId = ref<string | null>(null);
+const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
+const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
+const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 
 // ── Modifier key state ───────────────────────────────────────────────
 const shiftDown = ref(false);
@@ -117,7 +138,7 @@ const pointerIcon = computed(() => {
 const pointerEnabled = computed(() => {
   switch (effectiveOcrMode.value) {
     case 'select':
-    case 'remove': return overTarget.value !== null;
+    case 'remove': return overItemId.value !== null;
     case 'join':   return betweenTargets.value[0] !== null && betweenTargets.value[1] !== null;
     case 'split':  return betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null;
     default:       return false;
@@ -137,17 +158,17 @@ function pageInteractionUpdate(
     _x: number,
     _y: number,
     overlappingOverlayItems: OverlayItem[],
-    _activeItem: HocrSibling | null,
-    betweenOverlayItems: [HocrSibling | null, HocrSibling | null],
-    betweenOverlaySubItems: [HocrSibling | null, HocrSibling | null],
+    _activeItem: HocrNode | null,
+    betweenOverlayItems: [HocrNode | null, HocrNode | null],
+    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
 ) {
-  overTarget.value = null;
+  overItemId.value = null;
   betweenTargets.value = betweenOverlayItems;
   betweenSubTargets.value = betweenOverlaySubItems;
 
   for (const item of overlappingOverlayItems) {
     if (item.level === ocrTool.value) {
-      overTarget.value = item.id;
+      overItemId.value = item.id;
     }
   }
 }
@@ -171,16 +192,16 @@ async function pageInteractionClick(): Promise<void> {
   if (ocrTool.value === 'none' || mode === 'none') return;
 
   if (mode === 'select') {
-    selectedTarget.value = overTarget.value;
+    selectedItemId.value = overItemId.value;
     return;
   }
-  if (mode === 'remove' && overTarget.value) {
-    await callHocrEndpoint(overTarget.value, 'remove');
-    if (selectedTarget.value === overTarget.value) selectedTarget.value = null;
+  if (mode === 'remove' && overItemId.value) {
+    await callHocrEndpoint(overItemId.value, 'remove');
+    if (selectedItemId.value === overItemId.value) selectedItemId.value = null;
   } else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
     await callHocrEndpoint(betweenTargets.value[0].id, 'merge', { other_id: betweenTargets.value[1].id });
-  } else if (mode === 'split' && overTarget.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
-    await callHocrEndpoint(overTarget.value, 'split',
+  } else if (mode === 'split' && overItemId.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
+    await callHocrEndpoint(overItemId.value, 'split',
         { before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id });
   }
 }
@@ -192,17 +213,17 @@ function isTypingTarget(): boolean {
 }
 
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
-  if (!selectedTarget.value || isTypingTarget()) return;
+  if (!selectedItemId.value || isTypingTarget()) return;
   if (e.key === 'ArrowUp') {
     e.preventDefault();
-    await callHocrEndpoint(selectedTarget.value, 'move-up');
+    await callHocrEndpoint(selectedItemId.value, 'move-up');
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    await callHocrEndpoint(selectedTarget.value, 'move-down');
+    await callHocrEndpoint(selectedItemId.value, 'move-down');
   } else if (e.key === 'Backspace' || e.key === 'Delete') {
     e.preventDefault();
-    await callHocrEndpoint(selectedTarget.value, 'remove');
-    selectedTarget.value = null;
+    await callHocrEndpoint(selectedItemId.value, 'remove');
+    selectedItemId.value = null;
   }
 }
 
@@ -248,3 +269,40 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyboardAction);
 });
 </script>
+
+<style scoped>
+.ocr-info-panel {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.ocr-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.ocr-info-label {
+  font-weight: 600;
+  color: var(--color-text-muted, #6c757d);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ocr-info-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

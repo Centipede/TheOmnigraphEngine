@@ -1,11 +1,33 @@
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 
+fn page_level() -> String {
+    "page".to_string()
+}
+
+fn carea_level() -> String {
+    "carea".to_string()
+}
+
+fn block_level() -> String {
+    "block".to_string()
+}
+
+fn line_level() -> String {
+    "line".to_string()
+}
+
+fn word_level() -> String {
+    "word".to_string()
+}
+
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
 pub type HocrBbox = [i32; 4];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrWord {
+    #[serde(default = "word_level", skip_deserializing)]
+    pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
     pub text: String,
@@ -14,22 +36,17 @@ pub struct HocrWord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrLine {
+    #[serde(default = "line_level", skip_deserializing)]
+    pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
     pub words: Vec<HocrWord>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HocrTextBlock {
-    pub id: String,
-    pub bbox: HocrBbox,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lang: Option<String>,
-    pub lines: Vec<HocrLine>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrBlock {
+    #[serde(default = "block_level", skip_deserializing)]
+    pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,6 +68,8 @@ pub enum HocrBlockKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrCarea {
+    #[serde(default = "carea_level", skip_deserializing)]
+    pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
     pub blocks: Vec<HocrBlock>,
@@ -58,6 +77,8 @@ pub struct HocrCarea {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrPage {
+    #[serde(default = "page_level", skip_deserializing)]
+    pub level: String,
     pub page_id: String,
     pub bbox: HocrBbox,
     pub careas: Vec<HocrCarea>,
@@ -251,6 +272,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                     let title = word_el.attr("title").unwrap_or("");
                                     let word_bbox = bbox(title)?;
                                     Some(HocrWord {
+                                        level: "word".to_string(),
                                         id: word_el.attr("id").unwrap_or("").to_string(),
                                         bbox: word_bbox,
                                         text: word_el.text().collect::<String>().trim().to_string(),
@@ -259,7 +281,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                 })
                                 .collect();
 
-                            Some(HocrLine { id: line_id, bbox: line_bbox, words })
+                            Some(HocrLine { level: "line".to_string(), id: line_id, bbox: line_bbox, words })
                         })
                         .collect();
 
@@ -268,16 +290,16 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                         .unwrap_or("")
                         .split_whitespace()
                         .find_map(HocrBlockKind::from_class_name)?;
-                    let block = HocrBlock { id: block_id, bbox: block_bbox, lang: block_lang, kind, lines };
+                    let block = HocrBlock { level: "block".to_string(), id: block_id, bbox: block_bbox, lang: block_lang, kind, lines };
 
                     Some(block)
                 }).collect();
 
-            Some(HocrCarea { id: carea_id, bbox: carea_bbox, blocks })
+            Some(HocrCarea { level: "carea".to_string(), id: carea_id, bbox: carea_bbox, blocks })
         })
         .collect();
 
-    Some(HocrPage { page_id, bbox: page_bbox, careas })
+    Some(HocrPage { level: "page".to_string(), page_id, bbox: page_bbox, careas })
 }
 
 fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {

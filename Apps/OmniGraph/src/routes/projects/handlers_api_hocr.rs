@@ -141,6 +141,8 @@ pub async fn parse_page(
         .await
         .unwrap_or(None);
 
+    println!("{:?}", page);
+
     match page {
         Some(p) => Ok(p),
         None => Err(StatusCode::UNPROCESSABLE_ENTITY),

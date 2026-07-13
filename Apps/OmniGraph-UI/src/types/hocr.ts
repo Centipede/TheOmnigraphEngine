@@ -1,7 +1,10 @@
 /** Bounding box in scan pixel coordinates: [l, t, r, b] */
 export type HocrBbox = [number, number, number, number];
 
+export type HocrLevel = 'page' | 'carea' | 'block' | 'line' | 'word';
+
 export interface HocrWord {
+    level: HocrLevel;
     id: string;
     bbox: HocrBbox;
     text: string;
@@ -9,12 +12,14 @@ export interface HocrWord {
 }
 
 export interface HocrLine {
+    level: HocrLevel;
     id: string;
     bbox: HocrBbox;
     words: HocrWord[];
 }
 
 export interface HocrBlock {
+    level: HocrLevel;
     id: string;
     bbox: HocrBbox;
     kind: string;
@@ -23,27 +28,29 @@ export interface HocrBlock {
 }
 
 export interface HocrCarea {
+    level: HocrLevel;
     id: string;
     bbox: HocrBbox;
     blocks: HocrBlock[];
 }
 
 export interface HocrPage {
+    level: HocrLevel;
     page_id: string;
     bbox: HocrBbox;
     careas: HocrCarea[];
 }
 
-export type HocrSibling = HocrCarea | HocrBlock | HocrLine | HocrWord;
+export type HocrNode = HocrCarea | HocrBlock | HocrLine | HocrWord;
 
-export function getChildren(item: HocrSibling): (HocrSibling)[] {
+export function getChildren(item: HocrNode): (HocrNode)[] {
     if ('blocks' in item) return item.blocks;
     if ('lines' in item) return item.lines;
     if ('words' in item) return item.words;
     return [];
 }
 
-export function findItem(page: HocrPage, id: string): HocrSibling | null {
+export function findItem(page: HocrPage, id: string): HocrNode | null {
     for (const carea of page.careas) {
         if (carea.id === id) return carea;
 
@@ -69,13 +76,13 @@ export function bboxContainsPoint(bbox: HocrBbox, x: number, y: number): boolean
 }
 
 export function findSiblingsAroundCursor(
-    siblings: HocrSibling[],
+    siblings: HocrNode[],
     x: number,
     y: number,
     tolerance = 8,
-): [HocrSibling | null, HocrSibling | null] {
-    let above: HocrSibling | null = null;
-    let below: HocrSibling | null = null;
+): [HocrNode | null, HocrNode | null] {
+    let above: HocrNode | null = null;
+    let below: HocrNode | null = null;
 
     let bestAboveBottom = -Infinity;
     let bestBelowTop = Infinity;

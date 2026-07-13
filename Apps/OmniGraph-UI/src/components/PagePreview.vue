@@ -71,20 +71,20 @@ import {
   getChildren,
   getParentLevel,
   bboxContainsPoint,
-  type HocrOverlayLevel,
+  type HocrLevel,
   type HocrPage,
   type OverlayItem,
   type OverlayRole,
   type Page,
   type PageInteractionUpdate,
   type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
-  type HocrSibling
+  type HocrNode
 } from '../types';
 import {makeVariedPalette} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
 
 
-const LEVELS: HocrOverlayLevel[] = ['carea', 'block', 'line', 'word'];
+const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
 const props = withDefaults(defineProps<{
   page: Page;
@@ -93,7 +93,7 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
-  hocrLevel?: HocrOverlayLevel | null;
+  hocrLevel?: HocrLevel | null;
   careaOverlayColor?: string;
   blockOverlayColor?: string;
   lineOverlayColor?: string;
@@ -248,7 +248,7 @@ function updatePointerAction(event: MouseEvent) {
           bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === props.hocrLevel
       );
 
-      let active : HocrSibling | null = null;
+      let active : HocrNode | null = null;
       if (overlappingOverlayItems.length == 1)
         active = findItem(page, overlappingOverlayItems[0].id);
 

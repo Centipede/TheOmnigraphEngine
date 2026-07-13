@@ -198,7 +198,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
-import type {CropEdges, HocrOverlayLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
+import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -244,7 +244,7 @@ const props = withDefaults(defineProps<{
       showCropOverlay?: boolean;
       cropColor?: string;
       discardColor?: string;
-      hocrLevel?: HocrOverlayLevel | null;
+      hocrLevel?: HocrLevel | null;
       careaOverlayColor?: string;
       blockOverlayColor?: string;
       lineOverlayColor?: string;
