@@ -14,7 +14,7 @@
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
   >
-    <template #tools>
+    <template #tools="{ currentPage }">
 
       <div class="ocr-info-panel">
         <div class="ocr-info-row">
@@ -31,9 +31,12 @@
         </div>
         <div class="ocr-info-row">
           <span class="ocr-info-label">Selected</span>
-          <span class="ocr-info-value"><template v-if="selectedTarget">{{ selectedTarget?.id }} ({{ selectedTarget?.level }})"></template></span>
+          <span class="ocr-info-value">
+            <template v-if="selectedTarget">{{ selectedTarget?.id }} ({{ selectedTarget?.level }})</template></span>
         </div>
       </div>
+
+      <sl-button @click="restoreFromOriginal(currentPage)">Restore</sl-button>
 
 
       <sl-button-group >
@@ -96,7 +99,7 @@ const ctrlDown  = ref(false);
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 const effectiveOcrMode = computed<OcrMode>(() => {
   if (ocrTool.value === 'none') return 'none';
-  if (altDown.value) return 'remove';
+  if (ctrlDown.value) return 'remove';
   if (shiftDown.value) {
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
     if (betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null) return 'split';
@@ -153,7 +156,6 @@ function setOcrTool(tool: OcrTool) {
   ocrTool.value = tool;
 }
 
-
 function pageInteractionUpdate(
     _x: number,
     _y: number,
@@ -182,12 +184,17 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
   const level = ocrTool.value;
   if (!stem || level === 'none') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[level]}/${id}/${action}`;
-  await fetch(url, body
+  const resp = await fetch(url, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       : { method: 'POST' });
+
+  if (resp.ok) {
+    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+  }
 }
 
 async function pageInteractionClick(): Promise<void> {
+  console.log('pageInteractionClick', ocrTool.value, effectiveOcrMode.value);
   const mode = effectiveOcrMode.value;
   if (ocrTool.value === 'none' || mode === 'none') return;
 
@@ -227,12 +234,17 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   }
 }
 
-// async function testEditPage(page: Page | null): Promise<void> {
-//   const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/test-edit`, {
-//     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
-//   });
-//   if (resp.ok && (await resp.json() as { success: boolean }).success) alert('Page edited!');
-// }
+async function restoreFromOriginal(page: Page | null): Promise<void> {
+  if(! page) {
+    return;
+  }
+  const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/restore-original`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
+  });
+  if (resp.ok) {
+    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+  }
+}
 
 async function loadHocrPage(page: Page | null): Promise<void> {
   if (!page) {

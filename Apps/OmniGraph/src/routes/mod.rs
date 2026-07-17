@@ -45,7 +45,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages", get(handlers_api::get_project_pagesdb).put(handlers_api::put_project_pagesdb))
         .route("/projects/{machine_name}/pages/hocr-status", get(handlers_api::get_hocr_status))
         .route("/projects/{machine_name}/pages/{stem}/hocr-json", get(handlers_api::get_hocr_json))
-        .route("/projects/{machine_name}/pages/{stem}/test-edit", post(handlers_api_hocr::test_edit_page))
+        .route("/projects/{machine_name}/pages/{stem}/restore-original", post(handlers_api_hocr::restore_from_original))
         .route("/projects/{machine_name}/pages/{stem}/hocr/careas/{id}/merge",     post(handlers_api_hocr::carea_merge))
         .route("/projects/{machine_name}/pages/{stem}/hocr/careas/{id}/split",     post(handlers_api_hocr::carea_split))
         .route("/projects/{machine_name}/pages/{stem}/hocr/careas/{id}/move-up",   post(handlers_api_hocr::carea_move_up))

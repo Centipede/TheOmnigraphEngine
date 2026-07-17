@@ -5,6 +5,7 @@ export type OverlayRole = 'parent' | 'active' | 'child';
 export interface OverlayItem {
     id: string;
     level: HocrLevel;
+    index: number;
     bbox: HocrBbox;
     role: OverlayRole;
     color: string;
