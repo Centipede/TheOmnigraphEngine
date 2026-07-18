@@ -41,13 +41,26 @@
 import PageWorkspace from "../components/PageWorkspace.vue";
 
 import {onMounted, onUnmounted, ref} from 'vue';
-import type {Page, PanelVisibility} from '../types';
+import type {Page} from '../types';
+import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
 }>();
+
+const panels = usePersistentPanels('panels.recognise', {
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+const { setActivePanels } = usePanelVisibilityContext();
 
 // ── hOCR status ──────────────────────────────────────────────────────
 const hocrScanned = ref<Set<string>>(new Set());
@@ -132,6 +145,7 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
 let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
+  setActivePanels(panels);
   await fetchHocrStatus();
   hocrStatusInterval = setInterval(() => {
     void fetchHocrStatus();
@@ -139,6 +153,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  setActivePanels(null);
   if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 </script>

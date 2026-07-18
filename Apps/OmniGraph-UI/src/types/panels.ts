@@ -1,10 +1,12 @@
 export type PanelId =
     | 'page-list'
+    | 'section-structure'
+
     | 'page-strips'
     | 'page-preview'
-    | 'section-structure'
-    | 'ocr-structure'
+
     | 'tools'
+    | 'ocr-structure'
     | 'structural-tree'
     ;
 

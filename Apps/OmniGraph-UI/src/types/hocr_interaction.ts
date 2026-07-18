@@ -1,11 +1,11 @@
-import type {HocrBbox, HocrSibling} from "./hocr.ts";
+import type {HocrBbox, HocrNode, HocrLevel} from "./hocr.ts";
 
-export type HocrOverlayLevel = 'carea' | 'block' | 'line' | 'word';
 export type OverlayRole = 'parent' | 'active' | 'child';
 
 export interface OverlayItem {
     id: string;
-    level: HocrOverlayLevel;
+    level: HocrLevel;
+    index: number;
     bbox: HocrBbox;
     role: OverlayRole;
     color: string;
@@ -15,9 +15,9 @@ export type PageInteractionUpdate = (
     x: number,
     y: number,
     overlappingOverlayItems: OverlayItem[],
-    activeItem: HocrSibling | null,
-    betweenOverlayItems: [HocrSibling | null, HocrSibling | null],
-    betweenOverlaySubItems: [HocrSibling | null, HocrSibling | null],
+    activeItem: HocrNode | null,
+    betweenOverlayItems: [HocrNode | null, HocrNode | null],
+    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
 ) => void;
 
 export interface PointerSettings {
@@ -27,7 +27,7 @@ export interface PointerSettings {
     label: string;
 }
 
-export function getParentLevel(level: HocrOverlayLevel) {
+export function getParentLevel(level: HocrLevel) {
     switch (level) {
         case 'word':
             return 'line';
@@ -35,13 +35,17 @@ export function getParentLevel(level: HocrOverlayLevel) {
             return 'block';
         case 'block':
             return 'carea';
+        case 'carea':
+            return 'page';
         default:
             return null;
     }
 }
 
-export function getChildLevel(level: HocrOverlayLevel) {
+export function getChildLevel(level: HocrLevel) {
     switch (level) {
+        case 'page':
+            return 'carea';
         case 'carea':
             return 'block';
         case 'block':

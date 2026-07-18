@@ -13,7 +13,7 @@
       <!-- Rename tools -->
 
       <div class="form-actions">
-        <sl-button @click="openRenameForm()">Rename</sl-button>
+        <sl-button v-if="selectionInfo!==null" @click="openRenameForm()">Rename</sl-button>
       </div>
 
       <template v-if="showRenameForm">
@@ -36,8 +36,9 @@
 
           <sl-input
               name="page_name"
-              placeholder="Page name"
+              :placeholder="renamePlaceholder"
               clearable
+              :pattern="renamePattern"
               :value="renameForm.pageName"
               @sl-input="renameForm.pageName = ($event.target as HTMLInputElement).value"
           ></sl-input>
@@ -133,16 +134,31 @@
 </template>
 
 <script setup lang="ts">
-import {reactive, ref} from 'vue';
-import type {Page, PanelVisibility} from "../types";
+import {reactive, ref, onMounted, onUnmounted, computed} from 'vue';
+import type {Page} from "../types";
 import PageWorkspace from "../components/PageWorkspace.vue";
-
+import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
 }>();
+
+const panels = usePersistentPanels('panels.ingestor', {
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+const { setActivePanels } = usePanelVisibilityContext();
+
+onMounted(() => setActivePanels(panels));
+onUnmounted(() => setActivePanels(null));
 
 const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 
@@ -160,6 +176,18 @@ const renameForm = reactive<RenameForm>({
   pageName: '',
   scheme: '1' as RenameScheme,
 });
+
+const renamePattern = computed(() => {
+  if(renameForm.scheme === 'T') return '.+';
+  else return '[0-9ivxlcdmIVXLCDM]+';
+})
+
+const renamePlaceholder = computed(() => {
+  if(renameForm.scheme === 'T') return 'E.g.: front, back';
+  else if(renameForm.scheme === 'i') return 'E.g.: i, ivmmc';
+  else if(renameForm.scheme === 'I') return 'E.g.: II, XIII';
+  else return 'E.g.: 1, 13, 100';
+})
 
 function openRenameForm() {
   showRenameForm.value = true;
@@ -190,10 +218,13 @@ function rename(filteredPages: Page[], page_name: string, scheme: 'T' | '1' | 'i
   if(filteredPages.length === 0) return false;
 
   if (scheme === 'i' || scheme === 'I') {
-    const start = parseRoman(page_name);
+    let start = parseRoman(page_name);
 
     if (start === null) {
-      return false;
+      start = parseInt(page_name, 10);
+      if (Number.isNaN(start)) {
+        return false;
+      }
     }
 
     const names = renameToNumbers(filteredPages, start);

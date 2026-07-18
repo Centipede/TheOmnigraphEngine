@@ -11,7 +11,7 @@
         </sl-button>
       </RouterLink>
 
-      <div>
+      <div v-if="panels" class="panel-toggle-group">
         <sl-icon-button
             name="list"
             label="Toggle page selector"
@@ -24,6 +24,9 @@
             :class="{ active: panels['section-structure'] }"
             @click="emit('togglePanel', 'section-structure')"
         />
+
+        <span class="nav-separator" aria-hidden="true"></span>
+
         <sl-icon-button
             name="grid"
             label="Toggle page icons"
@@ -35,6 +38,15 @@
             label="Toggle page preview"
             :class="{ active: panels['page-preview'] }"
             @click="emit('togglePanel', 'page-preview')"
+        />
+
+        <span class="nav-separator" aria-hidden="true"></span>
+
+        <sl-icon-button
+            name="wrench-adjustable"
+            label="Toggle tools"
+            :class="{ active: panels['tools'] }"
+            @click="emit('togglePanel', 'tools')"
         />
         <sl-icon-button
             name="columns-gap"
@@ -175,7 +187,7 @@ import type {PanelVisibility, PanelId} from '../types';
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
+  panels: PanelVisibility | null;
 }>();
 
 const emit = defineEmits<{
@@ -231,10 +243,36 @@ nav {
   font-weight: 600;
 }
 
+.nav-separator {
+  align-self: stretch;
+  width: 1px;
+  margin: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-border, #dee2e6) 18%,
+      var(--color-border, #dee2e6) 82%,
+      transparent
+  );
+}
+
 .nav-start,
 .nav-end {
   display: flex;
   align-items: center;
   gap: 0.25rem;
 }
+
+.panel-toggle-group {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+sl-icon-button.active::part(base) {
+  background: var(--sl-color-primary-200);
+}
+
 </style>

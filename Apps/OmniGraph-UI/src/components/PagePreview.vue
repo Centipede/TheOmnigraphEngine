@@ -4,8 +4,8 @@
         class="interactive-area"
         :class="pointerVisible ? 'cursor-mode-off' : ''"
         @mousemove="updatePointerAction"
-        @mouseenter="pointerVisible = true"
-        @mouseleave="pointerVisible = false"
+        @mouseenter="changePointerState(true)"
+        @mouseleave="changePointerState(false)"
         @click="performPendingAction"
     >
       <!-- page / overlays / workspace content -->
@@ -32,13 +32,18 @@
             <div class="preview-crop-area" :style="cropAreaStyle"/>
           </template>
 
-          <div id="hocr-overlay-items"
-               v-for="item in overlayItems"
+          <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
                :class="`hocr-overlay--${item.role}`"
                :style="overlayItemStyle(item)"
-          />
+
+          >
+            <div class="hocr-overlay-item-info"
+              v-if="item.role === 'active'">
+              {{ item.index }} {{ item.id }}
+            </div>
+          </div>
 
 
         </div>
@@ -71,20 +76,20 @@ import {
   getChildren,
   getParentLevel,
   bboxContainsPoint,
-  type HocrOverlayLevel,
+  type HocrLevel,
   type HocrPage,
   type OverlayItem,
   type OverlayRole,
   type Page,
   type PageInteractionUpdate,
   type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
-  type HocrSibling
+  type HocrNode
 } from '../types';
 import {makeVariedPalette} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
 
 
-const LEVELS: HocrOverlayLevel[] = ['carea', 'block', 'line', 'word'];
+const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
 const props = withDefaults(defineProps<{
   page: Page;
@@ -93,7 +98,7 @@ const props = withDefaults(defineProps<{
   showCropOverlay?: boolean;
   cropColor?: string;
   discardColor?: string;
-  hocrLevel?: HocrOverlayLevel | null;
+  hocrLevel?: HocrLevel | null;
   careaOverlayColor?: string;
   blockOverlayColor?: string;
   lineOverlayColor?: string;
@@ -112,7 +117,7 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
+const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
@@ -156,20 +161,41 @@ const overlayItems = computed((): OverlayItem[] => {
   }
 
   for (const [i, carea] of page.careas.entries()) {
-    const cr = roleFor(0);
-    if (cr) items.push({id: carea.id, level: 'carea', bbox: carea.bbox, role: cr, color: colorFor(0, i, cr)});
+    const cr = roleFor(1);
+    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr)});
 
     for (const [j, block] of carea.blocks.entries()) {
-      const br = roleFor(1);
-      if (br) items.push({id: block.id, level: 'block', bbox: block.bbox, role: br, color: colorFor(1, j, br)});
+      const br = roleFor(2);
+      if (br) items.push({
+        id: block.id,
+        level: 'block',
+        index: j,
+        bbox: block.bbox,
+        role: br,
+        color: colorFor(1, j, br)
+      });
 
       for (const [k, line] of block.lines.entries()) {
-        const lr = roleFor(2);
-        if (lr) items.push({id: line.id, level: 'line', bbox: line.bbox, role: lr, color: colorFor(2, k, lr)});
+        const lr = roleFor(3);
+        if (lr) items.push({
+          id: line.id,
+          level: 'line',
+          index: k,
+          bbox: line.bbox,
+          role: lr,
+          color: colorFor(2, k, lr)
+        });
 
         for (const [l, word] of line.words.entries()) {
-          const wr = roleFor(3);
-          if (wr) items.push({id: word.id, level: 'word', bbox: word.bbox, role: wr, color: colorFor(3, l, wr)});
+          const wr = roleFor(4);
+          if (wr) items.push({
+            id: word.id,
+            level: 'word',
+            index: l,
+            bbox: word.bbox,
+            role: wr,
+            color: colorFor(3, l, wr)
+          });
         }
       }
     }
@@ -231,11 +257,15 @@ const rightDiscardStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
+function changePointerState(inside: boolean) {
+  pointerVisible.value = props.pointerSettings ? inside : false;
+}
+
 function updatePointerAction(event: MouseEvent) {
-  if(hocrPage === undefined || hocrPage.value === null)
+  if (hocrPage === undefined || hocrPage.value === null)
     return;
 
-  const page:HocrPage = hocrPage.value
+  const page: HocrPage = hocrPage.value
 
   pointerX.value = event.clientX;
   pointerY.value = event.clientY;
@@ -248,11 +278,11 @@ function updatePointerAction(event: MouseEvent) {
           bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === props.hocrLevel
       );
 
-      let active : HocrSibling | null = null;
+      let active: HocrNode | null = null;
       if (overlappingOverlayItems.length == 1)
         active = findItem(page, overlappingOverlayItems[0].id);
 
-      let siblings : (HocrCarea | HocrBlock | HocrLine | HocrWord)[] = []
+      let siblings: (HocrCarea | HocrBlock | HocrLine | HocrWord)[] = []
 
       // If in block, line or word mode, we should search inside the parent item.
       if (props.hocrLevel != null && props.hocrLevel !== 'carea') {
@@ -264,12 +294,11 @@ function updatePointerAction(event: MouseEvent) {
 
         if (inWhichParent.length > 0) {
           const parent = findItem(page, inWhichParent[0].id);
-          if(parent) {
+          if (parent) {
             siblings = getChildren(parent);
           }
         }
-      }
-      else {
+      } else {
         siblings = hocrPage.value.careas;
       }
 
@@ -280,7 +309,7 @@ function updatePointerAction(event: MouseEvent) {
           8,
       );
 
-      let childrenElements = active? getChildren(active): [];
+      let childrenElements = active ? getChildren(active) : [];
 
       let betweenSubSiblings = findSiblingsAroundCursor(
           childrenElements,
@@ -303,7 +332,6 @@ function updatePointerAction(event: MouseEvent) {
 
   //refreshPendingClickState(event);
 }
-
 
 function performPendingAction() {
   props.interactionClick?.();
@@ -449,6 +477,16 @@ function overlayItemStyle(item: OverlayItem) {
   box-sizing: border-box;
 }
 
+.hocr-overlay-item-info {
+  position: absolute;
+  left: -4rem;
+  top: 0;
+  padding: 0.25rem 0.5rem;
+  color: #000;
+  font-size: 0.7rem;
+  text-align: center;
+}
+
 /* N-1: parent context — faint dashed outline, no fill, non-interactive */
 .hocr-overlay--parent {
   pointer-events: none;
@@ -460,7 +498,13 @@ function overlayItemStyle(item: OverlayItem) {
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active {
   outline: 2px solid var(--hocr-color);
-  opacity: 0.25;
+  opacity: 0.15;
+}
+
+
+/* N: active level — solid outline + translucent fill */
+.hocr-overlay--active:hover {
+  opacity: 0.45;
 }
 
 /* N+1: children — lighter fill, thin outline, selectable */

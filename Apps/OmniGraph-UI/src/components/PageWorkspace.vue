@@ -2,10 +2,11 @@
   <div class="three-column-grid">
 
     <!-- Left sidebar -->
-    <div class="workspace-left-sidebar">
+    <div class="workspace-left-sidebar"
+         :class="{ 'workspace-sidebar-hidden': !isLeftSidebarVisible }">
       <div
           class="workspace-page-list-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-list'] : false) }"
       >
         <PageList
             ref="pageListComponentRef"
@@ -23,7 +24,7 @@
       </div>
       <div
           class="workspace-section-outline-pane"
-          :class="{ 'workspace-pane-hidden': !panels['section-structure'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['section-structure'] : false) }"
       >
         <div class="sidebar-lead">Sections</div>
         <SectionOutline/>
@@ -34,7 +35,7 @@
     <div class="workspace-workarea">
       <div
           class="workspace-page-strips-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-strips'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-strips'] : false) }"
           :ref="setStripWorkareaRef"
       >
         <slot
@@ -51,8 +52,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!panels['page-strips']"
-            :show-page-preview="!panels['page-preview']"
+            :show-page-strips="!(panels ? panels['page-strips'] : false)"
+            :show-page-preview="!(panels ? panels['page-preview'] : false)"
         >
           <div class="strip-grid">
             <PageStrip
@@ -76,7 +77,7 @@
 
       <div
           class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-preview'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-preview'] : false) }"
       >
         <slot
             name="page-preview"
@@ -92,8 +93,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!panels['page-strips']"
-            :show-page-preview="!panels['page-preview']"
+            :show-page-strips="!(panels ? panels['page-strips'] : false)"
+            :show-page-preview="!(panels ? panels['page-preview'] : false)"
             :pointer-settings="pointerSettings"
         >
           <PagePreview
@@ -118,8 +119,10 @@
     </div>
 
     <!-- Right sidebar -->
-    <div class="workspace-right-sidebar">
-      <div class="workspace-tools">
+    <div class="workspace-right-sidebar"
+         :class="{ 'workspace-sidebar-hidden': !isRightSidebarVisible }">
+      <div class="workspace-tools"
+           :class="{ 'workspace-pane-hidden': !(panels ? panels['tools'] : false) }">
         <div class="sidebar-lead">Tools</div>
         <div class="sidebar-content">
 
@@ -181,7 +184,7 @@
       </div>
       <div
           class="workspace-hocr-outline-pane"
-          :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['ocr-structure'] : false) }"
       >
         <div class="sidebar-lead">hOCR</div>
         <HocrOutline/>
@@ -198,7 +201,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
-import type {CropEdges, HocrOverlayLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
+import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -244,13 +247,13 @@ const props = withDefaults(defineProps<{
       showCropOverlay?: boolean;
       cropColor?: string;
       discardColor?: string;
-      hocrLevel?: HocrOverlayLevel | null;
+      hocrLevel?: HocrLevel | null;
       careaOverlayColor?: string;
       blockOverlayColor?: string;
       lineOverlayColor?: string;
       wordOverlayColor?: string;
       pointerSettings?: PointerSettings;
-      panels: PanelVisibility;
+      panels: PanelVisibility | null;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
     }>(), {
@@ -265,6 +268,19 @@ const emit = defineEmits<{
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
+
+
+const isPanelVisible = (panelId: keyof PanelVisibility) => {
+  return props.panels ? props.panels[panelId] : false;
+};
+
+const isLeftSidebarVisible = computed(() => {
+  return isPanelVisible('page-list') || isPanelVisible('section-structure');
+});
+
+const isRightSidebarVisible = computed(() => {
+  return isPanelVisible('tools') || isPanelVisible('ocr-structure');
+});
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
 const filterMode = ref('all')
@@ -620,7 +636,6 @@ defineExpose({
   overflow-y: auto;
 }
 
-
 .sidebar-lead {
   font-size: 0.75rem;
   font-weight: 600;
@@ -662,16 +677,17 @@ defineExpose({
 }
 
 .workspace-page-strips-pane {
-  flex: 1 1 auto;
+  flex: 1 1 45%;
   overflow-y: auto;
 }
 
 .workspace-page-preview-pane {
-  flex: 0 0 45%;
+  flex: 1 1 45%;
   border-left: 1px solid var(--color-border, #dee2e6);
 }
 
-.workspace-pane-hidden {
+.workspace-pane-hidden,
+.workspace-sidebar-hidden {
   flex: 0 0 0;
   width: 0;
   min-width: 0;
