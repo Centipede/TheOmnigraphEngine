@@ -272,7 +272,7 @@ nav {
 }
 
 sl-icon-button.active::part(base) {
-  background: #c9e8b6;
+  background: var(--sl-color-primary-200);
 }
 
 </style>

@@ -4,8 +4,8 @@
         class="interactive-area"
         :class="pointerVisible ? 'cursor-mode-off' : ''"
         @mousemove="updatePointerAction"
-        @mouseenter="pointerVisible = true"
-        @mouseleave="pointerVisible = false"
+        @mouseenter="changePointerState(true)"
+        @mouseleave="changePointerState(false)"
         @click="performPendingAction"
     >
       <!-- page / overlays / workspace content -->
@@ -257,6 +257,10 @@ const rightDiscardStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
+function changePointerState(inside: boolean) {
+  pointerVisible.value = props.pointerSettings ? inside : false;
+}
+
 function updatePointerAction(event: MouseEvent) {
   if (hocrPage === undefined || hocrPage.value === null)
     return;
@@ -328,7 +332,6 @@ function updatePointerAction(event: MouseEvent) {
 
   //refreshPendingClickState(event);
 }
-
 
 function performPendingAction() {
   props.interactionClick?.();

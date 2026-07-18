@@ -123,7 +123,7 @@ const effectiveOcrMode = computed<OcrMode>(() => {
 
 const pointerLabel = computed(() => {
   switch (effectiveOcrMode.value) {
-    case 'none':   return '';
+    case 'none':   return 'No action';
     case 'select': return 'Select';
     case 'split':  return 'Split';
     case 'join':   return 'Join';
@@ -133,7 +133,7 @@ const pointerLabel = computed(() => {
 
 const pointerColor = computed(() => {
   switch (effectiveOcrMode.value) {
-    case 'none':   return '';
+    case 'none':   return '#000000';
     case 'select': return '#2563eb';
     case 'split':  return '#f97316';
     case 'join':   return '#16a34a';
@@ -143,7 +143,7 @@ const pointerColor = computed(() => {
 
 const pointerIcon = computed(() => {
   switch (effectiveOcrMode.value) {
-    case 'none':   return '';
+    case 'none':   return 'question-lg';
     case 'select': return 'crosshair';
     case 'split':  return 'view-stacked';
     case 'join':   return 'view-list';
