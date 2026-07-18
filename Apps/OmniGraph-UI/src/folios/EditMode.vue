@@ -27,7 +27,7 @@
         </div>
         <div class="ocr-info-row">
           <span class="ocr-info-label">Keys</span>
-          <span class="ocr-info-value">Shift join/split · Alt remove</span>
+          <span class="ocr-info-value">Shift join/split · {{ isMac ? 'Alt' : 'Ctrl' }} remove</span>
         </div>
         <div class="ocr-info-row">
           <span class="ocr-info-label">Selected</span>
@@ -37,7 +37,6 @@
       </div>
 
       <sl-button @click="restoreFromOriginal(currentPage)">Restore</sl-button>
-
 
       <sl-button-group >
         <sl-button :variant="ocrMode==='none' ? 'primary' : 'default'" size="small"  @click="setOcrMode('none')">None</sl-button>
@@ -95,11 +94,12 @@ const shiftDown = ref(false);
 const altDown   = ref(false);
 const metaDown  = ref(false);
 const ctrlDown  = ref(false);
+const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 const effectiveOcrMode = computed<OcrMode>(() => {
   if (ocrTool.value === 'none') return 'none';
-  if (ctrlDown.value) return 'remove';
+  if (isMac ? altDown.value : ctrlDown.value) return 'remove';
   if (shiftDown.value) {
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
     if (betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null) return 'split';
