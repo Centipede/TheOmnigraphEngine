@@ -29,11 +29,33 @@
           <span class="ocr-info-label">Keys</span>
           <span class="ocr-info-value">Shift join/split · {{ isMac ? 'Alt' : 'Ctrl' }} remove</span>
         </div>
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Selected</span>
-          <span class="ocr-info-value">
-            <template v-if="selectedTarget">{{ selectedTarget?.id }} ({{ selectedTarget?.level }})</template></span>
-        </div>
+        <template v-if="ocrTool === 'multi'">
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Carea</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Block</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Line</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Word</span>
+            <span class="ocr-info-value">{{ multiSelect?.word?.text ?? '—' }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Selected</span>
+            <span class="ocr-info-value ocr-info-id">
+              <template v-if="selectedTarget">{{ selectedTarget.id }} ({{ selectedTarget.level }})</template>
+              <template v-else>—</template>
+            </span>
+          </div>
+        </template>
       </div>
 
       <div class="tool-palette">
@@ -63,10 +85,13 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import {type Page, type OverlayItem, type HocrNode, findItem} from '../types';
+import {
+  type Page, type OverlayItem, type HocrNode,
+  findItem, findMultiLevelItemByPoint, type MultiSelect,
+} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
-import type {HocrPage} from '../types/hocr';
+import {type HocrPage} from '../types/hocr';
 
 const props = defineProps<{
   machineName: string;
@@ -101,6 +126,10 @@ const selectedItemId = ref<string | null>(null);
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
+
+// Multi-select: live hover stack (updated on mousemove) and committed selection (set on click).
+const multiHover = ref<MultiSelect | null>(null);
+const multiSelect = ref<MultiSelect | null>(null);
 
 // ── Modifier key state ───────────────────────────────────────────────
 const shiftDown = ref(false);
@@ -185,8 +214,8 @@ function setOcrMode(mode: OcrMode) {
 }
 
 function pageInteractionUpdate(
-    _x: number,
-    _y: number,
+    x: number,
+    y: number,
     overlappingOverlayItems: OverlayItem[],
     _activeItem: HocrNode | null,
     betweenOverlayItems: [HocrNode | null, HocrNode | null],
@@ -196,9 +225,14 @@ function pageInteractionUpdate(
   betweenTargets.value = betweenOverlayItems;
   betweenSubTargets.value = betweenOverlaySubItems;
 
-  for (const item of overlappingOverlayItems) {
-    if (item.level === ocrTool.value) {
-      overItemId.value = item.id;
+  if (ocrTool.value === 'multi') {
+    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
+  }
+  else {
+    for (const item of overlappingOverlayItems) {
+      if (item.level === ocrTool.value) {
+        overItemId.value = item.id;
+      }
     }
   }
 }
@@ -222,9 +256,13 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
 }
 
 async function pageInteractionClick(): Promise<void> {
-  console.log('pageInteractionClick', ocrTool.value, effectiveOcrMode.value);
   const mode = effectiveOcrMode.value;
-  if (ocrTool.value === 'multi' || mode === 'none') return;
+  if (mode === 'none') return;
+
+  if (ocrTool.value === 'multi') {
+    multiSelect.value = multiHover.value;
+    return;
+  }
 
   if (mode === 'select') {
     selectedItemId.value = overItemId.value;
@@ -380,6 +418,11 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ocr-info-id {
+  font-family: ui-monospace, monospace;
+  color: var(--color-text-dimmed, #a2acb6);
 }
 
 .tool-palette {

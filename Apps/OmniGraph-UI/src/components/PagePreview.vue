@@ -40,7 +40,7 @@
 
           >
             <div class="hocr-overlay-item-info"
-              v-if="item.role === 'active'">
+                 v-if="item.role === 'active'">
               {{ item.index }} {{ item.id }}
             </div>
           </div>
@@ -272,15 +272,24 @@ function updatePointerAction(event: MouseEvent) {
 
   if (props.interactionUpdate) {
     const pagePoint = getScanPointForEvent(event);
+    if (!pagePoint)
+      return;
 
-    if (pagePoint) {
-      const overlappingOverlayItems = overlayItems.value.filter(item =>
+    if (props.hocrLevel == null) {
+
+      if (props.interactionUpdate) {
+        props.interactionUpdate(pagePoint.x, pagePoint.y, [], null, [null, null], [null, null]);
+      }
+
+    } else {
+
+      const hitItems = overlayItems.value.filter(item =>
           item.level === props.hocrLevel && bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y)
       );
 
       let active: HocrNode | null = null;
-      if (overlappingOverlayItems.length == 1)
-        active = findItem(page, overlappingOverlayItems[0].id);
+      if (hitItems.length == 1)
+        active = findItem(page, hitItems[0].id);
 
       let siblings: (HocrCarea | HocrBlock | HocrLine | HocrWord)[] = []
 
@@ -321,15 +330,13 @@ function updatePointerAction(event: MouseEvent) {
       props.interactionUpdate(
           pagePoint.x,
           pagePoint.y,
-          overlappingOverlayItems,
+          hitItems,
           active,
           betweenSiblings,
           betweenSubSiblings,
       );
-
     }
   }
-
 }
 
 function performPendingAction() {

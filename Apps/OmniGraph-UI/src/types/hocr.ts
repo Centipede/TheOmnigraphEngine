@@ -3,6 +3,8 @@ export type HocrBbox = [number, number, number, number];
 
 export type HocrLevel = 'page' | 'carea' | 'block' | 'line' | 'word';
 
+export const HocrLevelOrder: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
+
 export interface HocrWord {
     level: HocrLevel;
     id: string;
@@ -43,6 +45,15 @@ export interface HocrPage {
 
 export type HocrNode = HocrCarea | HocrBlock | HocrLine | HocrWord;
 
+
+// Items at every level that contain the cursor in multi-select mode.
+export type MultiSelect = {
+    carea: HocrCarea | null;
+    block: HocrBlock | null;
+    line:  HocrLine  | null;
+    word:  HocrWord  | null;
+};
+
 export function getChildren(item: HocrNode): (HocrNode)[] {
     if ('blocks' in item) return item.blocks;
     if ('lines' in item) return item.lines;
@@ -68,6 +79,45 @@ export function findItem(page: HocrPage, id: string): HocrNode | null {
     }
 
     return null;
+}
+
+export function findMultiLevelItemByPoint(hocrPage: HocrPage, x: number, y: number): MultiSelect | null {
+    const page = hocrPage;
+    if (!page) return null;
+    for (const carea of page.careas) {
+        if (!bboxContainsPoint(carea.bbox, x, y)) continue;
+        const result: MultiSelect = { carea, block: null, line: null, word: null };
+        for (const block of carea.blocks) {
+            if (!bboxContainsPoint(block.bbox, x, y)) continue;
+            result.block = block;
+            for (const line of block.lines) {
+                if (!bboxContainsPoint(line.bbox, x, y)) continue;
+                result.line = line;
+                for (const word of line.words) {
+                    if (!bboxContainsPoint(word.bbox, x, y)) { continue; }
+                    result.word = word;
+                    break;
+                }
+                break;
+            }
+            break;
+        }
+        return result;
+    }
+    return null;
+}
+
+export function sortBylevel(nodes: HocrNode[]): HocrNode[] {
+    const cmp = (a: HocrNode, b: HocrNode) => {
+        const alevel = HocrLevelOrder.indexOf(a.level);
+        const blevel = HocrLevelOrder.indexOf(b.level);
+        if (alevel === -1 || blevel === -1)
+            return 0;
+
+        return alevel - blevel;
+    }
+
+    return [...nodes].sort(cmp);
 }
 
 export function bboxContainsPoint(bbox: HocrBbox, x: number, y: number): boolean {
