@@ -61,10 +61,11 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, provide, reactive, type Ref, ref} from 'vue';
+import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import {type PanelVisibility, type Page, type OverlayItem, type HocrNode, findItem} from '../types';
+import {type Page, type OverlayItem, type HocrNode, findItem} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 import type {HocrPage} from '../types/hocr';
 
 const props = defineProps<{
@@ -72,7 +73,7 @@ const props = defineProps<{
   projectName: string;
 }>();
 
-const panels = reactive<PanelVisibility>({
+const panels = usePersistentPanels('panels.edit', {
   'page-list': true,
   'page-strips': true,
   'page-preview': false,

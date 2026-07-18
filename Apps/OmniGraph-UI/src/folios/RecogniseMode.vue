@@ -40,16 +40,17 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-import {onMounted, onUnmounted, reactive, ref} from 'vue';
-import type {Page, PanelVisibility} from '../types';
+import {onMounted, onUnmounted, ref} from 'vue';
+import type {Page} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
 }>();
 
-const panels = reactive<PanelVisibility>({
+const panels = usePersistentPanels('panels.recognise', {
   'page-list': true,
   'page-strips': true,
   'page-preview': false,

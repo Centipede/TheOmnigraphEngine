@@ -237,4 +237,9 @@ nav {
   align-items: center;
   gap: 0.25rem;
 }
+
+sl-icon-button.active::part(base) {
+  color: seagreen;
+}
+
 </style>

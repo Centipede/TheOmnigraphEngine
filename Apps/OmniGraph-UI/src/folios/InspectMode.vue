@@ -13,17 +13,17 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import PageWorkspace from "../components/PageWorkspace.vue";
-import type { PanelVisibility } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
 }>();
 
-const panels = reactive<PanelVisibility>({
+const panels = usePersistentPanels('panels.inspect', {
   'page-list': true,
   'page-strips': true,
   'page-preview': false,

@@ -198,15 +198,16 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import type {CropEdges, Page, PageDb, PanelVisibility} from '../types';
+import type {CropEdges, Page, PageDb} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
 }>();
 
-const panels = reactive<PanelVisibility>({
+const panels = usePersistentPanels('panels.crop', {
   'page-list': true,
   'page-strips': true,
   'page-preview': true,

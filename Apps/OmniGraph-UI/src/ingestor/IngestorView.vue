@@ -134,16 +134,17 @@
 
 <script setup lang="ts">
 import {reactive, ref, onMounted, onUnmounted} from 'vue';
-import type {Page, PanelVisibility} from "../types";
+import type {Page} from "../types";
 import PageWorkspace from "../components/PageWorkspace.vue";
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
+import { usePersistentPanels } from '../composables/usePersistentPanels';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
 }>();
 
-const panels = reactive<PanelVisibility>({
+const panels = usePersistentPanels('panels.ingestor', {
   'page-list': true,
   'page-strips': true,
   'page-preview': false,
