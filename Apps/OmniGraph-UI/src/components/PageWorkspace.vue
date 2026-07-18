@@ -2,7 +2,8 @@
   <div class="three-column-grid">
 
     <!-- Left sidebar -->
-    <div class="workspace-left-sidebar">
+    <div class="workspace-left-sidebar"
+         :class="{ 'workspace-sidebar-hidden': !isLeftSidebarVisible }">
       <div
           class="workspace-page-list-pane"
           :class="{ 'workspace-pane-hidden': !(panels ? panels['page-list'] : false) }"
@@ -118,8 +119,10 @@
     </div>
 
     <!-- Right sidebar -->
-    <div class="workspace-right-sidebar">
-      <div class="workspace-tools">
+    <div class="workspace-right-sidebar"
+         :class="{ 'workspace-sidebar-hidden': !isRightSidebarVisible }">
+      <div class="workspace-tools"
+           :class="{ 'workspace-pane-hidden': !(panels ? panels['tools'] : false) }">
         <div class="sidebar-lead">Tools</div>
         <div class="sidebar-content">
 
@@ -265,6 +268,19 @@ const emit = defineEmits<{
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
+
+
+const isPanelVisible = (panelId: keyof PanelVisibility) => {
+  return props.panels ? props.panels[panelId] : false;
+};
+
+const isLeftSidebarVisible = computed(() => {
+  return isPanelVisible('page-list') || isPanelVisible('section-structure');
+});
+
+const isRightSidebarVisible = computed(() => {
+  return isPanelVisible('tools') || isPanelVisible('ocr-structure');
+});
 
 // ── Mode / tool / edge ───────────────────────────────────────────────
 const filterMode = ref('all')
@@ -620,7 +636,6 @@ defineExpose({
   overflow-y: auto;
 }
 
-
 .sidebar-lead {
   font-size: 0.75rem;
   font-weight: 600;
@@ -662,16 +677,17 @@ defineExpose({
 }
 
 .workspace-page-strips-pane {
-  flex: 1 1 auto;
+  flex: 1 1 45%;
   overflow-y: auto;
 }
 
 .workspace-page-preview-pane {
-  flex: 0 0 45%;
+  flex: 1 1 45%;
   border-left: 1px solid var(--color-border, #dee2e6);
 }
 
-.workspace-pane-hidden {
+.workspace-pane-hidden,
+.workspace-sidebar-hidden {
   flex: 0 0 0;
   width: 0;
   min-width: 0;
