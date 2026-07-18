@@ -4,7 +4,7 @@
       :project-name="projectName"
       :panels="panels"
       :show-crop-overlay="false"
-      :hocr-level="ocrTool=='none' ? null : ocrTool"
+      :hocr-level="ocrTool=='multi' ? null : ocrTool"
       carea-overlay-color="rgba(249, 115, 22)"
       block-overlay-color="rgba(168, 85, 247)"
       line-overlay-color="rgba(59, 130, 246)"
@@ -36,26 +36,26 @@
         </div>
       </div>
 
-      <sl-button @click="restoreFromOriginal(currentPage)">Restore</sl-button>
+      <div class="tool-palette">
+        <sl-button @click="restoreFromOriginal(currentPage)" size="small" >Restore</sl-button>
 
-      <sl-button-group >
-        <sl-button :variant="ocrMode==='none' ? 'primary' : 'default'" size="small"  @click="setOcrMode('none')">None</sl-button>
-        <sl-button :variant="ocrMode==='select' ? 'primary' : 'default'" size="small"  @click="setOcrMode('select')">Select</sl-button>
-        <sl-button :variant="ocrMode==='join' ? 'primary' : 'default'" size="small"  @click="setOcrMode('join')">Join</sl-button>
-        <sl-button :variant="ocrMode==='split' ? 'primary' : 'default'"  size="small" @click="setOcrMode('split')">Split</sl-button>
-        <sl-button :variant="ocrMode==='remove' ? 'primary' : 'default'" size="small"  @click="setOcrMode('remove')">Remove</sl-button>
-      </sl-button-group>
+        <sl-button-group>
+          <sl-button :variant="ocrTool==='multi' ? 'primary' : 'default'" size="small"  @click="setOcrTool('multi')"><sl-icon name="eyedropper"></sl-icon></sl-button>
+          <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea</sl-button>
+          <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block</sl-button>
+          <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line</sl-button>
+          <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word</sl-button>
+        </sl-button-group>
 
-      <sl-button-group >
-        <sl-button :variant="ocrTool==='none' ? 'primary' : 'default'" size="small"  @click="setOcrTool('none')">None</sl-button>
-        <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea</sl-button>
-        <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block</sl-button>
-        <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line</sl-button>
-        <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word</sl-button>
-      </sl-button-group>
+        <sl-button-group v-if="ocrTool!=='multi'">
+          <sl-button :variant="ocrMode==='context' ? 'primary' : 'default'" size="small"  @click="setOcrMode('context')">By Context</sl-button>
+          <sl-button :variant="effectiveOcrMode==='select' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('select')">Select</sl-button>
+          <sl-button :variant="effectiveOcrMode==='join' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('join')">Join</sl-button>
+          <sl-button :variant="effectiveOcrMode==='split' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'"  size="small" @click="setOcrMode('split')">Split</sl-button>
+          <sl-button :variant="effectiveOcrMode==='remove' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('remove')">Remove</sl-button>
+        </sl-button-group>
+      </div>
 
-
-<!--      <sl-button @click="testEditPage(currentPage)">Test Edit</sl-button>-->
     </template>
   </PageWorkspace>
 </template>
@@ -90,11 +90,11 @@ provide('hocrPage', hocrPage);
 
 const currentStem = ref<string | null>(null);
 
-type OcrTool = 'none' | 'carea' | 'block' | 'line' | 'word';
-type OcrMode = 'none' | 'select' | 'join' | 'split' | 'remove';
+type OcrTool = 'multi' | 'carea' | 'block' | 'line' | 'word';
+type OcrMode = 'context' | 'none' | 'select' | 'join' | 'split' | 'remove';
 
-const ocrTool:Ref<OcrTool> = ref('none');
-const ocrMode:Ref<OcrMode> = ref('select');
+const ocrTool:Ref<OcrTool> = ref('multi');
+const ocrMode:Ref<OcrMode> = ref('context');
 
 const overItemId = ref<string | null>(null);
 const selectedItemId = ref<string | null>(null);
@@ -111,7 +111,9 @@ const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAg
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 const effectiveOcrMode = computed<OcrMode>(() => {
-  if (ocrTool.value === 'none') return 'none';
+  if (ocrMode.value !== 'context') return ocrMode.value;
+
+  if (ocrTool.value === 'multi') return 'select';
   if (isMac ? altDown.value : ctrlDown.value) return 'remove';
   if (shiftDown.value) {
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
@@ -129,6 +131,7 @@ const pointerLabel = computed(() => {
     case 'join':   return 'Join';
     case 'remove': return 'Remove';
   }
+  return '';
 });
 
 const pointerColor = computed(() => {
@@ -139,6 +142,7 @@ const pointerColor = computed(() => {
     case 'join':   return '#16a34a';
     case 'remove': return '#dc2626';
   }
+  return '';
 });
 
 const pointerIcon = computed(() => {
@@ -149,6 +153,7 @@ const pointerIcon = computed(() => {
     case 'join':   return 'view-list';
     case 'remove': return 'x-square';
   }
+  return '';
 });
 
 const pointerEnabled = computed(() => {
@@ -161,12 +166,22 @@ const pointerEnabled = computed(() => {
   }
 });
 
-function setOcrMode(mode: OcrMode) {
-  ocrMode.value = mode;
-}
-
 function setOcrTool(tool: OcrTool) {
   ocrTool.value = tool;
+  if (ocrTool.value === 'multi') {
+    if(['split', 'join', 'remove'].includes(ocrMode.value)) {
+      setOcrMode('context');
+    }
+  }
+  else {
+    if (ocrMode.value == 'none') {
+      setOcrMode('context');
+    }
+  }
+}
+
+function setOcrMode(mode: OcrMode) {
+  ocrMode.value = mode;
 }
 
 function pageInteractionUpdate(
@@ -195,7 +210,7 @@ const LEVEL_SEGMENT: Record<string, string> = {
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
   const level = ocrTool.value;
-  if (!stem || level === 'none') return;
+  if (!stem || level === 'multi') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[level]}/${id}/${action}`;
   const resp = await fetch(url, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
@@ -209,18 +224,21 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
 async function pageInteractionClick(): Promise<void> {
   console.log('pageInteractionClick', ocrTool.value, effectiveOcrMode.value);
   const mode = effectiveOcrMode.value;
-  if (ocrTool.value === 'none' || mode === 'none') return;
+  if (ocrTool.value === 'multi' || mode === 'none') return;
 
   if (mode === 'select') {
     selectedItemId.value = overItemId.value;
     return;
   }
+
   if (mode === 'remove' && overItemId.value) {
     await callHocrEndpoint(overItemId.value, 'remove');
     if (selectedItemId.value === overItemId.value) selectedItemId.value = null;
-  } else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
+  }
+  else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
     await callHocrEndpoint(betweenTargets.value[0].id, 'merge', { other_id: betweenTargets.value[1].id });
-  } else if (mode === 'split' && overItemId.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
+  }
+  else if (mode === 'split' && overItemId.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
     await callHocrEndpoint(overItemId.value, 'split',
         { before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id });
   }
@@ -233,14 +251,44 @@ function isTypingTarget(): boolean {
 }
 
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
+
+  // Q = multi-level select tool
+  // W = CAREA level tool
+  // E = BLOCK level tool
+  // R = LINE level tool
+  // T = WORD level tool
+
+  if (e.key === 'q') {
+    setOcrTool('multi');
+    return;
+  }
+  if (e.key === 'w') {
+    setOcrTool('carea');
+    return;
+  }
+  else if (e.key == 'e') {
+    setOcrTool('block');
+    return;
+  }
+  else if (e.key == 'r') {
+    setOcrTool('line');
+    return;
+  }
+  else if (e.key == 't') {
+    setOcrTool('word');
+    return;
+  }
+
   if (!selectedItemId.value || isTypingTarget()) return;
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     await callHocrEndpoint(selectedItemId.value, 'move-up');
-  } else if (e.key === 'ArrowDown') {
+  }
+  else if (e.key === 'ArrowDown') {
     e.preventDefault();
     await callHocrEndpoint(selectedItemId.value, 'move-down');
-  } else if (e.key === 'Backspace' || e.key === 'Delete') {
+  }
+  else if (e.key === 'Backspace' || e.key === 'Delete') {
     e.preventDefault();
     await callHocrEndpoint(selectedItemId.value, 'remove');
     selectedItemId.value = null;
@@ -333,4 +381,26 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.tool-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.tool-palette > sl-button,
+.tool-palette > sl-button-group {
+  width: 100%;
+}
+
+.tool-palette > sl-button-group::part(base) {
+  display: flex;
+  width: 100%;
+}
+
+.tool-palette > sl-button-group sl-button {
+  flex: 1 1 0;
+}
+
 </style>

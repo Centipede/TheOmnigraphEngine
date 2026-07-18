@@ -275,7 +275,7 @@ function updatePointerAction(event: MouseEvent) {
 
     if (pagePoint) {
       const overlappingOverlayItems = overlayItems.value.filter(item =>
-          bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y) && item.level === props.hocrLevel
+          item.level === props.hocrLevel && bboxContainsPoint(item.bbox, pagePoint.x, pagePoint.y)
       );
 
       let active: HocrNode | null = null;
@@ -330,7 +330,6 @@ function updatePointerAction(event: MouseEvent) {
     }
   }
 
-  //refreshPendingClickState(event);
 }
 
 function performPendingAction() {
