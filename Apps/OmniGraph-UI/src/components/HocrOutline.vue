@@ -31,11 +31,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, reactive } from 'vue';
+import {inject, reactive, ref} from 'vue';
 import type { Ref } from 'vue';
 import type { HocrCarea, HocrLine, HocrPage, HocrBlock } from '../types/hocr';
 
-const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
+const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
 
 const collapsed = reactive(new Set<string>());
 

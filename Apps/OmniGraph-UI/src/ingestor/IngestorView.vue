@@ -133,16 +133,30 @@
 </template>
 
 <script setup lang="ts">
-import {reactive, ref} from 'vue';
+import {reactive, ref, onMounted, onUnmounted} from 'vue';
 import type {Page, PanelVisibility} from "../types";
 import PageWorkspace from "../components/PageWorkspace.vue";
-
+import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
 }>();
+
+const panels = reactive<PanelVisibility>({
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+const { setActivePanels } = usePanelVisibilityContext();
+
+onMounted(() => setActivePanels(panels));
+onUnmounted(() => setActivePanels(null));
 
 const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 

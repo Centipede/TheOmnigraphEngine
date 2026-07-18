@@ -3,42 +3,35 @@
     <NavBar
         :machineName="machineName"
         :projectName="projectName"
-        :panels="panels"
+        :panels="activePanels"
         @toggle-panel="togglePanel"
     />
     <RouterView v-slot="{ Component }">
       <component
           :is="Component"
-          :panels="panels"
+          :panels="activePanels"
       />
     </RouterView>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, reactive} from 'vue';
+import {computed} from 'vue';
 import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
-import type {PanelId, PanelVisibility} from './types';
+import type {PanelId} from './types';
+import { providePanelVisibilityContext } from './composables/usePanelVisibility';
 
 const route = useRoute();
 
 const machineName = computed(() => String(route.params.machineName ?? ''));
 const projectName = computed(() => machineName.value);
 
-
-const panels = reactive<PanelVisibility>({
-  'page-list': true,
-  'page-strips': true,
-  'page-preview': false,
-  'section-structure': false,
-  'ocr-structure': false,
-  tools: true,
-  'structural-tree': false,
-});
+const { activePanels } = providePanelVisibilityContext();
 
 function togglePanel(panelId: PanelId) {
-  panels[panelId] = !panels[panelId];
+  if (!activePanels.value) return;
+  activePanels.value[panelId] = !activePanels.value[panelId];
 }
 
 </script>

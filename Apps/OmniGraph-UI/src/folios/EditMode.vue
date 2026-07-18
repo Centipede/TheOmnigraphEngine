@@ -61,16 +61,28 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
+import {computed, onMounted, onUnmounted, provide, reactive, type Ref, ref} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {type PanelVisibility, type Page, type OverlayItem, type HocrNode, findItem} from '../types';
+import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import type {HocrPage} from '../types/hocr';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
 }>();
+
+const panels = reactive<PanelVisibility>({
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+const { setActivePanels } = usePanelVisibilityContext();
 
 const hocrPage = ref<HocrPage | null>(null);
 provide('hocrPage', hocrPage);
@@ -270,16 +282,19 @@ function updateModifiers(e: KeyboardEvent) {
 }
 
 onMounted(() => {
+  setActivePanels(panels);
   window.addEventListener('keydown', updateModifiers);
   window.addEventListener('keyup',   updateModifiers);
   window.addEventListener('keydown', handleKeyboardAction);
 });
 
 onUnmounted(() => {
+  setActivePanels(null);
   window.removeEventListener('keydown', updateModifiers);
   window.removeEventListener('keyup',   updateModifiers);
   window.removeEventListener('keydown', handleKeyboardAction);
 });
+
 </script>
 
 <style scoped>

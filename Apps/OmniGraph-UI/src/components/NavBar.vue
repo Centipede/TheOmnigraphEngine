@@ -11,7 +11,7 @@
         </sl-button>
       </RouterLink>
 
-      <div>
+      <div v-if="panels">
         <sl-icon-button
             name="list"
             label="Toggle page selector"
@@ -175,7 +175,7 @@ import type {PanelVisibility, PanelId} from '../types';
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
+  panels: PanelVisibility | null;
 }>();
 
 const emit = defineEmits<{

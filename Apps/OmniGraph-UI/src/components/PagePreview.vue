@@ -117,7 +117,7 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage = inject<Ref<HocrPage | null>>('hocrPage');
+const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);

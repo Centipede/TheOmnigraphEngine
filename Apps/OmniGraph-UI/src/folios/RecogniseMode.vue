@@ -40,14 +40,26 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-import {onMounted, onUnmounted, ref} from 'vue';
+import {onMounted, onUnmounted, reactive, ref} from 'vue';
 import type {Page, PanelVisibility} from '../types';
+import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
-  panels: PanelVisibility;
 }>();
+
+const panels = reactive<PanelVisibility>({
+  'page-list': true,
+  'page-strips': true,
+  'page-preview': false,
+  'section-structure': false,
+  'ocr-structure': false,
+  tools: true,
+  'structural-tree': false,
+});
+
+const { setActivePanels } = usePanelVisibilityContext();
 
 // ── hOCR status ──────────────────────────────────────────────────────
 const hocrScanned = ref<Set<string>>(new Set());
@@ -132,6 +144,7 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
 let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
+  setActivePanels(panels);
   await fetchHocrStatus();
   hocrStatusInterval = setInterval(() => {
     void fetchHocrStatus();
@@ -139,6 +152,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  setActivePanels(null);
   if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 </script>

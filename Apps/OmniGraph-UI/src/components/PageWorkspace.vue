@@ -5,7 +5,7 @@
     <div class="workspace-left-sidebar">
       <div
           class="workspace-page-list-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-list'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-list'] : false) }"
       >
         <PageList
             ref="pageListComponentRef"
@@ -23,7 +23,7 @@
       </div>
       <div
           class="workspace-section-outline-pane"
-          :class="{ 'workspace-pane-hidden': !panels['section-structure'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['section-structure'] : false) }"
       >
         <div class="sidebar-lead">Sections</div>
         <SectionOutline/>
@@ -34,7 +34,7 @@
     <div class="workspace-workarea">
       <div
           class="workspace-page-strips-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-strips'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-strips'] : false) }"
           :ref="setStripWorkareaRef"
       >
         <slot
@@ -51,8 +51,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!panels['page-strips']"
-            :show-page-preview="!panels['page-preview']"
+            :show-page-strips="!(panels ? panels['page-strips'] : false)"
+            :show-page-preview="!(panels ? panels['page-preview'] : false)"
         >
           <div class="strip-grid">
             <PageStrip
@@ -76,7 +76,7 @@
 
       <div
           class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !panels['page-preview'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-preview'] : false) }"
       >
         <slot
             name="page-preview"
@@ -92,8 +92,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!panels['page-strips']"
-            :show-page-preview="!panels['page-preview']"
+            :show-page-strips="!(panels ? panels['page-strips'] : false)"
+            :show-page-preview="!(panels ? panels['page-preview'] : false)"
             :pointer-settings="pointerSettings"
         >
           <PagePreview
@@ -181,7 +181,7 @@
       </div>
       <div
           class="workspace-hocr-outline-pane"
-          :class="{ 'workspace-pane-hidden': !panels['ocr-structure'] }"
+          :class="{ 'workspace-pane-hidden': !(panels ? panels['ocr-structure'] : false) }"
       >
         <div class="sidebar-lead">hOCR</div>
         <HocrOutline/>
@@ -250,7 +250,7 @@ const props = withDefaults(defineProps<{
       lineOverlayColor?: string;
       wordOverlayColor?: string;
       pointerSettings?: PointerSettings;
-      panels: PanelVisibility;
+      panels: PanelVisibility | null;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
     }>(), {
