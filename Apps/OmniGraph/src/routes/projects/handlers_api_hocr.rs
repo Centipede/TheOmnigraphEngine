@@ -242,6 +242,12 @@ pub async fn block_remove(
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
+pub async fn block_change_type(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+) -> impl IntoResponse {
+    StatusCode::NOT_IMPLEMENTED
+}
 // ── LINE ─────────────────────────────────────────────────────────────
 
 pub async fn line_merge(

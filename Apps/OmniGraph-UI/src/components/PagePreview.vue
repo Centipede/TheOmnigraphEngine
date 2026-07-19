@@ -62,8 +62,9 @@
     </div>
 
     <div class="page-preview-info">
-      <span class="page-preview-index">({{ page.index }})</span>
-      <span :class="{ 'page-preview-unnamed': !page.name }">{{ label }}</span>
+      <span class="page-preview-hint">(Index: {{ page.index }})</span>
+      <span :class="{ 'page-preview-unnamed': !page.name }">p. {{ label }}</span>
+      <span class="page-preview-hint">(Scan: {{ page.scan }})</span>
     </div>
   </div>
 </template>
@@ -409,6 +410,12 @@ function overlayItemStyle(item: OverlayItem) {
 
 .interactive-area {
   position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .cursor-mode-off {
@@ -456,7 +463,7 @@ function overlayItemStyle(item: OverlayItem) {
   align-items: baseline;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 2rem;
+  min-height: 1.2rem;
   padding: 0.35rem 0.75rem;
   border-top: 1px solid var(--color-border, #dee2e6);
   background: var(--color-surface, #fff);
@@ -464,7 +471,7 @@ function overlayItemStyle(item: OverlayItem) {
   font-size: 0.85rem;
 }
 
-.page-preview-index {
+.page-preview-hint {
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.8em;
 }
