@@ -21,6 +21,11 @@ pub struct SplitRequest {
     pub after_id: String,
 }
 
+#[derive(Deserialize)]
+pub struct ChangeTypeRequest {
+    pub kind: String,
+}
+
 // ── HELPERS ──────────────────────────────────────────────────────────
 
 fn save_and_report(
@@ -245,6 +250,7 @@ pub async fn block_remove(
 pub async fn block_change_type(
     State(_state): State<AppState>,
     Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<ChangeTypeRequest>,
 ) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }

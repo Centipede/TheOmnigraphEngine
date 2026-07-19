@@ -35,7 +35,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="`hocr-overlay--${item.role}`"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': item.id === selectedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -121,6 +121,7 @@ const props = withDefaults(defineProps<{
 });
 
 const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const selectedItemId = inject<Ref<string | null>>('selectedItemId', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
@@ -567,6 +568,13 @@ function overlayItemStyle(item: OverlayItem) {
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active:hover {
   background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
+}
+
+/* Selected item — stronger outline + hover-level fill, stays regardless of hover */
+.hocr-overlay--selected {
+  outline: 3px solid var(--hocr-color) !important;
+  background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
+  opacity: 1 !important;
 }
 
 /* N+1: children — lighter fill, thin outline, selectable */

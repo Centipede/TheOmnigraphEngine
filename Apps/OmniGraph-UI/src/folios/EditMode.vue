@@ -69,6 +69,16 @@
           <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word</sl-button>
         </sl-button-group>
 
+        <sl-button-group v-if="ocrTool === 'block'">
+          <sl-button
+              v-for="bk in BLOCK_KINDS"
+              :key="bk.kind"
+              size="small"
+              :disabled="!selectedItemId"
+              @click="changeBlockType(bk.kind)"
+          >{{ bk.label }}<template v-if="bk.key"> <span class="kind-key">{{ bk.key }}</span></template></sl-button>
+        </sl-button-group>
+
         <sl-button-group v-if="ocrTool!=='multi'">
           <sl-button :variant="ocrMode==='context' ? 'primary' : 'default'" size="small"  @click="setOcrMode('context')">By Context</sl-button>
           <sl-button :variant="effectiveOcrMode==='select' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('select')">Select</sl-button>
@@ -123,6 +133,7 @@ const ocrMode:Ref<OcrMode> = ref('context');
 
 const overItemId = ref<string | null>(null);
 const selectedItemId = ref<string | null>(null);
+provide('selectedItemId', selectedItemId);
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
@@ -241,6 +252,34 @@ const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
 };
 
+// 0–6 → hOCR block kind strings. Keys match the task spec.
+const BLOCK_KIND_KEYS: Record<string, string> = {
+  '0': 'part',
+  '1': 'chapter',         // H1
+  '2': 'section',         // H2
+  '3': 'subsection',      // H3
+  '4': 'subsubsection',   // H4
+  '5': 'h5',
+  '6': 'h6',
+};
+
+// Ordered list for the button palette, including paragraph.
+const BLOCK_KINDS = [
+  { key: '0', kind: 'part',            label: 'Part' },
+  { key: '1', kind: 'chapter',         label: 'H1' },
+  { key: '2', kind: 'section',         label: 'H2' },
+  { key: '3', kind: 'subsection',      label: 'H3' },
+  { key: '4', kind: 'subsubsection',   label: 'H4' },
+  { key: '5', kind: 'h5',              label: 'H5' },
+  { key: '6', kind: 'h6',              label: 'H6' },
+  { key: '',  kind: 'paragraph',       label: 'P'  },
+] as const;
+
+async function changeBlockType(kind: string): Promise<void> {
+  if (!selectedItemId.value || ocrTool.value !== 'block') return;
+  await callHocrEndpoint(selectedItemId.value, 'change-type', { kind });
+}
+
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
   const level = ocrTool.value;
@@ -315,6 +354,16 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   else if (e.key == 't') {
     setOcrTool('word');
     return;
+  }
+
+  // Block type change: 0–6, only when block tool is active and a block is selected.
+  if (ocrTool.value === 'block' && selectedItemId.value && !isTypingTarget()) {
+    const kind = BLOCK_KIND_KEYS[e.key];
+    if (kind) {
+      e.preventDefault();
+      await changeBlockType(kind);
+      return;
+    }
   }
 
   if (!selectedItemId.value || isTypingTarget()) return;
@@ -444,6 +493,11 @@ onUnmounted(() => {
 
 .tool-palette > sl-button-group sl-button {
   flex: 1 1 0;
+}
+
+.kind-key {
+  opacity: 0.55;
+  font-size: 0.7em;
 }
 
 </style>
