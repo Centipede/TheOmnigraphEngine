@@ -595,6 +595,8 @@ defineExpose({
   border-right: 1px solid var(--color-border, #dee2e6);
 }
 
+/* Left sidebar — content items */
+
 .workspace-page-list-pane {
   flex: 2 1 0;
   min-height: 0;
@@ -624,15 +626,21 @@ defineExpose({
   flex-direction: column;
 }
 
+/* Right sidebar — content items */
+
 .workspace-tools {
-  flex: 0 0 auto;
+  flex: 2 1 0;
+  min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
+  padding: 0;
   border-bottom: 1px solid var(--color-border, #dee2e6);
 }
 
 .workspace-hocr-outline-pane {
   flex: 1 1 0;
   min-height: 0;
+  max-height: 100%;
   overflow-y: auto;
 }
 
@@ -684,6 +692,9 @@ defineExpose({
 .workspace-page-preview-pane {
   flex: 1 1 45%;
   border-left: 1px solid var(--color-border, #dee2e6);
+  display: flex;
+  min-width: 0;
+  min-height: 0;;
 }
 
 .workspace-pane-hidden,
@@ -703,12 +714,6 @@ defineExpose({
   align-content: flex-start;
   user-select: none;
   -webkit-user-select: none;
-}
-
-.workspace-tools {
-  min-height: 0;
-  max-height: 100%;
-  padding: 0;
 }
 
 
