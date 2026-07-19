@@ -41,10 +41,12 @@
           >
             <div class="hocr-overlay-item-info"
                  v-if="item.role === 'active'">
-              {{ item.index }} {{ item.id }}
+              <span class="hocr-overlay-item-kind"
+                    v-if="item.kind">{{ item.kind }}</span>
+              <span class="hocr-overlay-item-index">#{{ item.index }}</span>
+              <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
           </div>
-
 
         </div>
 
@@ -161,9 +163,18 @@ const overlayItems = computed((): OverlayItem[] => {
     return null;
   }
 
+  function blockKindFor(block: HocrBlock): string {
+    if(block.kind == 'part') return 'Part'
+    if(block.kind == 'chapter') return 'H1'
+    if(block.kind == 'section') return 'h2'
+    if(block.kind == 'subsection') return 'H3'
+    if(block.kind == 'subsubsection') return 'H4'
+    return 'P'
+  }
+
   for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(1);
-    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr)});
+    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null});
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(2);
@@ -173,7 +184,8 @@ const overlayItems = computed((): OverlayItem[] => {
         index: j,
         bbox: block.bbox,
         role: br,
-        color: colorFor(1, j, br)
+        color: colorFor(1, j, br),
+        kind: blockKindFor(block)
       });
 
       for (const [k, line] of block.lines.entries()) {
@@ -184,7 +196,8 @@ const overlayItems = computed((): OverlayItem[] => {
           index: k,
           bbox: line.bbox,
           role: lr,
-          color: colorFor(2, k, lr)
+          color: colorFor(2, k, lr),
+          kind: null,
         });
 
         for (const [l, word] of line.words.entries()) {
@@ -195,7 +208,8 @@ const overlayItems = computed((): OverlayItem[] => {
             index: l,
             bbox: word.bbox,
             role: wr,
-            color: colorFor(3, l, wr)
+            color: colorFor(3, l, wr),
+            kind: null,
           });
         }
       }
@@ -492,12 +506,46 @@ function overlayItemStyle(item: OverlayItem) {
 
 .hocr-overlay-item-info {
   position: absolute;
-  left: -4rem;
-  top: 0;
-  padding: 0.25rem 0.5rem;
-  color: #000;
-  font-size: 0.7rem;
+  right: 100%;
+  top: -0.25rem;
+  z-index: 2;
+  max-width: calc(100% - 0.5rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--hocr-color) 75%, white);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hocr-color) 88%, black);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hocr-overlay-item-kind {
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.hocr-overlay-item-index {
+  flex: 0 0 auto;
+  opacity: 0.85;
+  font-weight: 400;
+}
+
+.hocr-overlay-item-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.55rem;
+  font-weight: 400;
 }
 
 /* N-1: parent context — faint dashed outline, no fill, non-interactive */
@@ -511,13 +559,14 @@ function overlayItemStyle(item: OverlayItem) {
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active {
   outline: 2px solid var(--hocr-color);
-  opacity: 0.15;
+  background: color-mix(in srgb, var(--hocr-color) 15%, transparent) !important;
+  opacity: 1;
 }
 
 
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active:hover {
-  opacity: 0.45;
+  background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
 }
 
 /* N+1: children — lighter fill, thin outline, selectable */

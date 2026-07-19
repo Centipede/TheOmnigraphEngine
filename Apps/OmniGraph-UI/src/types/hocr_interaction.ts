@@ -9,6 +9,7 @@ export interface OverlayItem {
     bbox: HocrBbox;
     role: OverlayRole;
     color: string;
+    kind: string | null;
 }
 
 export type PageInteractionUpdate = (
