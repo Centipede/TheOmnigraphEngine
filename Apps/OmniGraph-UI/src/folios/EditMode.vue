@@ -254,25 +254,25 @@ const LEVEL_SEGMENT: Record<string, string> = {
 
 // 0–6 → hOCR block kind strings. Keys match the task spec.
 const BLOCK_KIND_KEYS: Record<string, string> = {
-  '0': 'part',
-  '1': 'chapter',         // H1
-  '2': 'section',         // H2
-  '3': 'subsection',      // H3
-  '4': 'subsubsection',   // H4
-  '5': 'h5',
-  '6': 'h6',
+  '0': 'part',                // H1 + class='ocr_part'
+  '1': 'chapter',             // H1
+  '2': 'section',             // H2
+  '3': 'subsection',          // H3
+  '4': 'subsubsection',       // H4
+  '5': 'subsubsubsection',    // H5
+  '6': 'subsubsubsubsection', // H6
 };
 
 // Ordered list for the button palette, including paragraph.
 const BLOCK_KINDS = [
-  { key: '0', kind: 'part',            label: 'Part' },
-  { key: '1', kind: 'chapter',         label: 'H1' },
-  { key: '2', kind: 'section',         label: 'H2' },
-  { key: '3', kind: 'subsection',      label: 'H3' },
-  { key: '4', kind: 'subsubsection',   label: 'H4' },
-  { key: '5', kind: 'h5',              label: 'H5' },
-  { key: '6', kind: 'h6',              label: 'H6' },
-  { key: '',  kind: 'paragraph',       label: 'P'  },
+  { key: '0', kind: 'part',                 label: 'Part' },
+  { key: '1', kind: 'chapter',              label: 'H1' },
+  { key: '2', kind: 'section',              label: 'H2' },
+  { key: '3', kind: 'subsection',           label: 'H3' },
+  { key: '4', kind: 'subsubsection',        label: 'H4' },
+  { key: '5', kind: 'subsubsubsection',     label: 'H5' },
+  { key: '6', kind: 'subsubsubsubsection',  label: 'H6' },
+  { key: '',  kind: 'paragraph',            label: 'P'  },
 ] as const;
 
 async function changeBlockType(kind: string): Promise<void> {
@@ -489,6 +489,7 @@ onUnmounted(() => {
 .tool-palette > sl-button-group::part(base) {
   display: flex;
   width: 100%;
+  max-width: 100%;
 }
 
 .tool-palette > sl-button-group sl-button {

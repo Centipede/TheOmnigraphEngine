@@ -39,7 +39,18 @@ const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
 
 const collapsed = reactive(new Set<string>());
 
-const blockKinds = ['part', 'chapter', 'section', 'subsection', 'subsubsection', 'paragraph'];
+const blockKinds = ['part', 'chapter', 'section', 'subsection', 'subsubsection', 'subsubsubsection', 'subsubsubsubsection', 'paragraph'];
+
+const blockAbbreviations:any = {
+  part: 'Part',
+  chapter: 'H1',
+  section: 'H2',
+  subsection: 'H3',
+  subsubsection: 'H4',
+  subsubsubsection: 'H5',
+  subsubsubsubsection: 'H6',
+  paragraph: 'P',
+};
 
 function toggleCarea(id: string) {
   if (collapsed.has(id)) collapsed.delete(id);
@@ -51,7 +62,8 @@ function lineText(line: HocrLine): string {
 }
 
 function blockPreview(block: HocrBlock, maxLen = 80): string {
-  const text = blockKinds.includes(block.kind) ? block.lines.map(lineText).join(' ') : `--unknown block: ${block.kind}`;
+  const kindAbbrev = block.kind in blockAbbreviations ? blockAbbreviations[block.kind] : block.kind;
+  const text = blockKinds.includes(block.kind) ? kindAbbrev + ': ' + block.lines.map(lineText).join(' ') : `--unknown block: ${block.kind}`;
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 

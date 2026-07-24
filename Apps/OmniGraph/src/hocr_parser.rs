@@ -55,6 +55,7 @@ pub fn bbox_union(bbox1: HocrBbox, bbox2: HocrBbox) -> HocrBbox {
     bbox
 }
 
+#[allow(dead_code)]
 pub fn bbox_intersection(bbox1: HocrBbox, bbox2: HocrBbox) -> Option<HocrBbox> {
     let mut bbox = bbox1;
     bbox[0] = bbox[0].max(bbox2[0]);
@@ -119,6 +120,8 @@ pub enum HocrBlockKind {
     Section,
     Subsection,
     Subsubsection,
+    Subsubsubsection,
+    Subsubsubsubsection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,16 +166,18 @@ pub enum HocrPath {
 }
 
 impl HocrPath {
+
+    #[allow(dead_code)]
     pub fn to_carea(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Carea { carea } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Block { carea, block } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Line { carea, block, line } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Word { carea, block, line, word } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Block { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Line { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Word { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
             _ => None,
         }
     }
-
+    #[allow(dead_code)]
     pub fn to_block(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Block { carea, block } => Some(HocrPath::Block { carea: *carea, block: *block }),
@@ -181,7 +186,7 @@ impl HocrPath {
             _ => None,
         }
     }
-
+    #[allow(dead_code)]
     pub fn to_line(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Line { carea, block, line } => Some(HocrPath::Line { carea: *carea, block: *block, line: *line }),
@@ -189,6 +194,7 @@ impl HocrPath {
             _ => None,
         }
     }
+    #[allow(dead_code)]
     pub fn to_word(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Word { carea, block, line, word } => Some(HocrPath::Word { carea: *carea, block: *block, line: *line, word: *word }),
@@ -291,7 +297,6 @@ impl HocrPage {
             Some(numbers.into_iter().max().unwrap() + 1)
         }
     }
-
     pub fn get_unique_id(&self, from_id: &str) -> String {
         let preferred_stem = stem_from_id(from_id);
         let next = self.get_next_number_with_stem(preferred_stem.as_str());
@@ -394,6 +399,7 @@ impl HocrPage {
             self.remove_block(carea, block2);
         }
     }
+
     pub fn merge_line(&mut self, carea: usize, block: usize, line1: usize, line2: usize) {
         // Thought: Optionally, we could complain if the lines were not consecutive. But the algorithm is robust enough to handle that, so why?
         if line1 != line2 {
@@ -415,7 +421,7 @@ impl HocrPage {
 
         let new_id = self.get_unique_id(self.careas[carea].id.as_str());
         let old_carea = &mut self.careas[carea];
-        let (left, right) = old_carea.blocks.split_at_mut(block_after);
+        let (_, right) = old_carea.blocks.split_at_mut(block_after);
         let new_carea = HocrCarea {
             level: "carea".to_string(),
             id: new_id,
@@ -427,21 +433,14 @@ impl HocrPage {
         self.careas[carea].rebuild_bbox();
         self.careas[carea + 1].rebuild_bbox();
     }
-
-    pub fn split_block(
-        &mut self,
-        carea: usize,
-        block: usize,
-        line_before: usize,
-        line_after: usize,
-    ) {
+    pub fn split_block(&mut self, carea: usize, block: usize, line_before: usize, line_after: usize) {
         if line_before == line_after {
             return;
         }
         let new_id = self.get_unique_id(self.careas[carea].blocks[block].id.as_str());
         let carea = &mut self.careas[carea];
         let old_block = &mut carea.blocks[block];
-        let (left, right) = old_block.lines.split_at_mut(line_after);
+        let (_, right) = old_block.lines.split_at_mut(line_after);
         let new_block = HocrBlock {
             lang: old_block.lang.clone(),
             kind: HocrBlockKind::Paragraph,
@@ -527,6 +526,8 @@ impl HocrBlockKind {
             HocrBlockKind::Section => "h2",
             HocrBlockKind::Subsection => "h3",
             HocrBlockKind::Subsubsection => "h4",
+            HocrBlockKind::Subsubsubsection => "h5",
+            HocrBlockKind::Subsubsubsubsection => "h6",
         }
     }
     pub fn class_name(self) -> &'static str {
@@ -537,6 +538,8 @@ impl HocrBlockKind {
             HocrBlockKind::Section => "ocr_section",
             HocrBlockKind::Subsection => "ocr_subsection",
             HocrBlockKind::Subsubsection => "ocr_subsubsection",
+            HocrBlockKind::Subsubsubsection => "ocr_subsubsubsection",
+            HocrBlockKind::Subsubsubsubsection => "ocr_subsubsubsubsection",
         }
     }
     pub fn from_class_name(class_name: &str) -> Option<Self> {
@@ -547,6 +550,22 @@ impl HocrBlockKind {
             "ocr_section" => Some(HocrBlockKind::Section),
             "ocr_subsection" => Some(HocrBlockKind::Subsection),
             "ocr_subsubsection" => Some(HocrBlockKind::Subsubsection),
+            "ocr_subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
+            "ocr_subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
+            _ => None,
+        }
+    }
+
+    pub fn from_json_name(class_name: &str) -> Option<Self> {
+        match class_name {
+            "paragraph" => Some(HocrBlockKind::Paragraph),
+            "part" => Some(HocrBlockKind::Part),
+            "chapter" => Some(HocrBlockKind::Chapter),
+            "section" => Some(HocrBlockKind::Section),
+            "subsection" => Some(HocrBlockKind::Subsection),
+            "subsubsection" => Some(HocrBlockKind::Subsubsection),
+            "subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
+            "subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
             _ => None,
         }
     }
@@ -636,11 +655,10 @@ pub fn parse(html: &str) -> Option<HocrPage> {
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
     let sel_carea = Selector::parse("div.ocr_carea").ok()?;
-    let sel_par = Selector::parse("p.ocr_par").ok()?;
+    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection").ok()?;
     let sel_line = Selector::parse("span.ocr_line").ok()?;
     let sel_word = Selector::parse("span.ocrx_word").ok()?;
 
-    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection").ok()?;
 
     let page_el = document.select(&sel_page).next()?;
     let page_id = page_el.attr("id").unwrap_or("page_1").to_string();
@@ -724,6 +742,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
     })
 }
 
+#[allow(dead_code)]
 fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
     el.attr("class")
         .unwrap_or("")

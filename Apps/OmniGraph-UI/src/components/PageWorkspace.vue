@@ -629,7 +629,7 @@ defineExpose({
 /* Right sidebar — content items */
 
 .workspace-tools {
-  flex: 2 1 0;
+  flex: 3 1 0;
   min-height: 0;
   max-height: 100%;
   overflow-y: auto;
@@ -638,7 +638,7 @@ defineExpose({
 }
 
 .workspace-hocr-outline-pane {
-  flex: 1 1 0;
+  flex: 2 1 0;
   min-height: 0;
   max-height: 100%;
   overflow-y: auto;

@@ -6,6 +6,7 @@ pub mod handlers_web;
 pub mod handlers_api;
 pub mod handlers_api_hocr;
 
+#[allow(dead_code)]
 fn parse_date(s: &str) -> Option<time::Date> {
     let mut parts = s.splitn(3, '-');
     let year: i32 = parts.next()?.parse().ok()?;
