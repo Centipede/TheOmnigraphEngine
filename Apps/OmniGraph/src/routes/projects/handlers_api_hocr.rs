@@ -1,5 +1,5 @@
 use crate::hocr_parser;
-use crate::hocr_parser::{HocrBlock, HocrCarea, HocrLine, HocrPage, HocrPath, bbox_union_all};
+use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -7,24 +7,8 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use serde::Deserialize;
 use std::path::PathBuf;
-
-#[derive(Deserialize)]
-pub struct MergeRequest {
-    pub other_id: String,
-}
-
-#[derive(Deserialize)]
-pub struct SplitRequest {
-    pub before_id: String,
-    pub after_id: String,
-}
-
-#[derive(Deserialize)]
-pub struct ChangeTypeRequest {
-    pub kind: String,
-}
+use crate::routes::projects::forms::{ChangeTypeRequest, MergeRequest, SplitRequest};
 
 // ── HELPERS ──────────────────────────────────────────────────────────
 
@@ -35,7 +19,7 @@ fn save_and_report(
     stem: &str,
 ) -> impl IntoResponse {
     let html = page.to_hocr_html();
-    if let Err(e) = storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &html) {
+    if let Err(_e) = storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &html) {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
     return Json(page).into_response();
@@ -48,9 +32,10 @@ pub async fn carea_merge(
     Path((machine_name, stem, id)): Path<(String, String, String)>,
     Json(payload): Json<MergeRequest>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path1 = hocr_parser::find_node(&page, &id).unwrap();
     let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
     let HocrPath::Carea { carea: carea1 } = path1 else {
@@ -70,9 +55,10 @@ pub async fn carea_split(
     Path((machine_name, stem, id)): Path<(String, String, String)>,
     Json(payload): Json<SplitRequest>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
     let carea_path = hocr_parser::find_node(&page, &id).unwrap();
@@ -126,9 +112,10 @@ pub async fn carea_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path = hocr_parser::find_node(&page, &id).unwrap();
     let HocrPath::Carea { carea } = path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -146,9 +133,10 @@ pub async fn block_merge(
     Path((machine_name, stem, id)): Path<(String, String, String)>,
     Json(payload): Json<MergeRequest>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path1 = hocr_parser::find_node(&page, &id).unwrap();
     let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
     let HocrPath::Block {
@@ -179,9 +167,10 @@ pub async fn block_split(
     Path((machine_name, stem, id)): Path<(String, String, String)>,
     Json(payload): Json<SplitRequest>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-    .await
-    .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
     let block_path = hocr_parser::find_node(&page, &id).unwrap();
@@ -217,26 +206,49 @@ pub async fn block_split(
 }
 
 pub async fn block_move_up(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Block { carea, block } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_block_up(carea, block);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn block_move_down(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Block { carea, block } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_block_down(carea, block);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn block_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path = hocr_parser::find_node(&page, &id).unwrap();
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -248,12 +260,29 @@ pub async fn block_remove(
 }
 
 pub async fn block_change_type(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
-    Json(_payload): Json<ChangeTypeRequest>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<ChangeTypeRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let Some(HocrPath::Block { carea, block }) = hocr_parser::find_node(&page, &id) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    let Some(kind) = HocrBlockKind::from_json_name(&payload.kind) else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+
+    page.change_block_kind(carea, block, kind);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
+
 // ── LINE ─────────────────────────────────────────────────────────────
 
 pub async fn line_merge(
@@ -265,19 +294,31 @@ pub async fn line_merge(
 }
 
 pub async fn line_move_up(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Line { carea, block, line } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_line_up(carea, block, line);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn line_move_down(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path = hocr_parser::find_node(&page, &id).unwrap();
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -292,9 +333,10 @@ pub async fn line_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path = hocr_parser::find_node(&page, &id).unwrap();
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -333,9 +375,10 @@ pub async fn word_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    let mut page = parse_page(&state.projects_dir, &machine_name, &stem)
-        .await
-        .unwrap();
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
     let path = hocr_parser::find_node(&page, &id).unwrap();
     let HocrPath::Word {
         carea,
@@ -387,7 +430,7 @@ pub async fn restore_from_original(
         return StatusCode::NOT_FOUND.into_response();
     }
 
-    if let Err(e) = std::fs::copy(&original_path, &edited_path) {
+    if let Err(_e) = std::fs::copy(&original_path, &edited_path) {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
