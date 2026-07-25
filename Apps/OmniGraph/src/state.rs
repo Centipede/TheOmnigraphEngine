@@ -23,10 +23,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[allow(dead_code)]
     pub fn projects_dir(&self) -> PathBuf {
         self.projects_dir.as_ref().clone()
     }
 
+    #[allow(dead_code)]
     pub fn projects_toml_path(&self, machine_name: &str) -> PathBuf {
         self.projects_dir
             .join(machine_name)

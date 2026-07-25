@@ -167,9 +167,11 @@ const overlayItems = computed((): OverlayItem[] => {
   function blockKindFor(block: HocrBlock): string {
     if(block.kind == 'part') return 'Part'
     if(block.kind == 'chapter') return 'H1'
-    if(block.kind == 'section') return 'h2'
+    if(block.kind == 'section') return 'H2'
     if(block.kind == 'subsection') return 'H3'
     if(block.kind == 'subsubsection') return 'H4'
+    if(block.kind == 'subsubsubsection') return 'H5'
+    if(block.kind == 'subsubsubsubsection') return 'H6'
     return 'P'
   }
 

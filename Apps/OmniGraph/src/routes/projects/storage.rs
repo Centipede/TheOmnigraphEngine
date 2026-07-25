@@ -45,15 +45,18 @@ pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> 
     fs::write(path, json)
 }
 
+#[allow(dead_code)]
 pub fn add_page(db: &mut PageDb, scan: String, scan_width: u32, scan_height: u32, thumb: String, thumb_width: u32, thumb_height: u32, batch: u32, import_order: u32) {
     db.pages.push(Page { index: 0, name: String::new(), scan, scan_width, scan_height, thumb, thumb_width, thumb_height, batch, import_order, ..Page::default() });
 }
 
+#[allow(dead_code)]
 pub fn remove_page(db: &mut PageDb, index: usize) {
     db.pages.retain(|p| p.index != index);
     reindex(db);
 }
 
+#[allow(dead_code)]
 pub fn assign_name(db: &mut PageDb, index: usize, name: String) {
     if let Some(page) = db.pages.iter_mut().find(|p| p.index == index) {
         page.name = name;
@@ -68,6 +71,7 @@ pub fn reindex(db: &mut PageDb) {
 }
 
 // Reset display order to the original import sequence, then reindex.
+#[allow(dead_code)]
 pub fn sort_by_import_order(db: &mut PageDb) {
     db.pages.sort_by(|a, b| a.import_order.cmp(&b.import_order).then_with(|| a.scan.cmp(&b.scan)));
     reindex(db);

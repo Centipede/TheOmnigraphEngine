@@ -1,4 +1,3 @@
-pub mod settings;
 pub mod projects;
 
 use axum::{
@@ -73,11 +72,6 @@ pub fn build_router(state: AppState) -> Router {
 
     let projects = Router::new()
         .route("/", get(handlers_web::vue_app))
-        .route("/{machine_name}/ingestor", get(handlers_web::project_pages_get))
-        .route("/{machine_name}/ingestor/append", get(handlers_web::ingest_images_get).post(handlers_web::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/{machine_name}/ingestor/insert", get(handlers_web::ingest_images_get).post(handlers_web::ingest_images_post).layer(DefaultBodyLimit::disable()))
-        .route("/{machine_name}/ingestor/remove", get(handlers_web::remove_images_get).post(handlers_web::remove_images_post))
-        .route("/{machine_name}/ingestor/rename", post(handlers_web::rename_pages_post))
         .fallback(handlers_web::vue_app);
 
     Router::new()

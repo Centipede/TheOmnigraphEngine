@@ -55,6 +55,7 @@ pub fn bbox_union(bbox1: HocrBbox, bbox2: HocrBbox) -> HocrBbox {
     bbox
 }
 
+#[allow(dead_code)]
 pub fn bbox_intersection(bbox1: HocrBbox, bbox2: HocrBbox) -> Option<HocrBbox> {
     let mut bbox = bbox1;
     bbox[0] = bbox[0].max(bbox2[0]);
@@ -119,6 +120,8 @@ pub enum HocrBlockKind {
     Section,
     Subsection,
     Subsubsection,
+    Subsubsubsection,
+    Subsubsubsubsection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,16 +166,18 @@ pub enum HocrPath {
 }
 
 impl HocrPath {
+
+    #[allow(dead_code)]
     pub fn to_carea(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Carea { carea } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Block { carea, block } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Line { carea, block, line } => Some(HocrPath::Carea { carea: *carea }),
-            HocrPath::Word { carea, block, line, word } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Block { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Line { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
+            HocrPath::Word { carea, .. } => Some(HocrPath::Carea { carea: *carea }),
             _ => None,
         }
     }
-
+    #[allow(dead_code)]
     pub fn to_block(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Block { carea, block } => Some(HocrPath::Block { carea: *carea, block: *block }),
@@ -181,7 +186,7 @@ impl HocrPath {
             _ => None,
         }
     }
-
+    #[allow(dead_code)]
     pub fn to_line(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Line { carea, block, line } => Some(HocrPath::Line { carea: *carea, block: *block, line: *line }),
@@ -189,6 +194,7 @@ impl HocrPath {
             _ => None,
         }
     }
+    #[allow(dead_code)]
     pub fn to_word(&self) -> Option<HocrPath> {
         match self {
             HocrPath::Word { carea, block, line, word } => Some(HocrPath::Word { carea: *carea, block: *block, line: *line, word: *word }),
@@ -291,7 +297,6 @@ impl HocrPage {
             Some(numbers.into_iter().max().unwrap() + 1)
         }
     }
-
     pub fn get_unique_id(&self, from_id: &str) -> String {
         let preferred_stem = stem_from_id(from_id);
         let next = self.get_next_number_with_stem(preferred_stem.as_str());
@@ -302,7 +307,31 @@ impl HocrPage {
         }
     }
 
-    pub fn advance_carea_path(&self, path: HocrPath) -> Option<HocrPath> {
+    pub fn cleanup_carea(&mut self, carea: usize) {
+        if self.careas[carea].blocks.is_empty() {
+            self.careas.remove(carea);
+        } else {
+            self.careas[carea].rebuild_bbox();
+        }
+    }
+    pub fn cleanup_block(&mut self, carea: usize, block: usize) {
+        if self.careas[carea].blocks[block].lines.is_empty() {
+            self.careas[carea].blocks.remove(block);
+        } else {
+            self.careas[carea].blocks[block].rebuild_bbox();
+        }
+        self.cleanup_carea(carea);
+    }
+    pub fn cleanup_line(&mut self, carea: usize, block: usize, line: usize) {
+        if self.careas[carea].blocks[block].lines[line].words.is_empty() {
+            self.careas[carea].blocks[block].lines.remove(line);
+            self.cleanup_block(carea, block);
+        } else {
+            self.careas[carea].blocks[block].lines[line].rebuild_bbox();
+        }
+    }
+
+    pub fn next_carea_path(&self, path: HocrPath) -> Option<HocrPath> {
         if let HocrPath::Carea { carea } = path {
             if carea < self.careas.len() - 1 {
                 Some(HocrPath::Carea { carea: carea + 1 })
@@ -313,7 +342,7 @@ impl HocrPage {
             None
         }
     }
-    pub fn advance_block_path(&self, path: HocrPath) -> Option<HocrPath> {
+    pub fn next_block_path(&self, path: HocrPath) -> Option<HocrPath> {
         if let HocrPath::Block { carea, block } = path {
             if block < self.careas[carea].blocks.len() - 1 {
                 Some(HocrPath::Block {
@@ -322,7 +351,7 @@ impl HocrPage {
                 })
             } else if block == self.careas[carea].blocks.len() - 1 {
                 loop {
-                    let path = self.advance_carea_path(path.to_carea()?);
+                    let path = self.next_carea_path(path.to_carea()?);
                     if let Some (HocrPath::Carea { carea }) = path {
                         if self.careas[carea].blocks.len() > 0 {
                             return Some(HocrPath::Block { carea, block: 0 });
@@ -332,7 +361,6 @@ impl HocrPage {
                         return None;
                     }
                 }
-                None
             } else {
                 None
             }
@@ -340,7 +368,115 @@ impl HocrPage {
             None
         }
     }
+    pub fn previous_carea_path(&self, path: HocrPath) -> Option<HocrPath> {
+        if let HocrPath::Carea { carea } = path {
+            if carea > 0 {
+                Some(HocrPath::Carea { carea: carea - 1 })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    pub fn previous_block_path(&self, path: HocrPath) -> Option<HocrPath> {
+        if let HocrPath::Block { carea, block } = path {
+            if block > 0 {
+                Some(HocrPath::Block {
+                    carea,
+                    block: block + 1,
+                })
+            } else {
+                loop {
+                    let path = self.previous_carea_path(path.to_carea()?);
+                    if let Some(HocrPath::Carea { carea }) = path {
+                        if self.careas[carea].blocks.len() > 0 {
+                            return Some(HocrPath::Block { carea, block: 0 });
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+            }
+        } else {
+            None
+        }
+    }
 
+    pub fn move_block_up(&mut self, carea: usize, block: usize) {
+
+        // Move within the same carea?
+        if block > 0 {
+            println!("move_block_up - within same carea: block {}", block);
+            let moving_block = self.careas[carea].blocks.remove(block - 1);
+            self.careas[carea].blocks.insert(block, moving_block);
+
+            self.cleanup_carea(carea);
+        }
+        else if block == 0 {
+            let previous_carea = self.previous_carea_path(HocrPath::Carea { carea });
+            println!("move_block_up: previous_carea {:?}", previous_carea);
+            if let Some(HocrPath::Carea { carea:to_carea }) = previous_carea {
+                let moving_block = self.careas[carea].blocks.remove(block);
+                let to_carea_size = self.careas[to_carea].blocks.len();
+
+                self.careas[to_carea].blocks.insert(to_carea_size, moving_block);
+
+                self.cleanup_carea(to_carea); // Note! Order... cleanup may remove empty careas.
+                self.cleanup_carea(carea);    // Note! If so, indices are invalidated. Hence: to_ goes first.
+            }
+        }
+    }
+    pub fn move_block_down(&mut self, carea: usize, block: usize) {
+        let carea_size = self.careas[carea].blocks.len();
+        if block < carea_size - 1 {
+            println!("move_block_down - within same carea: block {}", block);
+            let block_down = self.careas[carea].blocks.remove(block);
+            self.careas[carea].blocks.insert(block+1, block_down);
+
+            self.cleanup_carea(carea);
+        }
+        else if block == carea_size - 1 {
+            let next_carea = self.next_carea_path(HocrPath::Carea { carea });
+            println!("move_block_down: next_carea {:?}", next_carea);
+            if let Some (HocrPath::Carea { carea:to_carea }) = next_carea {
+                let moving_block = self.careas[carea].blocks.remove(block);
+                self.careas[to_carea].blocks.insert(0, moving_block);
+
+                self.cleanup_carea(to_carea); // Note! Order... cleanup may remove empty careas.
+                self.cleanup_carea(carea);    // Note! If so, indices are invalidated. Hence: to_ goes first.
+            }
+        }
+        else {
+            panic!("move_block_down: invalid block index");
+        }
+    }
+    pub fn move_line_up(&mut self, carea: usize, block: usize, line: usize) {
+
+        // Move within the same block?
+        if line > 0 {
+            println!("move_line_up - within same block: line {}", line);
+            let moving_line = self.careas[carea].blocks[block].lines.remove(line - 1);
+            self.careas[carea].blocks[block].lines.insert(line, moving_line);
+
+            self.cleanup_block(carea, block);
+        }
+        else if line == 0 {
+            let previous_block = self.previous_block_path(HocrPath::Block { carea, block });
+            println!("move_line_up: previous_block {:?}", previous_block);
+            if let Some(HocrPath::Block { carea:to_carea, block:to_block }) = previous_block {
+                let moving_line = self.careas[carea].blocks[block].lines.remove(line);
+                let to_block_size = self.careas[to_carea].blocks[to_block].lines.len();
+                self.careas[to_carea].blocks[to_block].lines.insert(to_block_size, moving_line);
+
+                self.cleanup_block(to_carea, to_block);     // Note! Order... cleanup may remove empty blocks.
+                self.cleanup_block(carea, block);           // Note! If so, indices are invalidated. Hence: to_ goes first.
+            }
+        }
+        else {
+            println!("move_line_up: not moving");
+        }
+    }
     pub fn move_line_down(&mut self, carea: usize, block: usize, line: usize) {
 
         let block_size = self.careas[carea].blocks[block].lines.len();
@@ -348,25 +484,21 @@ impl HocrPage {
         // Move within the same block?
         if line < block_size - 1 {
             println!("move_line_down - within same block: line {}", line);
-            let line_down = self.careas[carea].blocks[block].lines.remove(line + 1);
-            self.careas[carea].blocks[block]
-                .lines
-                .insert(line, line_down);
-            self.careas[carea].blocks[block].rebuild_bbox();
+            let moving_line = self.careas[carea].blocks[block].lines.remove(line);
+            self.careas[carea].blocks[block].lines.insert(line+1, moving_line);
+
+            self.cleanup_block(carea, block);
         }
-        // Move line to next block ... even it that requires skipping over empty blocks?
+        // Move line to next block ... even if that requires skipping over empty blocks?
         else if line == block_size - 1 {
-            let next_block = self.advance_block_path(HocrPath::Block { carea, block });
+            let next_block = self.next_block_path(HocrPath::Block { carea, block });
             println!("move_line_down: next_block {:?}", next_block);
             if let Some (HocrPath::Block { carea:to_carea, block:to_block }) = next_block {
-                let line_down = self.careas[carea].blocks[block].lines.remove(line);
-                println!(" prepending line to block {:?}: {} lines", next_block, self.careas[to_carea].blocks[to_block].lines.len() );
-                self.careas[to_carea].blocks[to_block]
-                    .lines
-                    .insert(0, line_down);
-                println!(" prepended line to block {:?}: {} lines", next_block, self.careas[to_carea].blocks[to_block].lines.len() );
-                self.careas[carea].blocks[block].rebuild_bbox();
-                self.careas[to_carea].blocks[to_block].rebuild_bbox();
+                let moving_line = self.careas[carea].blocks[block].lines.remove(line);
+                self.careas[to_carea].blocks[to_block].lines.insert(0, moving_line);
+
+                self.cleanup_block(to_carea, to_block);     // Note! Order... cleanup may remove empty blocks.
+                self.cleanup_block(carea, block);           // Note! If so, indices are invalidated. Hence: to_ goes first.
             }
         }
         else {
@@ -394,6 +526,7 @@ impl HocrPage {
             self.remove_block(carea, block2);
         }
     }
+
     pub fn merge_line(&mut self, carea: usize, block: usize, line1: usize, line2: usize) {
         // Thought: Optionally, we could complain if the lines were not consecutive. But the algorithm is robust enough to handle that, so why?
         if line1 != line2 {
@@ -415,7 +548,7 @@ impl HocrPage {
 
         let new_id = self.get_unique_id(self.careas[carea].id.as_str());
         let old_carea = &mut self.careas[carea];
-        let (left, right) = old_carea.blocks.split_at_mut(block_after);
+        let (_, right) = old_carea.blocks.split_at_mut(block_after);
         let new_carea = HocrCarea {
             level: "carea".to_string(),
             id: new_id,
@@ -427,21 +560,14 @@ impl HocrPage {
         self.careas[carea].rebuild_bbox();
         self.careas[carea + 1].rebuild_bbox();
     }
-
-    pub fn split_block(
-        &mut self,
-        carea: usize,
-        block: usize,
-        line_before: usize,
-        line_after: usize,
-    ) {
+    pub fn split_block(&mut self, carea: usize, block: usize, line_before: usize, line_after: usize) {
         if line_before == line_after {
             return;
         }
         let new_id = self.get_unique_id(self.careas[carea].blocks[block].id.as_str());
         let carea = &mut self.careas[carea];
         let old_block = &mut carea.blocks[block];
-        let (left, right) = old_block.lines.split_at_mut(line_after);
+        let (_, right) = old_block.lines.split_at_mut(line_after);
         let new_block = HocrBlock {
             lang: old_block.lang.clone(),
             kind: HocrBlockKind::Paragraph,
@@ -489,6 +615,11 @@ impl HocrPage {
             self.careas[carea].blocks[block].lines[line].rebuild_bbox();
         }
     }
+
+    pub fn change_block_kind(&mut self, carea: usize, block: usize, kind: HocrBlockKind) {
+        self.careas[carea].blocks[block].kind = kind;
+        self.careas[carea].blocks[block].rebuild_bbox();
+    }
 }
 
 impl HocrCarea {
@@ -527,6 +658,8 @@ impl HocrBlockKind {
             HocrBlockKind::Section => "h2",
             HocrBlockKind::Subsection => "h3",
             HocrBlockKind::Subsubsection => "h4",
+            HocrBlockKind::Subsubsubsection => "h5",
+            HocrBlockKind::Subsubsubsubsection => "h6",
         }
     }
     pub fn class_name(self) -> &'static str {
@@ -537,6 +670,8 @@ impl HocrBlockKind {
             HocrBlockKind::Section => "ocr_section",
             HocrBlockKind::Subsection => "ocr_subsection",
             HocrBlockKind::Subsubsection => "ocr_subsubsection",
+            HocrBlockKind::Subsubsubsection => "ocr_subsubsubsection",
+            HocrBlockKind::Subsubsubsubsection => "ocr_subsubsubsubsection",
         }
     }
     pub fn from_class_name(class_name: &str) -> Option<Self> {
@@ -547,6 +682,22 @@ impl HocrBlockKind {
             "ocr_section" => Some(HocrBlockKind::Section),
             "ocr_subsection" => Some(HocrBlockKind::Subsection),
             "ocr_subsubsection" => Some(HocrBlockKind::Subsubsection),
+            "ocr_subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
+            "ocr_subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
+            _ => None,
+        }
+    }
+
+    pub fn from_json_name(class_name: &str) -> Option<Self> {
+        match class_name {
+            "paragraph" => Some(HocrBlockKind::Paragraph),
+            "part" => Some(HocrBlockKind::Part),
+            "chapter" => Some(HocrBlockKind::Chapter),
+            "section" => Some(HocrBlockKind::Section),
+            "subsection" => Some(HocrBlockKind::Subsection),
+            "subsubsection" => Some(HocrBlockKind::Subsubsection),
+            "subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
+            "subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
             _ => None,
         }
     }
@@ -636,11 +787,10 @@ pub fn parse(html: &str) -> Option<HocrPage> {
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
     let sel_carea = Selector::parse("div.ocr_carea").ok()?;
-    let sel_par = Selector::parse("p.ocr_par").ok()?;
+    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection").ok()?;
     let sel_line = Selector::parse("span.ocr_line").ok()?;
     let sel_word = Selector::parse("span.ocrx_word").ok()?;
 
-    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection").ok()?;
 
     let page_el = document.select(&sel_page).next()?;
     let page_id = page_el.attr("id").unwrap_or("page_1").to_string();
@@ -724,6 +874,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
     })
 }
 
+#[allow(dead_code)]
 fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
     el.attr("class")
         .unwrap_or("")

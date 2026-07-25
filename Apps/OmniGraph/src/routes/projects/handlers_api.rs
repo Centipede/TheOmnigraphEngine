@@ -10,7 +10,7 @@ use crate::state::AppState;
 use axum::Json;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect};
+use axum::response::{IntoResponse};
 use tokio::fs;
 
 pub async fn settings_service_status_get(State(state): State<AppState>) -> impl IntoResponse {
