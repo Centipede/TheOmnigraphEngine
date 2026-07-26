@@ -4,7 +4,7 @@
       :project-name="projectName"
       :panels="panels"
       :show-crop-overlay="false"
-      :hocr-level="ocrTool=='multi' ? null : ocrTool"
+      :hocr-level="ocrTool=='pick' ? null : ocrTool"
       carea-overlay-color="rgba(249, 115, 22)"
       block-overlay-color="rgba(168, 85, 247)"
       line-overlay-color="rgba(59, 130, 246)"
@@ -13,6 +13,7 @@
       @current-page-change="loadHocrPage"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
+      :page-interaction-drag="pageInteractionDrag"
   >
     <template #tools="{ currentPage }">
 
@@ -29,7 +30,7 @@
           <span class="ocr-info-label">Keys</span>
           <span class="ocr-info-value">Shift join/split · {{ isMac ? 'Alt' : 'Ctrl' }} remove</span>
         </div>
-        <template v-if="ocrTool === 'multi'">
+        <template v-if="ocrTool === 'pick'">
           <div class="ocr-info-row">
             <span class="ocr-info-label">Carea</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
@@ -62,7 +63,7 @@
         <sl-button @click="restoreFromOriginal(currentPage)" size="small" >Restore</sl-button>
 
         <sl-button-group>
-          <sl-button :variant="ocrTool==='multi' ? 'primary' : 'default'" size="small"  @click="setOcrTool('multi')"><sl-icon name="eyedropper"></sl-icon></sl-button>
+          <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
           <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea</sl-button>
           <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block</sl-button>
           <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line</sl-button>
@@ -79,12 +80,13 @@
           >{{ bk.label }}<template v-if="bk.key"> <span class="kind-key">{{ bk.key }}</span></template></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="ocrTool!=='multi'">
-          <sl-button :variant="ocrMode==='context' ? 'primary' : 'default'" size="small"  @click="setOcrMode('context')">By Context</sl-button>
-          <sl-button :variant="effectiveOcrMode==='select' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('select')">Select</sl-button>
-          <sl-button :variant="effectiveOcrMode==='join' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('join')">Join</sl-button>
-          <sl-button :variant="effectiveOcrMode==='split' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'"  size="small" @click="setOcrMode('split')">Split</sl-button>
-          <sl-button :variant="effectiveOcrMode==='remove' ? (ocrMode!=='context' ? 'primary' : 'secondary') : 'default'" size="small"  @click="setOcrMode('remove')">Remove</sl-button>
+        <sl-button-group v-if="ocrTool!=='pick'">
+          <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto</sl-button>
+          <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add</sl-button>
+          <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Select</sl-button>
+          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join')">Join</sl-button>
+          <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split</sl-button>
+          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Remove</sl-button>
         </sl-button-group>
       </div>
 
@@ -125,11 +127,11 @@ provide('hocrPage', hocrPage);
 
 const currentStem = ref<string | null>(null);
 
-type OcrTool = 'multi' | 'carea' | 'block' | 'line' | 'word';
-type OcrMode = 'context' | 'none' | 'select' | 'join' | 'split' | 'remove';
+type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
+type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
 
-const ocrTool:Ref<OcrTool> = ref('multi');
-const ocrMode:Ref<OcrMode> = ref('context');
+const ocrTool:Ref<OcrTool> = ref('pick');
+const ocrOperation:Ref<OcrOperation> = ref('context');
 
 const overItemId = ref<string | null>(null);
 const selectedItemId = ref<string | null>(null);
@@ -150,10 +152,11 @@ const ctrlDown  = ref(false);
 const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
-const effectiveOcrMode = computed<OcrMode>(() => {
-  if (ocrMode.value !== 'context') return ocrMode.value;
+const effectiveOcrOperation = computed<OcrOperation>(() => {
+  if (ocrOperation.value !== 'context') return ocrOperation.value;
 
-  if (ocrTool.value === 'multi') return 'select';
+  if (ocrTool.value === 'pick') return 'select';
+  if (isMac ? (shiftDown.value && altDown.value) : (ctrlDown.value && shiftDown.value)) return 'add';
   if (isMac ? altDown.value : ctrlDown.value) return 'remove';
   if (shiftDown.value) {
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
@@ -164,8 +167,9 @@ const effectiveOcrMode = computed<OcrMode>(() => {
 });
 
 const pointerLabel = computed(() => {
-  switch (effectiveOcrMode.value) {
+  switch (effectiveOcrOperation.value) {
     case 'none':   return 'No action';
+    case 'add':    return 'Add';
     case 'select': return 'Select';
     case 'split':  return 'Split';
     case 'join':   return 'Join';
@@ -175,19 +179,21 @@ const pointerLabel = computed(() => {
 });
 
 const pointerColor = computed(() => {
-  switch (effectiveOcrMode.value) {
+  switch (effectiveOcrOperation.value) {
     case 'none':   return '#000000';
+    case 'add':    return '#78ca3d';
     case 'select': return '#2563eb';
     case 'split':  return '#f97316';
-    case 'join':   return '#16a34a';
+    case 'join':   return '#d5a619';
     case 'remove': return '#dc2626';
   }
   return '';
 });
 
 const pointerIcon = computed(() => {
-  switch (effectiveOcrMode.value) {
+  switch (effectiveOcrOperation.value) {
     case 'none':   return 'question-lg';
+    case 'add':    return 'plus';
     case 'select': return 'crosshair';
     case 'split':  return 'view-stacked';
     case 'join':   return 'view-list';
@@ -197,7 +203,8 @@ const pointerIcon = computed(() => {
 });
 
 const pointerEnabled = computed(() => {
-  switch (effectiveOcrMode.value) {
+  switch (effectiveOcrOperation.value) {
+    case 'add':    return true;
     case 'select':
     case 'remove': return overItemId.value !== null;
     case 'join':   return betweenTargets.value[0] !== null && betweenTargets.value[1] !== null;
@@ -208,20 +215,20 @@ const pointerEnabled = computed(() => {
 
 function setOcrTool(tool: OcrTool) {
   ocrTool.value = tool;
-  if (ocrTool.value === 'multi') {
-    if(['split', 'join', 'remove'].includes(ocrMode.value)) {
-      setOcrMode('context');
+  if (ocrTool.value === 'pick') {
+    if(['split', 'join', 'remove'].includes(ocrOperation.value)) {
+      setOcrOperation('context');
     }
   }
   else {
-    if (ocrMode.value == 'none') {
-      setOcrMode('context');
+    if (ocrOperation.value == 'none') {
+      setOcrOperation('context');
     }
   }
 }
 
-function setOcrMode(mode: OcrMode) {
-  ocrMode.value = mode;
+function setOcrOperation(mode: OcrOperation) {
+  ocrOperation.value = mode;
 }
 
 function pageInteractionUpdate(
@@ -236,7 +243,7 @@ function pageInteractionUpdate(
   betweenTargets.value = betweenOverlayItems;
   betweenSubTargets.value = betweenOverlaySubItems;
 
-  if (ocrTool.value === 'multi') {
+  if (ocrTool.value === 'pick') {
     multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
   }
   else {
@@ -282,9 +289,9 @@ async function changeBlockType(kind: string): Promise<void> {
 
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
-  const level = ocrTool.value;
-  if (!stem || level === 'multi') return;
-  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[level]}/${id}/${action}`;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
   const resp = await fetch(url, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       : { method: 'POST' });
@@ -294,11 +301,43 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
   }
 }
 
+async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+
+  const body: {
+    to_carea?: string | null; to_block?: string | null; to_line?: string | null;
+    bbox: [number, number, number, number]; text: null;
+  } = { bbox, text: null };
+
+  const parent = selectedTarget.value;
+  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
+  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
+  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
+
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (resp.ok) hocrPage.value = await resp.json() as HocrPage;
+}
+
+async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: number): Promise<void> {
+  if (effectiveOcrOperation.value !== 'add') return;
+  await callAddEndpoint([
+    Math.round(Math.min(x1, x2)), Math.round(Math.min(y1, y2)),
+    Math.round(Math.max(x1, x2)), Math.round(Math.max(y1, y2)),
+  ]);
+}
+
 async function pageInteractionClick(): Promise<void> {
-  const mode = effectiveOcrMode.value;
+  const mode = effectiveOcrOperation.value;
   if (mode === 'none') return;
 
-  if (ocrTool.value === 'multi') {
+  if (ocrTool.value === 'pick') {
     multiSelect.value = multiHover.value;
     return;
   }
@@ -336,7 +375,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   // T = WORD level tool
 
   if (e.key === 'q') {
-    setOcrTool('multi');
+    setOcrTool('pick');
     return;
   }
   if (e.key === 'w') {

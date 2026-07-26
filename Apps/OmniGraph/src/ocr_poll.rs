@@ -1,11 +1,11 @@
 use crate::app_settings::{AppSettings, OcrServerConfig};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use tokio::time::{Duration, interval};
 
 pub const POLL_INTERVAL_SECS: u64 = 1;
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ServerStatus {
     #[default]
@@ -14,7 +14,7 @@ pub enum ServerStatus {
     Offline,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct OcrServerStatus {
     pub server_1: ServerStatus,
     pub server_2: ServerStatus,
