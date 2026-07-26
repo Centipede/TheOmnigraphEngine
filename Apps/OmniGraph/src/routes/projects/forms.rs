@@ -78,12 +78,22 @@ pub struct IngestQuery {
 }
 
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddBlockType {
+    Text,
+    Image,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct AddRequest {
     pub to_carea: Option<String>,
     pub to_block: Option<String>,
     pub to_line: Option<String>,
     pub bbox: HocrBbox,
+    pub block_type: Option<AddBlockType>,
     pub text: Option<String>,
+    pub erase_underneath: Option<bool>,
+    pub erase_overlap: Option<usize>
 }
 
 #[derive(Deserialize, Serialize)]

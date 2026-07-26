@@ -88,6 +88,22 @@
           <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split</sl-button>
           <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Remove</sl-button>
         </sl-button-group>
+
+        <template v-if="showAddForm">
+          <form
+              class="form-grid"
+          >
+            <sl-radio-group
+                label="Block type"
+                :value="addForm.blockType"
+                @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as BlockType">
+              <sl-radio-button value="text">Text</sl-radio-button>
+              <sl-radio-button value="image">Image</sl-radio-button>
+            </sl-radio-group>
+            <sl-checkbox v-model="addForm.eraseUnderneath">Erase overlapping > N %</sl-checkbox>
+            <sl-input v-model="addForm.eraseOverlapPercentage" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
+          </form>
+        </template>
       </div>
 
     </template>
@@ -133,6 +149,9 @@ type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | '
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
 
+
+// ── Select ───────────────────────────────────────────────────────────
+
 const overItemId = ref<string | null>(null);
 const selectedItemId = ref<string | null>(null);
 provide('selectedItemId', selectedItemId);
@@ -145,6 +164,7 @@ const multiHover = ref<MultiSelect | null>(null);
 const multiSelect = ref<MultiSelect | null>(null);
 
 // ── Modifier key state ───────────────────────────────────────────────
+
 const shiftDown = ref(false);
 const altDown   = ref(false);
 const metaDown  = ref(false);
@@ -152,6 +172,7 @@ const ctrlDown  = ref(false);
 const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
+
 const effectiveOcrOperation = computed<OcrOperation>(() => {
   if (ocrOperation.value !== 'context') return ocrOperation.value;
 
@@ -165,6 +186,26 @@ const effectiveOcrOperation = computed<OcrOperation>(() => {
   }
   return 'select';
 });
+
+// ── Add ──────────────────────────────────────────────────────────────
+
+type AddBlockType = 'text' | 'image';
+
+type AddForm = {
+  blockType: AddBlockType
+  text?: string
+  eraseUnderneath: boolean
+  eraseOverlapPercentage: number
+}
+
+const showAddForm = computed<boolean>( () => { return effectiveOcrOperation.value === 'add' });
+const addForm: Ref<AddForm> = ref({
+  blockType: 'text',
+  eraseUnderneath: false,
+  eraseOverlapPercentage: 10,
+});
+
+// ── Custom pointer ───────────────────────────────────────────────────
 
 const pointerLabel = computed(() => {
   switch (effectiveOcrOperation.value) {
@@ -306,10 +347,21 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
   const tool = ocrTool.value;
   if (!stem || tool === 'pick') return;
 
+  const form = addForm.value;
   const body: {
     to_carea?: string | null; to_block?: string | null; to_line?: string | null;
-    bbox: [number, number, number, number]; text: null;
-  } = { bbox, text: null };
+    bbox: [number, number, number, number];
+    block_type: AddBlockType;
+    text?: string;
+    erase_underneath: boolean;
+    erase_overlap: number;
+  } = {
+    bbox,
+    block_type: form.blockType,
+    text: form.text,
+    erase_underneath: form.eraseUnderneath,
+    erase_overlap: form.eraseOverlapPercentage,
+  };
 
   const parent = selectedTarget.value;
   if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
@@ -538,6 +590,43 @@ onUnmounted(() => {
 .kind-key {
   opacity: 0.55;
   font-size: 0.7em;
+}
+
+.form-grid {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+
+  display: grid;
+  gap: 0.75rem;
+}
+
+.form-grid h3 {
+  margin: 1rem 0 0;
+  font-size: 1rem;
+}
+
+.form-grid label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.form-grid small {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.form-grid input[type="text"],
+.form-grid input[type="number"] {
+  padding: 0.5rem 0.625rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font: inherit;
 }
 
 </style>
