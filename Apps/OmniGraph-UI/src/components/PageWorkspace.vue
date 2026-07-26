@@ -113,6 +113,7 @@
               :pointer-settings="pointerSettings"
               :interaction-update="pageInteractionUpdate"
               :interaction-click="pageInteractionClick"
+              :interaction-drag="pageInteractionDrag"
           />
         </slot>
       </div>
@@ -256,6 +257,7 @@ const props = withDefaults(defineProps<{
       panels: PanelVisibility | null;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
+      pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
     }>(), {
       canPagesBeFiltered: true,
     }

@@ -6,6 +6,8 @@
         @mousemove="updatePointerAction"
         @mouseenter="changePointerState(true)"
         @mouseleave="changePointerState(false)"
+        @mousedown="handleMouseDown"
+        @mouseup="handleMouseUp"
         @click="performPendingAction"
     >
       <!-- page / overlays / workspace content -->
@@ -22,6 +24,8 @@
                class="page-preview-image"
                :alt="label"
                :title="label"
+               draggable="false"
+               @dragstart.prevent
           />
 
           <template v-if="showCropOverlay && crop">
@@ -48,6 +52,7 @@
             </div>
           </div>
 
+          <div v-if="isDragging && dragRectStyle" class="drag-rect" :style="dragRectStyle" />
         </div>
 
       </div>
@@ -109,6 +114,7 @@ const props = withDefaults(defineProps<{
   pointerSettings?: PointerSettings;
   interactionUpdate?: PageInteractionUpdate;
   interactionClick?: () => void;
+  interactionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
@@ -132,6 +138,29 @@ const imageWrapRef = ref<HTMLElement | null>(null);
 const pointerVisible = ref(false);
 const pointerX = ref(0);
 const pointerY = ref(0);
+
+// ── Drag-to-draw state ───────────────────────────────────────────────
+const dragStart   = ref<{x: number; y: number} | null>(null);
+const dragCurrent = ref<{x: number; y: number} | null>(null);
+const isDragging    = ref(false);
+const wasJustDragging = ref(false);
+
+const dragRectStyle = computed(() => {
+  if (!isDragging.value || !dragStart.value || !dragCurrent.value) return null;
+  const x1 = Math.min(dragStart.value.x, dragCurrent.value.x);
+  const y1 = Math.min(dragStart.value.y, dragCurrent.value.y);
+  const x2 = Math.max(dragStart.value.x, dragCurrent.value.x);
+  const y2 = Math.max(dragStart.value.y, dragCurrent.value.y);
+  return {
+    position: 'absolute' as const,
+    left: scanXPct(x1),
+    top: scanYPct(y1),
+    width: scanXPct(x2 - x1),
+    height: scanYPct(y2 - y1),
+    pointerEvents: 'none' as const,
+    zIndex: 10,
+  };
+});
 
 const colorByLevel = computed(() => [
   props.careaOverlayColor!,
@@ -277,9 +306,47 @@ const rightDiscardStyle = computed(() => ({
 
 function changePointerState(inside: boolean) {
   pointerVisible.value = props.pointerSettings ? inside : false;
+  if (!inside) {
+    dragStart.value = null;
+    dragCurrent.value = null;
+    isDragging.value = false;
+  }
+}
+
+function handleMouseDown(e: MouseEvent) {
+  if (!props.interactionDrag) return;
+  const point = getScanPointForEvent(e);
+  if (point) {
+    dragStart.value = point;
+    dragCurrent.value = point;
+    isDragging.value = false;
+  }
+}
+
+function handleMouseUp(e: MouseEvent) {
+  if (isDragging.value && dragStart.value && props.interactionDrag) {
+    const point = getScanPointForEvent(e);
+    if (point) {
+      props.interactionDrag(dragStart.value.x, dragStart.value.y, point.x, point.y);
+    }
+    wasJustDragging.value = true;
+  }
+  dragStart.value = null;
+  dragCurrent.value = null;
+  isDragging.value = false;
 }
 
 function updatePointerAction(event: MouseEvent) {
+  // Update drag rect while dragging
+  if (dragStart.value) {
+    const point = getScanPointForEvent(event);
+    if (point) {
+      dragCurrent.value = point;
+      const dx = point.x - dragStart.value.x;
+      const dy = point.y - dragStart.value.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) isDragging.value = true;
+    }
+  }
   if (hocrPage === undefined || hocrPage.value === null)
     return;
 
@@ -358,6 +425,10 @@ function updatePointerAction(event: MouseEvent) {
 }
 
 function performPendingAction() {
+  if (wasJustDragging.value) {
+    wasJustDragging.value = false;
+    return;
+  }
   props.interactionClick?.();
 }
 
@@ -588,6 +659,12 @@ function overlayItemStyle(item: OverlayItem) {
   transition: opacity 120ms ease;
 }
 
+
+.drag-rect {
+  box-sizing: border-box;
+  border: 2px dashed rgba(120, 202, 61, 0.9);
+  background: rgba(120, 202, 61, 0.12);
+}
 
 img {
   -webkit-user-select: none;

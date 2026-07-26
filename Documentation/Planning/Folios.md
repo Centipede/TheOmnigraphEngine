@@ -36,7 +36,6 @@ need to adjust even pages differently from odd pages.
 Very typically, the book “slides” away from the center position as the scanning process progresses. That is why I need a
 tool for range-adjusting, for example, pages 200–400, with the strongest change around page 300.
 
-
 ### Mode: Crop regions
 
 Once Crop mode begins, a session is started, and the current set of crop regions is captured.
@@ -108,3 +107,5 @@ Good for a rough ballpark starting point.
 
 
 
+On PC use ^ instead of ⎇
+⌘ currently not used

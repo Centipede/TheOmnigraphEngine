@@ -526,7 +526,6 @@ impl HocrPage {
             self.remove_block(carea, block2);
         }
     }
-
     pub fn merge_line(&mut self, carea: usize, block: usize, line1: usize, line2: usize) {
         // Thought: Optionally, we could complain if the lines were not consecutive. But the algorithm is robust enough to handle that, so why?
         if line1 != line2 {
@@ -580,6 +579,19 @@ impl HocrPage {
         carea.blocks.insert(block + 1, new_block);
         carea.blocks[block].rebuild_bbox();
         carea.blocks[block + 1].rebuild_bbox();
+    }
+
+    pub fn add_carea(&mut self, bbox: HocrBbox) {
+        // Not implemented yet
+    }
+    pub fn add_block(&mut self, carea: usize, bbox: HocrBbox) {
+        // Not implemented yet
+    }
+    pub fn add_line(&mut self, carea: usize, block: usize, bbox: HocrBbox) {
+        // Not implemented yet
+    }
+    pub fn add_word(&mut self, carea: usize, block: usize, line: usize, bbox: HocrBbox, text: Option<String>) {
+        // Not implemented yet
     }
 
     pub fn remove_carea(&mut self, carea: usize) {

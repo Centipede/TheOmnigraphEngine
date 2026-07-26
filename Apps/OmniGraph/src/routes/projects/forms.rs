@@ -1,8 +1,7 @@
 use crate::app_settings::OcrCommandFormat;
 use crate::ocr_poll::ServerStatus;
 use serde::{Deserialize, Serialize};
-
-
+use crate::hocr_parser::HocrBbox;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct OcrServerData {
@@ -10,7 +9,7 @@ pub struct OcrServerData {
     pub port: u16,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct OcrSettingsUpdate {
     #[serde(default)]
     pub server_1: Option<OcrServerData>,
@@ -19,7 +18,7 @@ pub struct OcrSettingsUpdate {
     pub command_format: OcrCommandFormat,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SettingsUpdate {
     #[serde(default)]
     pub openai_api_key: Option<String>,
@@ -29,7 +28,7 @@ pub struct SettingsUpdate {
     pub ocr: Option<OcrSettingsUpdate>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SettingsResponse {
     pub openai_api_key_set: bool,
     pub perplexity_api_key_set: bool,
@@ -41,14 +40,14 @@ pub struct SettingsResponse {
 }
 
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ScanRequest {
     pub indices: Vec<usize>,
     #[serde(default)]
     pub force: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ScanPageResult {
     pub scan: String,
     pub success: bool,
@@ -56,12 +55,12 @@ pub struct ScanPageResult {
     pub error: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ScanResponse {
     pub results: Vec<ScanPageResult>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ScanConflict {
     pub pages: Vec<String>,
 }
@@ -72,29 +71,48 @@ pub struct CreateProject {
     pub machine_name: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct IngestQuery {
     pub after: Option<usize>,
     pub before: Option<usize>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddBlockType {
+    Text,
+    Image,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct AddRequest {
+    pub to_carea: Option<String>,
+    pub to_block: Option<String>,
+    pub to_line: Option<String>,
+    pub bbox: HocrBbox,
+    pub block_type: Option<AddBlockType>,
+    pub text: Option<String>,
+    pub erase_underneath: Option<bool>,
+    pub erase_overlap: Option<usize>
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct RemoveRequest {
     pub indices: Vec<usize>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct MergeRequest {
     pub other_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct SplitRequest {
     pub before_id: String,
     pub after_id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ChangeTypeRequest {
     pub kind: String,
 }

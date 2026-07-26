@@ -1,5 +1,6 @@
 use crate::hocr_parser;
 use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
+use crate::routes::projects::forms::{AddRequest, ChangeTypeRequest, MergeRequest, SplitRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -8,7 +9,6 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use std::path::PathBuf;
-use crate::routes::projects::forms::{ChangeTypeRequest, MergeRequest, SplitRequest};
 
 // ── HELPERS ──────────────────────────────────────────────────────────
 
@@ -36,8 +36,8 @@ pub async fn carea_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap();
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let path1 = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap(); // TODO: No unwrap!
     let HocrPath::Carea { carea: carea1 } = path1 else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -61,32 +61,42 @@ pub async fn carea_split(
     };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
-    let carea_path = hocr_parser::find_node(&page, &id).unwrap();
-    let before = hocr_parser::find_node(&page, &before_id).unwrap();
-    let after = hocr_parser::find_node(&page, &after_id).unwrap();
+    let carea_path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let before = hocr_parser::find_node(&page, &before_id).unwrap(); // TODO: No unwrap!
+    let after = hocr_parser::find_node(&page, &after_id).unwrap(); // TODO: No unwrap!
 
     let HocrPath::Carea { carea } = carea_path else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let HocrPath::Block { carea:carea1, block:block1 } = before else {
+    let HocrPath::Block {
+        carea: carea1,
+        block: block1,
+    } = before
+    else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let HocrPath::Block { carea:carea2, block:block2 } = after else {
+    let HocrPath::Block {
+        carea: carea2,
+        block: block2,
+    } = after
+    else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    if ! (carea == carea1 && carea1 == carea2) {
+    if !(carea == carea1 && carea1 == carea2) {
         return (
             StatusCode::BAD_REQUEST,
             "blocks must belong to the same carea",
-        ).into_response();
+        )
+            .into_response();
     }
 
-    if ! block1 == block2 - 1 {
+    if !block1 == block2 - 1 {
         return (
             StatusCode::BAD_REQUEST,
             "Can only split blocks that are adjacent to each other.",
-        ).into_response();
+        )
+            .into_response();
     }
 
     page.split_carea(carea, block1, block2);
@@ -108,6 +118,21 @@ pub async fn carea_move_down(
     StatusCode::NOT_IMPLEMENTED
 }
 
+pub async fn carea_add(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AddRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    page.add_carea(payload.bbox);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
 pub async fn carea_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
@@ -116,7 +141,7 @@ pub async fn carea_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Carea { carea } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -137,8 +162,8 @@ pub async fn block_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap();
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let path1 = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap(); // TODO: No unwrap!
     let HocrPath::Block {
         carea: carea1,
         block: block1,
@@ -173,31 +198,43 @@ pub async fn block_split(
     };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
-    let block_path = hocr_parser::find_node(&page, &id).unwrap();
-    let before = hocr_parser::find_node(&page, &before_id).unwrap();
-    let after = hocr_parser::find_node(&page, &after_id).unwrap();
+    let block_path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let before = hocr_parser::find_node(&page, &before_id).unwrap(); // TODO: No unwrap!
+    let after = hocr_parser::find_node(&page, &after_id).unwrap(); // TODO: No unwrap!
 
-    let HocrPath::Block{carea, block} = block_path else {
+    let HocrPath::Block { carea, block } = block_path else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let HocrPath::Line {carea:carea1, block:block1, line:line1} = before else {
+    let HocrPath::Line {
+        carea: carea1,
+        block: block1,
+        line: line1,
+    } = before
+    else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let HocrPath::Line {carea:carea2, block:block2, line:line2} = after else {
+    let HocrPath::Line {
+        carea: carea2,
+        block: block2,
+        line: line2,
+    } = after
+    else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    if ! (carea == carea1 && carea1 == carea2 && block == block1 && block1 == block2) {
+    if !(carea == carea1 && carea1 == carea2 && block == block1 && block1 == block2) {
         return (
             StatusCode::BAD_REQUEST,
             "lines must belong to the same block",
-        ).into_response();
+        )
+            .into_response();
     }
 
-    if ! line1 == line2 - 1 {
+    if !line1 == line2 - 1 {
         return (
             StatusCode::BAD_REQUEST,
             "Can only split lines that are adjacent to each other.",
-        ).into_response();
+        )
+            .into_response();
     }
 
     page.split_block(carea1, block1, line1, line2);
@@ -231,12 +268,33 @@ pub async fn block_move_down(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     page.move_block_down(carea, block);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
+pub async fn block_add(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AddRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let Some(to_carea) = payload.to_carea else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.add_block(carea, payload.bbox);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
@@ -249,7 +307,7 @@ pub async fn block_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -264,7 +322,6 @@ pub async fn block_change_type(
     Path((machine_name, stem, id)): Path<(String, String, String)>,
     Json(payload): Json<ChangeTypeRequest>,
 ) -> impl IntoResponse {
-
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
@@ -301,7 +358,7 @@ pub async fn line_move_up(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -325,7 +382,28 @@ pub async fn line_move_down(
     };
 
     page.move_line_down(carea, block, line);
-    
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
+pub async fn line_add(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AddRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let Some(to_block) = payload.to_block else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    let Some(HocrPath::Block { carea, block }) = hocr_parser::find_node(&page, &to_block) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.add_line(carea, block, payload.bbox);
+
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
@@ -337,7 +415,7 @@ pub async fn line_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -371,6 +449,28 @@ pub async fn word_move_down(
     StatusCode::NOT_IMPLEMENTED
 }
 
+pub async fn word_add(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AddRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let Some(to_line) = payload.to_block else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    let Some(HocrPath::Line { carea, block, line }) = hocr_parser::find_node(&page, &to_line)
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.add_word(carea, block, line, payload.bbox, payload.text);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
 pub async fn word_remove(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
@@ -379,7 +479,7 @@ pub async fn word_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
     let HocrPath::Word {
         carea,
         block,
@@ -394,6 +494,8 @@ pub async fn word_remove(
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
+
+// ── TOOLS ────────────────────────────────────────────────────────────
 
 pub async fn parse_page(
     projects_dir: &PathBuf,
