@@ -39,7 +39,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': item.id === selectedItemId }]"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': item.id === selectedItemId, 'hocr-overlay--indicated': item.id === indicatedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -126,8 +126,9 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
-const selectedItemId = inject<Ref<string | null>>('selectedItemId', ref(null));
+const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',        ref(null));
+const selectedItemId  = inject<Ref<string | null>>('selectedItemId',  ref(null));
+const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
@@ -647,6 +648,12 @@ function overlayItemStyle(item: OverlayItem) {
 .hocr-overlay--selected {
   outline: 3px solid var(--hocr-color) !important;
   background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
+  opacity: 1 !important;
+}
+
+/* Indicated item — outline-only highlight from outline hover, no fill */
+.hocr-overlay--indicated {
+  outline: 2px dashed var(--hocr-color) !important;
   opacity: 1 !important;
 }
 
