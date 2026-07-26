@@ -70,18 +70,39 @@
 </template>
 
 <script setup lang="ts">
-import {inject, reactive, ref} from 'vue';
+import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
-import type {HocrCarea, HocrLine, HocrPage, HocrBlock, HocrLevel} from '../types/hocr';
+import {
+  type HocrCarea,
+  type HocrLine,
+  type HocrPage,
+  type HocrBlock,
+  type HocrLevel,
+  findItem,
+  findMultilevelById
+} from '../types/hocr';
 
-const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
-const selectedItemId  = inject<Ref<string | null>>('selectedItemId',  ref(null));
-const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
-const selectNodeCb    = inject<(level: string, id: string) => void>('selectNode', () => {});
+const hocrPage          = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const selectedItemId    = inject<Ref<string | null>>('selectedItemId',  ref(null));
+const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
+const selectNodeCb      = inject<(level: string, id: string) => void>('selectNode', () => {});
 
 function indicate(id: string | null) {
   if (indicatedItemId) indicatedItemId.value = id;
 }
+
+watch(selectedItemId, () => {
+  if (! hocrPage || ! selectedItemId.value) return;
+
+  let chain = findMultilevelById(hocrPage.value!, selectedItemId.value)
+  if (chain) {
+    if(chain.carea) collapsedCareas.delete(chain.carea.id);
+    if(chain.block) expandedBlocks.add(chain.block.id);
+    if(chain.line) expandedLines.add(chain.line.id);
+
+  }
+
+})
 
 // ── Collapse / expand state ──────────────────────────────────────────
 // Careas: empty = all expanded.  Blocks/lines: empty = all collapsed.

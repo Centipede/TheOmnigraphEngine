@@ -96,7 +96,6 @@ import {
 import {makeVariedPalette} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
 
-
 const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
 const props = withDefaults(defineProps<{

@@ -278,30 +278,6 @@ function setOcrOperation(mode: OcrOperation) {
   ocrOperation.value = mode;
 }
 
-function pageInteractionUpdate(
-    x: number,
-    y: number,
-    overlappingOverlayItems: OverlayItem[],
-    _activeItem: HocrNode | null,
-    betweenOverlayItems: [HocrNode | null, HocrNode | null],
-    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
-) {
-  overItemId.value = null;
-  betweenTargets.value = betweenOverlayItems;
-  betweenSubTargets.value = betweenOverlaySubItems;
-
-  if (ocrTool.value === 'pick') {
-    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
-  }
-  else {
-    for (const item of overlappingOverlayItems) {
-      if (item.level === ocrTool.value) {
-        overItemId.value = item.id;
-      }
-    }
-  }
-}
-
 const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
 };
@@ -415,6 +391,30 @@ async function pageInteractionClick(): Promise<void> {
   else if (mode === 'split' && overItemId.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
     await callHocrEndpoint(overItemId.value, 'split',
         { before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id });
+  }
+}
+
+function pageInteractionUpdate(
+    x: number,
+    y: number,
+    overlappingOverlayItems: OverlayItem[],
+    _activeItem: HocrNode | null,
+    betweenOverlayItems: [HocrNode | null, HocrNode | null],
+    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
+) {
+  overItemId.value = null;
+  betweenTargets.value = betweenOverlayItems;
+  betweenSubTargets.value = betweenOverlaySubItems;
+
+  if (ocrTool.value === 'pick') {
+    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
+  }
+  else {
+    for (const item of overlappingOverlayItems) {
+      if (item.level === ocrTool.value) {
+        overItemId.value = item.id;
+      }
+    }
   }
 }
 
