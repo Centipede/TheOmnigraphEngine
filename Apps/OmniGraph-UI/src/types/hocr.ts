@@ -50,8 +50,8 @@ export type HocrNode = HocrCarea | HocrBlock | HocrLine | HocrWord;
 export type MultiSelect = {
     carea: HocrCarea | null;
     block: HocrBlock | null;
-    line:  HocrLine  | null;
-    word:  HocrWord  | null;
+    line: HocrLine | null;
+    word: HocrWord | null;
 };
 
 export function getChildren(item: HocrNode): (HocrNode)[] {
@@ -86,7 +86,7 @@ export function findMultiLevelItemByPoint(hocrPage: HocrPage, x: number, y: numb
     if (!page) return null;
     for (const carea of page.careas) {
         if (!bboxContainsPoint(carea.bbox, x, y)) continue;
-        const result: MultiSelect = { carea, block: null, line: null, word: null };
+        const result: MultiSelect = {carea, block: null, line: null, word: null};
         for (const block of carea.blocks) {
             if (!bboxContainsPoint(block.bbox, x, y)) continue;
             result.block = block;
@@ -94,7 +94,9 @@ export function findMultiLevelItemByPoint(hocrPage: HocrPage, x: number, y: numb
                 if (!bboxContainsPoint(line.bbox, x, y)) continue;
                 result.line = line;
                 for (const word of line.words) {
-                    if (!bboxContainsPoint(word.bbox, x, y)) { continue; }
+                    if (!bboxContainsPoint(word.bbox, x, y)) {
+                        continue;
+                    }
                     result.word = word;
                     break;
                 }
@@ -104,6 +106,34 @@ export function findMultiLevelItemByPoint(hocrPage: HocrPage, x: number, y: numb
         }
         return result;
     }
+    return null;
+}
+
+export function findMultilevelById(page: HocrPage, id: string): MultiSelect | null {
+    for (const carea of page.careas) {
+        if (carea.id === id) {
+            return {carea, block: null, line: null, word: null};
+        }
+
+        for (const block of carea.blocks) {
+            if (block.id === id) {
+                return {carea, block, line: null, word: null};
+            }
+
+            for (const line of block.lines) {
+                if (line.id === id) {
+                    return {carea, block, line, word: null};
+                }
+
+                for (const word of line.words) {
+                    if (word.id === id) {
+                        return {carea, block, line, word};
+                    }
+                }
+            }
+        }
+    }
+
     return null;
 }
 
@@ -168,12 +198,12 @@ export function findSiblingsAroundCursor(
     }
 
 
-    if(above && below) {
+    if (above && below) {
         const aboveIndex = siblings.indexOf(above);
         const belowIndex = siblings.indexOf(below);
         const adjacentInInput = Math.abs(aboveIndex - belowIndex) === 1;
 
-        if (! adjacentInInput)
+        if (!adjacentInInput)
             return [null, null]
     }
 

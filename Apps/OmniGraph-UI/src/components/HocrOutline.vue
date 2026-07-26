@@ -1,24 +1,63 @@
 <template>
   <div v-if="hocrPage" class="hocr-outline">
-    <div v-for="carea in hocrPage.careas" :key="carea.id" class="hocr-carea">
 
-      <div class="hocr-row hocr-carea-row" @click="toggleCarea(carea.id)">
-        <span class="hocr-badge hocr-badge-c">C</span>
+    <div v-for="carea in hocrPage.careas" :key="carea.id" class="hocr-item">
+
+      <!-- Carea row -->
+      <div class="hocr-row hocr-carea-row" :class="{ 'hocr-row-selected': selectedItemId === carea.id }" @click="toggleCarea(carea.id)" @mouseenter="indicate(carea.id)" @mouseleave="indicate(null)">
+        <span class="hocr-badge hocr-badge-c" title="Select CAREA" @click.stop="selectNode('carea', carea.id)">C</span>
+        <span class="hocr-count">({{ carea.blocks.length }})</span>
         <span class="hocr-id" :title="carea.id">{{ carea.id }}</span>
         <span class="hocr-preview">{{ careaPreview(carea) }}</span>
-        <span class="hocr-toggle">{{ collapsed.has(carea.id) ? '▸' : '▾' }}</span>
+        <span class="hocr-toggle">{{ collapsedCareas.has(carea.id) ? '▸' : '▾' }}</span>
       </div>
 
-      <div v-if="!collapsed.has(carea.id)" class="hocr-pars">
-        <div
-            v-for="block in carea.blocks"
-            :key="block.id"
-            class="hocr-row hocr-par-row"
-        >
-          <span class="hocr-badge hocr-badge-p">P</span>
-          <span class="hocr-id" :title="block.id">{{ block.id }}</span>
-          <span v-if="block.lang" class="hocr-lang">{{ block.lang }}</span>
-          <span class="hocr-preview">{{ blockPreview(block) }}</span>
+      <!-- Blocks -->
+      <div v-if="!collapsedCareas.has(carea.id)" class="hocr-children">
+        <div v-for="block in carea.blocks" :key="block.id" class="hocr-item">
+
+          <!-- Block row -->
+          <div class="hocr-row hocr-block-row" :class="{ 'hocr-row-selected': selectedItemId === block.id }" @click="toggleBlock(block.id)" @mouseenter="indicate(block.id)" @mouseleave="indicate(null)">
+            <span class="hocr-badge hocr-badge-p" :title="`Select ${blockBadge(block)}`" @click.stop="selectNode('block', block.id)">{{ blockBadge(block) }}</span>
+            <span class="hocr-count">({{ block.lines.length }})</span>
+            <span class="hocr-id" :title="block.id">{{ block.id }}</span>
+            <span v-if="block.lang" class="hocr-lang">{{ block.lang }}</span>
+            <span class="hocr-preview">{{ blockPreview(block) }}</span>
+            <span class="hocr-toggle">{{ expandedBlocks.has(block.id) ? '▾' : '▸' }}</span>
+          </div>
+
+          <!-- Lines -->
+          <div v-if="expandedBlocks.has(block.id)" class="hocr-children">
+            <div v-for="line in block.lines" :key="line.id" class="hocr-item">
+
+              <!-- Line row -->
+              <div class="hocr-row hocr-line-row" :class="{ 'hocr-row-selected': selectedItemId === line.id }" @click="toggleLine(line.id)" @mouseenter="indicate(line.id)" @mouseleave="indicate(null)">
+                <span class="hocr-badge hocr-badge-l" title="Select LINE" @click.stop="selectNode('line', line.id)">L</span>
+                <span class="hocr-count">({{ line.words.length }})</span>
+                <span class="hocr-id" :title="line.id">{{ line.id }}</span>
+                <span class="hocr-preview">{{ lineText(line) }}</span>
+                <span class="hocr-toggle">{{ expandedLines.has(line.id) ? '▾' : '▸' }}</span>
+              </div>
+
+              <!-- Words -->
+              <div v-if="expandedLines.has(line.id)" class="hocr-children">
+                <div
+                    v-for="word in line.words"
+                    :key="word.id"
+                    class="hocr-row hocr-word-row"
+                    :class="{ 'hocr-row-selected': selectedItemId === word.id }"
+                    @mouseenter="indicate(word.id)" @mouseleave="indicate(null)"
+                >
+                  <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id)">W</span>
+                  <span class="hocr-id" :title="word.id">{{ word.id }}</span>
+                  <span class="hocr-preview">{{ word.text }}</span>
+                  <span class="hocr-conf">{{ word.wconf }}%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -31,44 +70,118 @@
 </template>
 
 <script setup lang="ts">
-import {inject, reactive, ref} from 'vue';
+import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
-import type { HocrCarea, HocrLine, HocrPage, HocrBlock } from '../types/hocr';
+import {
+  type HocrCarea,
+  type HocrLine,
+  type HocrPage,
+  type HocrBlock,
+  type HocrLevel,
+  findItem,
+  findMultilevelById
+} from '../types/hocr';
 
-const hocrPage = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const hocrPage          = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const selectedItemId    = inject<Ref<string | null>>('selectedItemId',  ref(null));
+const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
+const selectNodeCb      = inject<(level: string, id: string) => void>('selectNode', () => {});
 
-const collapsed = reactive(new Set<string>());
+function indicate(id: string | null) {
+  if (indicatedItemId) indicatedItemId.value = id;
+}
 
-const blockKinds = ['part', 'chapter', 'section', 'subsection', 'subsubsection', 'subsubsubsection', 'subsubsubsubsection', 'paragraph'];
+watch(selectedItemId, () => {
+  if (! hocrPage || ! selectedItemId.value) return;
 
-const blockAbbreviations:any = {
-  part: 'Part',
-  chapter: 'H1',
-  section: 'H2',
-  subsection: 'H3',
-  subsubsection: 'H4',
-  subsubsubsection: 'H5',
-  subsubsubsubsection: 'H6',
-  paragraph: 'P',
-};
+  let chain = findMultilevelById(hocrPage.value!, selectedItemId.value)
+  if (chain) {
+    if(chain.carea) collapsedCareas.delete(chain.carea.id);
+    if(chain.block) expandedBlocks.add(chain.block.id);
+    if(chain.line) expandedLines.add(chain.line.id);
+
+  }
+
+})
+
+// ── Collapse / expand state ──────────────────────────────────────────
+// Careas: empty = all expanded.  Blocks/lines: empty = all collapsed.
+const collapsedCareas = reactive(new Set<string>());
+const expandedBlocks  = reactive(new Set<string>());
+const expandedLines   = reactive(new Set<string>());
 
 function toggleCarea(id: string) {
-  if (collapsed.has(id)) collapsed.delete(id);
-  else collapsed.add(id);
+  if (collapsedCareas.has(id)) collapsedCareas.delete(id);
+  else collapsedCareas.add(id);
+}
+function toggleBlock(id: string) {
+  if (expandedBlocks.has(id)) expandedBlocks.delete(id);
+  else expandedBlocks.add(id);
+}
+function toggleLine(id: string) {
+  if (expandedLines.has(id)) expandedLines.delete(id);
+  else expandedLines.add(id);
+}
+
+// ── Selection ────────────────────────────────────────────────────────
+function selectNode(level: HocrLevel, id: string) {
+  selectNodeCb(level, id);
+}
+
+// ── Display helpers ──────────────────────────────────────────────────
+const blockAbbreviations: Record<string, string> = {
+  part: 'Part', chapter: 'H1', section: 'H2', subsection: 'H3',
+  subsubsection: 'H4', subsubsubsection: 'H5', subsubsubsubsection: 'H6',
+  paragraph: 'P',
+};
+const blockKinds = Object.keys(blockAbbreviations);
+
+function blockBadge(block: HocrBlock): string {
+  return blockAbbreviations[block.kind] ?? block.kind;
 }
 
 function lineText(line: HocrLine): string {
   return line.words.map(w => w.text).join(' ');
 }
 
-function blockPreview(block: HocrBlock, maxLen = 80): string {
-  const kindAbbrev = block.kind in blockAbbreviations ? blockAbbreviations[block.kind] : block.kind;
-  const text = blockKinds.includes(block.kind) ? kindAbbrev + ': ' + block.lines.map(lineText).join(' ') : `--unknown block: ${block.kind}`;
+function blockPreview(block: HocrBlock, maxLen = 60): string {
+  const abbrev = blockBadge(block);
+  const text = blockKinds.includes(block.kind)
+      ? abbrev + ': ' + block.lines.map(lineText).join(' ')
+      : `--unknown: ${block.kind}`;
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 
-function careaPreview(carea: HocrCarea, maxLen = 80): string {
-  const text = carea.blocks.flatMap(p => blockKinds.includes(p.kind) ? p.lines : []).map(lineText).join(' ');
+function expandAll() {
+  if (!hocrPage.value) return;
+  collapsedCareas.clear();
+  expandedBlocks.clear();
+  expandedLines.clear();
+  for (const carea of hocrPage.value.careas) {
+    for (const block of carea.blocks) {
+      expandedBlocks.add(block.id);
+      for (const line of block.lines) {
+        expandedLines.add(line.id);
+      }
+    }
+  }
+}
+
+function collapseAll() {
+  if (!hocrPage.value) return;
+  expandedBlocks.clear();
+  expandedLines.clear();
+  for (const carea of hocrPage.value.careas) {
+    collapsedCareas.add(carea.id);
+  }
+}
+
+defineExpose({ expandAll, collapseAll });
+
+function careaPreview(carea: HocrCarea, maxLen = 60): string {
+  const text = carea.blocks
+      .flatMap(p => blockKinds.includes(p.kind) ? p.lines : [])
+      .map(lineText).join(' ');
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }
 </script>
@@ -79,50 +192,58 @@ function careaPreview(carea: HocrCarea, maxLen = 80): string {
   font-family: ui-monospace, monospace;
 }
 
+.hocr-item { }
+
+.hocr-children {
+  padding-left: 1rem;
+}
+
 .hocr-row {
   display: flex;
   align-items: baseline;
-  gap: 0.35rem;
-  padding: 0.18rem 0.5rem;
+  gap: 0.3rem;
+  padding: 0.15rem 0.4rem;
   user-select: none;
+  cursor: default;
+  border-radius: 0.2rem;
 }
 
 .hocr-row:hover {
   background: var(--color-bg-muted, #f1f3f5);
 }
 
-.hocr-carea-row {
-  cursor: pointer;
+.hocr-row-selected {
+  background: color-mix(in srgb, var(--color-accent, #2563eb) 12%, transparent) !important;
+  outline: 1px solid color-mix(in srgb, var(--color-accent, #2563eb) 40%, transparent);
 }
 
-.hocr-par-row {
-  cursor: default;
-}
-
-.hocr-pars {
-  padding-left: 1.25rem;
-}
+.hocr-carea-row { cursor: pointer; }
+.hocr-block-row { cursor: pointer; }
+.hocr-line-row  { cursor: pointer; }
 
 .hocr-badge {
   flex-shrink: 0;
   display: inline-block;
-  width: 1.3em;
+  min-width: 1.6em;
   height: 1.3em;
   line-height: 1.3em;
   text-align: center;
   border-radius: 2px;
   font-size: 0.65rem;
   font-weight: 700;
+  cursor: pointer;
+  padding: 0 0.2em;
 }
 
-.hocr-badge-c {
-  background: #f97316;
-  color: #fff;
-}
+.hocr-badge-c { background: #f97316; color: #fff; }
+.hocr-badge-p { background: #a855f7; color: #fff; }
+.hocr-badge-l { background: #2563eb; color: #fff; }
+.hocr-badge-w { background: #16a34a; color: #fff; }
 
-.hocr-badge-p {
-  background: #a855f7;
-  color: #fff;
+.hocr-count {
+  flex-shrink: 0;
+  color: var(--color-text-dimmed, #a2acb6);
+  font-size: 0.7em;
 }
 
 .hocr-id {
@@ -153,6 +274,12 @@ function careaPreview(carea: HocrCarea, maxLen = 80): string {
   flex-shrink: 0;
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.55rem;
+}
+
+.hocr-conf {
+  flex-shrink: 0;
+  color: var(--color-text-dimmed, #a2acb6);
+  font-size: 0.7em;
 }
 
 .hocr-empty {

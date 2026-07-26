@@ -187,8 +187,12 @@
           class="workspace-hocr-outline-pane"
           :class="{ 'workspace-pane-hidden': !(panels ? panels['ocr-structure'] : false) }"
       >
-        <div class="sidebar-lead">hOCR</div>
-        <HocrOutline/>
+        <div class="sidebar-lead">
+          hOCR
+          <sl-icon-button name="chevron-expand"   @click="hocrOutlineRef?.expandAll()"/>
+          <sl-icon-button name="chevron-contract" @click="hocrOutlineRef?.collapseAll()"/>
+        </div>
+        <HocrOutline ref="hocrOutlineRef"/>
       </div>
     </div><!-- end workspace-right-sidebar -->
 
@@ -383,6 +387,7 @@ onBeforeRouteLeave(() => {
 // ── Refs ─────────────────────────────────────────────────────────────
 
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
+const hocrOutlineRef = ref<InstanceType<typeof HocrOutline> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
 
 const setStripWorkareaRef: VNodeRef = el => {

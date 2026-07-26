@@ -96,7 +96,7 @@
             <sl-radio-group
                 label="Block type"
                 :value="addForm.blockType"
-                @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as BlockType">
+                @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as AddBlockType">
               <sl-radio-button value="text">Text</sl-radio-button>
               <sl-radio-button value="image">Image</sl-radio-button>
             </sl-radio-group>
@@ -153,8 +153,14 @@ const ocrOperation:Ref<OcrOperation> = ref('context');
 // ── Select ───────────────────────────────────────────────────────────
 
 const overItemId = ref<string | null>(null);
-const selectedItemId = ref<string | null>(null);
-provide('selectedItemId', selectedItemId);
+const selectedItemId   = ref<string | null>(null);
+const indicatedItemId  = ref<string | null>(null);
+provide('selectedItemId',  selectedItemId);
+provide('indicatedItemId', indicatedItemId);
+provide('selectNode', (level: OcrTool, id: string) => {
+  selectedItemId.value = id;
+  setOcrTool(level);
+});
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
@@ -272,30 +278,6 @@ function setOcrOperation(mode: OcrOperation) {
   ocrOperation.value = mode;
 }
 
-function pageInteractionUpdate(
-    x: number,
-    y: number,
-    overlappingOverlayItems: OverlayItem[],
-    _activeItem: HocrNode | null,
-    betweenOverlayItems: [HocrNode | null, HocrNode | null],
-    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
-) {
-  overItemId.value = null;
-  betweenTargets.value = betweenOverlayItems;
-  betweenSubTargets.value = betweenOverlaySubItems;
-
-  if (ocrTool.value === 'pick') {
-    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
-  }
-  else {
-    for (const item of overlappingOverlayItems) {
-      if (item.level === ocrTool.value) {
-        overItemId.value = item.id;
-      }
-    }
-  }
-}
-
 const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
 };
@@ -409,6 +391,30 @@ async function pageInteractionClick(): Promise<void> {
   else if (mode === 'split' && overItemId.value && betweenSubTargets.value[0] && betweenSubTargets.value[1]) {
     await callHocrEndpoint(overItemId.value, 'split',
         { before_id: betweenSubTargets.value[0].id, after_id: betweenSubTargets.value[1].id });
+  }
+}
+
+function pageInteractionUpdate(
+    x: number,
+    y: number,
+    overlappingOverlayItems: OverlayItem[],
+    _activeItem: HocrNode | null,
+    betweenOverlayItems: [HocrNode | null, HocrNode | null],
+    betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
+) {
+  overItemId.value = null;
+  betweenTargets.value = betweenOverlayItems;
+  betweenSubTargets.value = betweenOverlaySubItems;
+
+  if (ocrTool.value === 'pick') {
+    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
+  }
+  else {
+    for (const item of overlappingOverlayItems) {
+      if (item.level === ocrTool.value) {
+        overItemId.value = item.id;
+      }
+    }
   }
 }
 
