@@ -336,7 +336,7 @@ function handleMouseUp(e: MouseEvent) {
   isDragging.value = false;
 }
 
-function updatePointerAction(event: MouseEvent) {
+function updateDragState(event: MouseEvent) {
   // Update drag rect while dragging
   if (dragStart.value) {
     const point = getScanPointForEvent(event);
@@ -347,13 +347,19 @@ function updatePointerAction(event: MouseEvent) {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) isDragging.value = true;
     }
   }
-  if (hocrPage === undefined || hocrPage.value === null)
-    return;
+}
 
-  const page: HocrPage = hocrPage.value
+function updatePointerAction(event: MouseEvent) {
 
   pointerX.value = event.clientX;
   pointerY.value = event.clientY;
+
+  updateDragState(event);
+
+  if (!hocrPage?.value) return;
+  if (!props.interactionUpdate) return;
+
+  const page: HocrPage = hocrPage.value
 
   if (props.interactionUpdate) {
     const pagePoint = getScanPointForEvent(event);

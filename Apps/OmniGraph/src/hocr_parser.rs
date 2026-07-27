@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 
@@ -65,6 +66,10 @@ pub struct HocrLine {
     pub id: String,
     pub bbox: HocrBbox,
     pub words: Vec<HocrWord>,
+    pub baseline: Option<(f32, f32)>,
+    pub x_size: Option<f32>,
+    pub x_descenders: Option<f32>,
+    pub x_ascenders: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -334,10 +339,10 @@ impl HocrPage {
             }
             _ => {}
         }
-        println!(
-            "get_next_number_with_stem: numbers: {:?} preferred_stem {}  stem_upto_underscore: {}",
-            numbers, preferred_stem, stem_upto_underscore
-        );
+        // println!(
+        //     "get_next_number_with_stem: numbers: {:?} preferred_stem {}  stem_upto_underscore: {}",
+        //     numbers, preferred_stem, stem_upto_underscore
+        // );
         if numbers.is_empty() {
             None
         } else {
@@ -630,21 +635,58 @@ impl HocrPage {
 
     pub fn add_carea(&mut self, bbox: HocrBbox) {
 
-        // Careas are not really meant to overlap. It is up to the user to handle this case.
+        // Nodes are not really meant to overlap. It is up to the user to handle this case.
         // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
 
         let vmid = bbox.center().1;
 
-        self.careas.push(HocrCarea {
+        let mut carea_index = None;
+        for (i, carea) in self.careas.iter().enumerate() {
+            if carea.bbox.center().1 > vmid {
+                carea_index = Some(i);
+                break;
+            }
+        }
+        let carea_index = carea_index.unwrap_or(self.careas.len());
+
+        let new_id = self.get_unique_id("carea");
+        self.careas.insert(carea_index, HocrCarea {
             level: "carea".to_string(),
-            id: format!("carea-{}", self.careas.len()),
+            id: new_id,
             bbox,
-            blocks: Vec::new(),
+            blocks: vec![],
         });
+
         self.rebuild_bbox();
     }
     pub fn add_block(&mut self, carea: usize, bbox: HocrBbox) {
-        // Not implemented yet
+
+        // Nodes are not really meant to overlap. It is up to the user to handle this case.
+        // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
+
+        let vmid = bbox.center().1;
+
+        let mut block_index = None;
+
+        for (i, block) in self.careas[carea].blocks.iter().enumerate() {
+            if block.bbox.center().1 > vmid {
+                block_index = Some(i);
+                break;
+            }
+        }
+        let block_index = block_index.unwrap_or(self.careas[carea].blocks.len());
+        let new_id = self.get_unique_id("par");
+
+        self.careas[carea].blocks.insert(block_index, HocrBlock {
+            id: new_id,
+            level: "block".to_string(),
+            kind: HocrBlockKind::Paragraph,
+            lang: None,
+            bbox,
+            lines: vec![],
+        });
+
+        self.cleanup_carea(carea);
     }
     pub fn add_line(&mut self, carea: usize, block: usize, bbox: HocrBbox) {
         // Not implemented yet
@@ -814,12 +856,17 @@ impl HocrBlock {
 impl HocrLine {
     pub fn to_hocr_html(&self) -> String {
         let mut html = format!(
-            "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}\">",
+            "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}; baseline {} {}; x_size {}; x_descenders {}; x_ascenders {}\">",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
             self.bbox.right(),
             self.bbox.bottom(),
+            self.baseline.unwrap_or((0.0, 0.0)).0,
+            self.baseline.unwrap_or((0.0, 0.0)).1,
+            self.x_size.unwrap_or(0.0),
+            self.x_descenders.unwrap_or(0.0),
+            self.x_ascenders.unwrap_or(0.0)
         );
 
         for word in &self.words {
@@ -883,12 +930,18 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                     let lines = block_el
                         .select(&sel_line)
                         .filter_map(|line_el| {
-                            let line_bbox = bbox(line_el.attr("title").unwrap_or(""))?;
+                            let title_keyvals = split_title(line_el.attr("title").unwrap_or(""));
+                            let line_bbox = title_keyvals.get("bbox").map(|s| to_bbox(s)).unwrap_or(HocrBbox::empty());
+                            let line_baseline = title_keyvals.get("baseline").and_then(|s| to_baseline(s));
+                            let line_x_size = title_keyvals.get("x_size").and_then(|s| s.parse::<f32>().ok());
+                            let line_x_ascenders = title_keyvals.get("x_ascenders").and_then(|s| s.parse::<f32>().ok());
+                            let line_x_descenders = title_keyvals.get("x_descenders").and_then(|s| s.parse::<f32>().ok());
                             let line_id = line_el.attr("id").unwrap_or("").to_string();
 
                             let words = line_el
                                 .select(&sel_word)
                                 .filter_map(|word_el| {
+                                    let title_keyvals = split_title(line_el.attr("title").unwrap_or(""));
                                     let title = word_el.attr("title").unwrap_or("");
                                     let word_bbox = bbox(title)?;
                                     Some(HocrWord {
@@ -905,6 +958,10 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                 level: "line".to_string(),
                                 id: line_id,
                                 bbox: line_bbox,
+                                baseline: line_baseline,
+                                x_size: line_x_size,
+                                x_ascenders: line_x_ascenders,
+                                x_descenders: line_x_descenders,
                                 words,
                             })
                         })
@@ -951,6 +1008,55 @@ fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
         .unwrap_or("")
         .split_whitespace()
         .any(|c| c == class_name)
+}
+
+fn split_title(title: &str) -> HashMap<String, String> {
+
+    let mut keyvals : HashMap<String, String> = HashMap::new();
+
+    for part in title.split(";").map(|s| s.trim()) {
+        let mut parts = part.split(" ");
+        let key = parts.next().unwrap();
+        let value = parts.collect::<Vec<_>>().join(" ");
+        keyvals.insert(key.to_string(), value);
+    };
+    keyvals
+}
+
+fn join_title(keyvals: &HashMap<String, String>) -> String {
+    keyvals.iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+
+fn to_bbox(bbox_str: &str) -> HocrBbox {
+    let v: Vec<i32> = bbox_str
+        .split_whitespace()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if v.len() >= 4 {
+        HocrBbox([v[0], v[1], v[2], v[3]])
+    } else {
+        HocrBbox::empty()
+    }
+}
+
+fn to_baseline(baseline_str: &str) -> Option<(f32, f32)> {
+    let v: Vec<f32> = baseline_str
+        .split_whitespace()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    if v.len() >= 2 {
+        Some((v[0], v[1]))
+    } else {
+        None
+    }
+}
+
+fn to_wconf(wconf_str: &str) -> Option<i32> {
+    wconf_str.trim().parse().ok()
 }
 
 fn bbox(title: &str) -> Option<HocrBbox> {
