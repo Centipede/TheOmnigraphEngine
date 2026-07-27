@@ -291,6 +291,7 @@ const BLOCK_KIND_KEYS: Record<string, string> = {
   '4': 'subsubsection',       // H4
   '5': 'subsubsubsection',    // H5
   '6': 'subsubsubsubsection', // H6
+  '7': 'paragraph',           // P
 };
 
 // Ordered list for the button palette, including paragraph.
@@ -302,7 +303,7 @@ const BLOCK_KINDS = [
   { key: '4', kind: 'subsubsection',        label: 'H4' },
   { key: '5', kind: 'subsubsubsection',     label: 'H5' },
   { key: '6', kind: 'subsubsubsubsection',  label: 'H6' },
-  { key: '',  kind: 'paragraph',            label: 'P'  },
+  { key: '7', kind: 'paragraph',            label: 'P'  },
 ] as const;
 
 async function changeBlockType(kind: string): Promise<void> {
@@ -349,6 +350,7 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
   if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
   else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
   else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
+  console.log('callAddEndpoint', body, tool);
 
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
   const resp = await fetch(url, {
@@ -581,16 +583,25 @@ onUnmounted(() => {
 .tool-palette > sl-button,
 .tool-palette > sl-button-group {
   width: 100%;
+  min-width: 0;
 }
 
 .tool-palette > sl-button-group::part(base) {
   display: flex;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
 }
 
 .tool-palette > sl-button-group sl-button {
   flex: 1 1 0;
+  min-width: 0;
+}
+
+.tool-palette > sl-button-group sl-button::part(base) {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 0.25em;
 }
 
 .kind-key {

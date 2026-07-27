@@ -44,41 +44,9 @@ fn word_level() -> String {
 }
 
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
-pub type HocrBbox = [i32; 4];
-
-pub fn bbox_union(bbox1: HocrBbox, bbox2: HocrBbox) -> HocrBbox {
-    let mut bbox = bbox1;
-    bbox[0] = bbox[0].min(bbox2[0]);
-    bbox[1] = bbox[1].min(bbox2[1]);
-    bbox[2] = bbox[2].max(bbox2[2]);
-    bbox[3] = bbox[3].max(bbox2[3]);
-    bbox
-}
-
-#[allow(dead_code)]
-pub fn bbox_intersection(bbox1: HocrBbox, bbox2: HocrBbox) -> Option<HocrBbox> {
-    let mut bbox = bbox1;
-    bbox[0] = bbox[0].max(bbox2[0]);
-    bbox[1] = bbox[1].max(bbox2[1]);
-    bbox[2] = bbox[2].min(bbox2[2]);
-    bbox[3] = bbox[3].min(bbox2[3]);
-    if bbox[0] < bbox[2] && bbox[1] < bbox[3] {
-        Some(bbox)
-    } else {
-        None
-    }
-}
-
-pub fn bbox_union_all(bboxes: &[HocrBbox]) -> Option<HocrBbox> {
-    if bboxes.is_empty() {
-        return None;
-    }
-    let mut bbox = bboxes[0];
-    for b in bboxes.iter().skip(1) {
-        bbox = bbox_union(bbox, *b);
-    }
-    Some(bbox)
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct HocrBbox(pub [i32; 4]);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrWord {
@@ -165,6 +133,85 @@ pub enum HocrPath {
     },
 }
 
+impl HocrBbox {
+
+    pub fn empty() -> Self {
+        Self([0, 0, 0, 0])
+    }
+
+    pub fn new(left: i32, top: i32, right: i32, bottom: i32) -> Self {
+        Self([left, top, right, bottom])
+    }
+
+    pub fn left(self) -> i32 {
+        self.0[0]
+    }
+
+    pub fn top(self) -> i32 {
+        self.0[1]
+    }
+
+    pub fn right(self) -> i32 {
+        self.0[2]
+    }
+
+    pub fn bottom(self) -> i32 {
+        self.0[3]
+    }
+
+    pub fn center(self) -> (f32, f32) {
+        (
+            (self.left() + self.right()) as f32 / 2.0,
+            (self.top() + self.bottom()) as f32 / 2.0,
+        )
+    }
+
+    pub fn width(self) -> i32 {
+        self.right() - self.left()
+    }
+    pub fn height(self) -> i32 {
+        self.bottom() - self.top()
+    }
+
+    pub fn area(self) -> i32 {
+        self.width() * self.height()
+    }
+
+    pub fn aspect_ratio(self) -> f32 {
+        self.width() as f32 / self.height() as f32
+    }
+
+    pub fn union(self, other: HocrBbox) -> HocrBbox {
+        HocrBbox([
+            std::cmp::min(self.left(), other.left()),
+            std::cmp::min(self.top(), other.top()),
+            std::cmp::max(self.right(), other.right()),
+            std::cmp::max(self.bottom(), other.bottom()),
+        ])
+    }
+
+    pub fn union_all(bboxes: &[HocrBbox]) -> Option<HocrBbox> {
+        if bboxes.is_empty() {
+            return None;
+        }
+        let mut bbox = bboxes[0];
+        for b in bboxes.iter().skip(1) {
+            bbox = bbox.union(*b);
+        }
+        Some(bbox)
+    }
+    pub fn intersection(self, other: HocrBbox) -> HocrBbox {
+        HocrBbox([
+            std::cmp::max(self.left(), other.left()),
+            std::cmp::max(self.top(), other.top()),
+            std::cmp::min(self.right(), other.right()),
+            std::cmp::min(self.bottom(), other.bottom()),
+        ])
+    }
+
+
+}
+
 impl HocrPath {
 
     #[allow(dead_code)]
@@ -213,10 +260,10 @@ impl HocrPage {
         html.push_str(&format!(
             "<div class=\"ocr_page\" id=\"{}\" title=\"bbox {} {} {} {}\">",
             escape_attr(&self.page_id),
-            self.bbox[0],
-            self.bbox[1],
-            self.bbox[2],
-            self.bbox[3],
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
         ));
 
         for carea in &self.careas {
@@ -231,9 +278,9 @@ impl HocrPage {
     }
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
-        match bbox_union_all(&subboxes) {
+        match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
-            None => self.bbox = [0, 0, 0, 0],
+            None => self.bbox = HocrBbox::empty(),
         }
     }
 
@@ -551,7 +598,7 @@ impl HocrPage {
         let new_carea = HocrCarea {
             level: "carea".to_string(),
             id: new_id,
-            bbox: [0, 0, 0, 0],
+            bbox: HocrBbox::empty(),
             blocks: right.to_vec(),
         };
         old_carea.blocks.truncate(block_after);
@@ -572,7 +619,7 @@ impl HocrPage {
             kind: HocrBlockKind::Paragraph,
             level: "block".to_string(),
             id: new_id,
-            bbox: [0, 0, 0, 0],
+            bbox: HocrBbox::empty(),
             lines: right.to_vec(),
         };
         old_block.lines.truncate(line_after);
@@ -582,7 +629,19 @@ impl HocrPage {
     }
 
     pub fn add_carea(&mut self, bbox: HocrBbox) {
-        // Not implemented yet
+
+        // Careas are not really meant to overlap. It is up to the user to handle this case.
+        // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
+
+        let vmid = bbox.center().1;
+
+        self.careas.push(HocrCarea {
+            level: "carea".to_string(),
+            id: format!("carea-{}", self.careas.len()),
+            bbox,
+            blocks: Vec::new(),
+        });
+        self.rebuild_bbox();
     }
     pub fn add_block(&mut self, carea: usize, bbox: HocrBbox) {
         // Not implemented yet
@@ -639,10 +698,10 @@ impl HocrCarea {
         let mut html = format!(
             "<div class=\"ocr_carea\" id=\"{}\" title=\"bbox {} {} {} {}\">",
             escape_attr(&self.id),
-            self.bbox[0],
-            self.bbox[1],
-            self.bbox[2],
-            self.bbox[3],
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
         );
 
         for block in &self.blocks {
@@ -654,9 +713,9 @@ impl HocrCarea {
     }
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.blocks.iter().map(|b| b.bbox).collect::<Vec<_>>();
-        match bbox_union_all(&subboxes) {
+        match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
-            None => self.bbox = [0, 0, 0, 0],
+            None => self.bbox = HocrBbox::empty(),
         }
     }
 }
@@ -729,10 +788,10 @@ impl HocrBlock {
         let mut html = format!(
             "<{tag} class=\"{class}\" id=\"{}\" title=\"bbox {} {} {} {}\"{}>",
             escape_attr(&self.id),
-            self.bbox[0],
-            self.bbox[1],
-            self.bbox[2],
-            self.bbox[3],
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
             lang_attr,
         );
 
@@ -745,9 +804,9 @@ impl HocrBlock {
     }
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.lines.iter().map(|l| l.bbox).collect::<Vec<_>>();
-        match bbox_union_all(&subboxes) {
+        match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
-            None => self.bbox = [0, 0, 0, 0],
+            None => self.bbox = HocrBbox::empty(),
         }
     }
 }
@@ -757,10 +816,10 @@ impl HocrLine {
         let mut html = format!(
             "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}\">",
             escape_attr(&self.id),
-            self.bbox[0],
-            self.bbox[1],
-            self.bbox[2],
-            self.bbox[3],
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
         );
 
         for word in &self.words {
@@ -772,9 +831,9 @@ impl HocrLine {
     }
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.words.iter().map(|w| w.bbox).collect::<Vec<_>>();
-        match bbox_union_all(&subboxes) {
+        match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
-            None => self.bbox = [0, 0, 0, 0],
+            None => self.bbox = HocrBbox::empty(),
         }
     }
 }
@@ -784,10 +843,10 @@ impl HocrWord {
         format!(
             "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\">{}</span>",
             escape_attr(&self.id),
-            self.bbox[0],
-            self.bbox[1],
-            self.bbox[2],
-            self.bbox[3],
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
             self.wconf,
             escape_text(&self.text),
         )
@@ -799,8 +858,8 @@ pub fn parse(html: &str) -> Option<HocrPage> {
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
     let sel_carea = Selector::parse("div.ocr_carea").ok()?;
-    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection").ok()?;
-    let sel_line = Selector::parse("span.ocr_line").ok()?;
+    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection, h5.ocr_subsubsubsection, h6.ocr_subsubsubsubsection").ok()?;
+    let sel_line = Selector::parse("span.ocr_line, span.ocr_caption").ok()?;
     let sel_word = Selector::parse("span.ocrx_word").ok()?;
 
 
@@ -894,7 +953,7 @@ fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
         .any(|c| c == class_name)
 }
 
-fn bbox(title: &str) -> Option<[i32; 4]> {
+fn bbox(title: &str) -> Option<HocrBbox> {
     for part in title.split(';') {
         if let Some(rest) = part.trim().strip_prefix("bbox ") {
             let v: Vec<i32> = rest
@@ -902,7 +961,7 @@ fn bbox(title: &str) -> Option<[i32; 4]> {
                 .filter_map(|s| s.parse().ok())
                 .collect();
             if v.len() >= 4 {
-                return Some([v[0], v[1], v[2], v[3]]);
+                return Some(HocrBbox([v[0], v[1], v[2], v[3]]));
             }
         }
     }

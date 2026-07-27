@@ -78,7 +78,6 @@ import {
   type HocrPage,
   type HocrBlock,
   type HocrLevel,
-  findItem,
   findMultilevelById
 } from '../types/hocr';
 
