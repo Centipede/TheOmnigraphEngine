@@ -49,6 +49,11 @@ fn word_level() -> String {
 #[serde(transparent)]
 pub struct HocrBbox(pub [i32; 4]);
 
+pub struct Overlap {
+    pub overlapping_self_pct: f32,
+    pub overlapping_other_pct: f32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrWord {
     #[serde(default = "word_level", skip_deserializing)]
@@ -172,10 +177,11 @@ impl HocrBbox {
     }
 
     pub fn width(self) -> i32 {
-        self.right() - self.left()
+        std::cmp::max(self.right() - self.left(), 0)
     }
+
     pub fn height(self) -> i32 {
-        self.bottom() - self.top()
+        std::cmp::max(self.bottom() - self.top(), 0)
     }
 
     pub fn area(self) -> i32 {
@@ -205,6 +211,7 @@ impl HocrBbox {
         }
         Some(bbox)
     }
+
     pub fn intersection(self, other: HocrBbox) -> HocrBbox {
         HocrBbox([
             std::cmp::max(self.left(), other.left()),
@@ -214,7 +221,12 @@ impl HocrBbox {
         ])
     }
 
-
+    pub fn overlap_percentage(self, other: HocrBbox) -> Overlap {
+        let intersection = self.intersection(other);
+        let overlapping_me = (intersection.area() as f32 / self.area() as f32) * 100.0;
+        let overlapping_other = (intersection.area() as f32 / other.area() as f32) * 100.0;
+        Overlap{overlapping_self_pct: overlapping_me, overlapping_other_pct: overlapping_other}
+    }
 }
 
 impl HocrPath {
@@ -633,7 +645,17 @@ impl HocrPage {
         carea.blocks[block + 1].rebuild_bbox();
     }
 
-    pub fn add_carea(&mut self, bbox: HocrBbox) {
+    pub fn add_carea(&mut self, bbox: HocrBbox, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
+
+        if erase_underneath.is_some() && erase_overlap.is_some() {
+            let erase_carea_ids: Vec<String> = self.careas
+                .iter()
+                .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
+                .map(|carea| carea.id.clone())
+                .collect();
+
+            self.careas.retain(|carea| !erase_carea_ids.contains(&carea.id));
+        }
 
         // Nodes are not really meant to overlap. It is up to the user to handle this case.
         // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.

@@ -100,8 +100,8 @@
               <sl-radio-button value="text">Text</sl-radio-button>
               <sl-radio-button value="image">Image</sl-radio-button>
             </sl-radio-group>
-            <sl-checkbox v-model="addForm.eraseUnderneath">Erase overlapping > N %</sl-checkbox>
-            <sl-input v-model="addForm.eraseOverlapPercentage" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
+            <sl-checkbox :checked="addForm.eraseUnderneath" @sl-change="addForm.eraseUnderneath = ($event.target as HTMLInputElement).checked">Erase overlapping > N %</sl-checkbox>
+            <sl-input :value="addForm.eraseOverlapPercentage" @sl-change="addForm.eraseOverlapPercentage = parseInt(($event.target as HTMLInputElement).value)" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
           </form>
         </template>
       </div>
@@ -120,6 +120,15 @@ import {
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import {type HocrPage} from '../types/hocr';
+
+interface AddRequest {
+  to_carea?: string | null; to_block?: string | null; to_line?: string | null;
+  bbox: [number, number, number, number];
+  block_type: AddBlockType;
+  text?: string;
+  erase_underneath: boolean;
+  erase_overlap: number;
+}
 
 const props = defineProps<{
   machineName: string;
@@ -196,7 +205,6 @@ const effectiveOcrOperation = computed<OcrOperation>(() => {
 // ── Add ──────────────────────────────────────────────────────────────
 
 type AddBlockType = 'text' | 'image';
-
 type AddForm = {
   blockType: AddBlockType
   text?: string
@@ -224,7 +232,6 @@ const pointerLabel = computed(() => {
   }
   return '';
 });
-
 const pointerColor = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'none':   return '#000000';
@@ -236,7 +243,6 @@ const pointerColor = computed(() => {
   }
   return '';
 });
-
 const pointerIcon = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'none':   return 'question-lg';
@@ -248,7 +254,6 @@ const pointerIcon = computed(() => {
   }
   return '';
 });
-
 const pointerEnabled = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'add':    return true;
@@ -277,6 +282,8 @@ function setOcrTool(tool: OcrTool) {
 function setOcrOperation(mode: OcrOperation) {
   ocrOperation.value = mode;
 }
+
+// ── Change block type ────────────────────────────────────────────────
 
 const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
@@ -311,55 +318,7 @@ async function changeBlockType(kind: string): Promise<void> {
   await callHocrEndpoint(selectedItemId.value, 'change-type', { kind });
 }
 
-async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
-  const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
-  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
-  const resp = await fetch(url, body
-      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-      : { method: 'POST' });
-
-  if (resp.ok) {
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
-  }
-}
-
-async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
-  const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
-
-  const form = addForm.value;
-  const body: {
-    to_carea?: string | null; to_block?: string | null; to_line?: string | null;
-    bbox: [number, number, number, number];
-    block_type: AddBlockType;
-    text?: string;
-    erase_underneath: boolean;
-    erase_overlap: number;
-  } = {
-    bbox,
-    block_type: form.blockType,
-    text: form.text,
-    erase_underneath: form.eraseUnderneath,
-    erase_overlap: form.eraseOverlapPercentage,
-  };
-
-  const parent = selectedTarget.value;
-  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
-  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
-  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
-  console.log('callAddEndpoint', body, tool);
-
-  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (resp.ok) hocrPage.value = await resp.json() as HocrPage;
-}
+// ── Mouse and key interactions ───────────────────────────────────────
 
 async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: number): Promise<void> {
   if (effectiveOcrOperation.value !== 'add') return;
@@ -481,6 +440,58 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   }
 }
 
+function updateModifiers(e: KeyboardEvent) {
+  shiftDown.value = e.shiftKey;
+  altDown.value   = e.altKey;
+  metaDown.value  = e.metaKey;
+  ctrlDown.value  = e.ctrlKey;
+}
+
+// ── API endpoints ────────────────────────────────────────────────────
+
+async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
+  const resp = await fetch(url, body
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : { method: 'POST' });
+
+  if (resp.ok) {
+    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+  }
+}
+
+async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+
+  const form = addForm.value;
+  const body: AddRequest = {
+    bbox,
+    block_type: form.blockType,
+    text: form.text,
+    erase_underneath: form.eraseUnderneath,
+    erase_overlap: form.eraseOverlapPercentage,
+  };
+
+  const parent = selectedTarget.value;
+  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
+  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
+  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
+  console.log('callAddEndpoint', body, tool);
+
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (resp.ok) hocrPage.value = await resp.json() as HocrPage;
+}
+
 async function restoreFromOriginal(page: Page | null): Promise<void> {
   if(! page) {
     return;
@@ -507,13 +518,6 @@ async function loadHocrPage(page: Page | null): Promise<void> {
   } catch {
     hocrPage.value = null;
   }
-}
-
-function updateModifiers(e: KeyboardEvent) {
-  shiftDown.value = e.shiftKey;
-  altDown.value   = e.altKey;
-  metaDown.value  = e.metaKey;
-  ctrlDown.value  = e.ctrlKey;
 }
 
 onMounted(() => {

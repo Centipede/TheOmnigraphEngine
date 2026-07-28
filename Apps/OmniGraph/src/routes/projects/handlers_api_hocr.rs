@@ -128,7 +128,8 @@ pub async fn carea_add(
         Err(status_code) => return status_code.into_response(),
     };
 
-    page.add_carea(payload.bbox);
+
+    page.add_carea(payload.bbox, payload.erase_underneath, payload.erase_overlap);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
