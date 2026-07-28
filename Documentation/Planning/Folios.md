@@ -2,6 +2,52 @@
 
 **Status July 28th 2026: Many tools implemented**
 
+## Roadmap for the immediate future:
+
+As a more comprehensive picture is formed, I can better see where the pieces fit in.
+This is a suggestion:
+
+
+Master tools and keyboard:
+
+(Q) - Change carea flow:
+- (1), (2), ... Change selected CAREAs to the flow preset that one must set up ... TODO: Where?
+  - If 'merge' is ✔️then all selected will be merged into one and changed.
+  
+(W) - Change carea layout:
+- (1), (2), ... Change selected CAREAs to the layout preset that one must set up ... TODO: Where?
+  - If 'merge' is ✔️then all selected will be merged into one and changed.
+
+(E) - Edit
+
+Primary tool:
+- (1) - Edit CAREA
+- (2) - Edit BLOCK
+- (3) - Edit LINE
+- (4) - Edit WORD
+
+Secondary tool:
+- (A) - Add
+- (S) - Select
+- (D) - Delete / remove
+- (F) - Join/Split
+- (G) - Content tool
+
+(R) - Change block type:
+- (1) - H1
+- (2) - H2
+- ... 
+- (6) - H6
+- (7) - P
+- (0) - Part
+  - If 'merge' is ✔️then all selected will be merged into one and changed. Note that parent careas may need to merge too.
+
+The Q, W and R tools all select something (either a CAREA or a BLOCK) and change the given attribute.
+If merging is desired, the backend will first merge them together into one and then assign their new attribute and do
+whatever changes are required in hOCR and databases to accomplish the result.
+
+
+
 ## Functionality
 
 ### OCR:
