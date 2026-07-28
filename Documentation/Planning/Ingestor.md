@@ -1,6 +1,6 @@
 # Ingestor Screen
 
-**Status June 18th 2026: Partially implemented**
+**Status July 28th 2026: Basic functionality is complete.**
 
 **Missing: Import from PDF**
 

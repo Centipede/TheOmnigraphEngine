@@ -1,12 +1,12 @@
 # Folios Screen
 
-**Status June 18th 2026: Partially implemented**
+**Status July 28th 2026: Many tools implemented**
 
 ## Functionality
 
 ### OCR:
 
-For now, OCR is done by Tesseract. 2026-06-18: Further info coming.
+2026-07-28: Tesseract will be used as foundation and hOCR as the core format.
 
 ### Cropping:
 
@@ -20,10 +20,18 @@ headers, footers, and scanning-edge artifacts. With a proper tool, it is quick t
 
 ### Generic layout
 
-- A 1st left sidebar with a page list.
-- A 2nd left sidebar with a section list.
-- A central view.
-- Tool buttons.
+Most views will build on a shared workspace component into which they slot their own specific tools
+and other views.
+
+- Left sidebar:
+  - Page list
+  - Section overview
+- A central view split between left/rigth.
+  - Page thumbnail grid.
+  - Full page preview
+- Right sidebar:
+  - Tool buttons.
+  - hOCR outline.
 
 ## Workflow
 
@@ -109,3 +117,31 @@ Good for a rough ballpark starting point.
 
 On PC use ^ instead of ⎇
 ⌘ currently not used
+
+### Mode: Recognise regions
+
+Select pages and send to Tesseract.
+Set up ocr services and command line tools in Settings.
+
+### Mode: Edit
+
+This mode will be documented later. It has already evolved substantially and further development
+happens live.
+
+Tools available:
+Add/remove/join/split CAREAS, BLOCKS (paragraphs, images), LINES, WORDS.
+Change block type: Part, H1, ... H6, P
+
+
+#### Section workflow
+
+The project contains a single section database like it contains a page database (both json files).
+
+As blocks are converted to headlines (Part, H1, ... H6), the section view in the left sidebar
+should indicate that new subsections can be added to the database.
+Similarly when a section is deleted, the section view in the left sidebar
+should indicate that existing subsections should be removed from the database.
+
+Section interaction on a per-page workflow should be limited. Go to Codex to work on sections.
+
+
