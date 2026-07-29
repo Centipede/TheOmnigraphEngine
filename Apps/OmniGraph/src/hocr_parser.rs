@@ -1,6 +1,8 @@
+use std::cmp::PartialEq;
 use std::collections::HashMap;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
+use crate::routes::projects::forms::AddBlockType;
 
 pub fn stem_from_id(id: &str) -> String {
     id.chars()
@@ -55,6 +57,11 @@ pub struct Overlap {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HocrUnknown {
+    pub string: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrWord {
     #[serde(default = "word_level", skip_deserializing)]
     pub level: String,
@@ -100,6 +107,7 @@ pub enum HocrBlockKind {
     Subsubsection,
     Subsubsubsection,
     Subsubsubsubsection,
+    Image,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +117,7 @@ pub struct HocrCarea {
     pub id: String,
     pub bbox: HocrBbox,
     pub blocks: Vec<HocrBlock>,
+    pub unknowns: Vec<HocrUnknown>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,6 +127,7 @@ pub struct HocrPage {
     pub page_id: String,
     pub bbox: HocrBbox,
     pub careas: Vec<HocrCarea>,
+    pub unknowns: Vec<HocrUnknown>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -285,6 +295,10 @@ impl HocrPage {
 
         for carea in &self.careas {
             html.push_str(&carea.to_hocr_html());
+        }
+
+        for unknown in &self.unknowns {
+            html.push_str(&unknown.to_hocr_html());
         }
 
         html.push_str("</div>\n");
@@ -617,6 +631,7 @@ impl HocrPage {
             id: new_id,
             bbox: HocrBbox::empty(),
             blocks: right.to_vec(),
+            unknowns: vec![],
         };
         old_carea.blocks.truncate(block_after);
         self.careas.insert(carea + 1, new_carea);
@@ -647,7 +662,7 @@ impl HocrPage {
 
     pub fn add_carea(&mut self, bbox: HocrBbox, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
 
-        if erase_underneath.is_some() && erase_overlap.is_some() {
+        if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
             let erase_carea_ids: Vec<String> = self.careas
                 .iter()
                 .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
@@ -677,11 +692,12 @@ impl HocrPage {
             id: new_id,
             bbox,
             blocks: vec![],
+            unknowns: vec![],
         });
 
         self.rebuild_bbox();
     }
-    pub fn add_block(&mut self, carea: usize, bbox: HocrBbox) {
+    pub fn add_block(&mut self, carea: usize, bbox: HocrBbox, block_type: Option<AddBlockType>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
 
         // Nodes are not really meant to overlap. It is up to the user to handle this case.
         // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
@@ -698,11 +714,12 @@ impl HocrPage {
         }
         let block_index = block_index.unwrap_or(self.careas[carea].blocks.len());
         let new_id = self.get_unique_id("par");
+        let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
 
         self.careas[carea].blocks.insert(block_index, HocrBlock {
             id: new_id,
             level: "block".to_string(),
-            kind: HocrBlockKind::Paragraph,
+            kind: block_kind,
             lang: None,
             bbox,
             lines: vec![],
@@ -787,6 +804,7 @@ impl HocrCarea {
 impl HocrBlockKind {
     pub fn tag_name(self) -> &'static str {
         match self {
+            HocrBlockKind::Image => "img",
             HocrBlockKind::Paragraph => "p",
             HocrBlockKind::Part => "h1",
             HocrBlockKind::Chapter => "h1",
@@ -799,6 +817,7 @@ impl HocrBlockKind {
     }
     pub fn class_name(self) -> &'static str {
         match self {
+            HocrBlockKind::Image => "ocr_photo",
             HocrBlockKind::Paragraph => "ocr_par",
             HocrBlockKind::Part => "ocr_part",
             HocrBlockKind::Chapter => "ocr_chapter",
@@ -922,12 +941,25 @@ impl HocrWord {
     }
 }
 
+impl HocrUnknown {
+    pub fn to_hocr_html(&self) -> String {
+        self.string.clone()
+    }
+}
+
+pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown> {
+    el.child_elements()
+        .filter(|el| !selector.matches(el))
+        .map(|el| HocrUnknown { string: el.html() })
+        .collect()
+}
+
 pub fn parse(html: &str) -> Option<HocrPage> {
     let document = Html::parse_document(html);
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
     let sel_carea = Selector::parse("div.ocr_carea").ok()?;
-    let sel_block = Selector::parse("p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection, h5.ocr_subsubsubsection, h6.ocr_subsubsubsubsection").ok()?;
+    let sel_block = Selector::parse("img, p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection, h5.ocr_subsubsubsection, h6.ocr_subsubsubsubsection").ok()?;
     let sel_line = Selector::parse("span.ocr_line, span.ocr_caption").ok()?;
     let sel_word = Selector::parse("span.ocrx_word").ok()?;
 
@@ -1007,20 +1039,26 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                 })
                 .collect();
 
+            let unknowns = collect_unknowns(page_el, &sel_carea);
+
             Some(HocrCarea {
                 level: "carea".to_string(),
                 id: carea_id,
                 bbox: carea_bbox,
                 blocks,
+                unknowns
             })
         })
         .collect();
+
+    let unknowns = collect_unknowns(page_el, &sel_carea);
 
     Some(HocrPage {
         level: "page".to_string(),
         page_id,
         bbox: page_bbox,
         careas,
+        unknowns,
     })
 }
 

@@ -131,7 +131,7 @@ function selectNode(level: HocrLevel, id: string) {
 const blockAbbreviations: Record<string, string> = {
   part: 'Part', chapter: 'H1', section: 'H2', subsection: 'H3',
   subsubsection: 'H4', subsubsubsection: 'H5', subsubsubsubsection: 'H6',
-  paragraph: 'P',
+  paragraph: 'P', image: 'IMG', table: 'TBL', list: 'LST',
 };
 const blockKinds = Object.keys(blockAbbreviations);
 
@@ -145,8 +145,9 @@ function lineText(line: HocrLine): string {
 
 function blockPreview(block: HocrBlock, maxLen = 60): string {
   const abbrev = blockBadge(block);
+  const preview = abbrev === 'IMG' ? block.bbox : block.lines.map(lineText).join(' ')
   const text = blockKinds.includes(block.kind)
-      ? abbrev + ': ' + block.lines.map(lineText).join(' ')
+      ? abbrev + ': ' + preview
       : `--unknown: ${block.kind}`;
   return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
 }

@@ -461,6 +461,9 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
   if (resp.ok) {
     hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
   }
+  else {
+    console.error('callHocrEndpoint error:', resp.status, resp.statusText, await resp.text());
+  }
 }
 
 async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
@@ -489,7 +492,12 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (resp.ok) hocrPage.value = await resp.json() as HocrPage;
+  if (resp.ok) {
+    hocrPage.value = await resp.json() as HocrPage;
+  }
+  else {
+    console.error('callAddEndpoint error:', resp.status, resp.statusText, await resp.text());
+  }
 }
 
 async function restoreFromOriginal(page: Page | null): Promise<void> {

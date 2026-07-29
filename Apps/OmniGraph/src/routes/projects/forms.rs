@@ -77,7 +77,7 @@ pub struct IngestQuery {
     pub before: Option<usize>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AddBlockType {
     Text,

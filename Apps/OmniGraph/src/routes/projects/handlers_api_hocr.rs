@@ -128,7 +128,6 @@ pub async fn carea_add(
         Err(status_code) => return status_code.into_response(),
     };
 
-
     page.add_carea(payload.bbox, payload.erase_underneath, payload.erase_overlap);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
@@ -289,13 +288,13 @@ pub async fn block_add(
         Err(status_code) => return status_code.into_response(),
     };
     let Some(to_carea) = payload.to_carea else {
-        return StatusCode::BAD_REQUEST.into_response();
+        return (StatusCode::BAD_REQUEST, "to_carea missing").into_response();
     };
     let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) else {
-        return StatusCode::NOT_FOUND.into_response();
+        return (StatusCode::NOT_FOUND, "to_carea not found").into_response();
     };
 
-    page.add_block(carea, payload.bbox);
+    page.add_block(carea, payload.bbox, payload.block_type, payload.erase_underneath, payload.erase_overlap);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
