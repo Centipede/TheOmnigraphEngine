@@ -105,17 +105,39 @@ pub async fn carea_split(
 }
 
 pub async fn carea_move_up(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Carea { carea } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_carea_up(carea);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn carea_move_down(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Carea { carea } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_carea_down(carea);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn carea_add(

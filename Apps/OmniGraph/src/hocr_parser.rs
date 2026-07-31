@@ -427,7 +427,7 @@ impl HocrPage {
                     carea,
                     block: block + 1,
                 })
-            } else if block == self.careas[carea].blocks.len() - 1 {
+            } else {
                 loop {
                     let path = self.next_carea_path(path.to_carea()?);
                     if let Some (HocrPath::Carea { carea }) = path {
@@ -439,8 +439,6 @@ impl HocrPage {
                         return None;
                     }
                 }
-            } else {
-                None
             }
         } else {
             None
@@ -462,14 +460,14 @@ impl HocrPage {
             if block > 0 {
                 Some(HocrPath::Block {
                     carea,
-                    block: block + 1,
+                    block: block - 1,
                 })
             } else {
                 loop {
                     let path = self.previous_carea_path(path.to_carea()?);
                     if let Some(HocrPath::Carea { carea }) = path {
                         if self.careas[carea].blocks.len() > 0 {
-                            return Some(HocrPath::Block { carea, block: 0 });
+                            return Some(HocrPath::Block { carea, block: self.careas[carea].blocks.len() - 1 });
                         }
                     } else {
                         return None;
@@ -481,6 +479,32 @@ impl HocrPage {
         }
     }
 
+    pub fn move_carea_up(&mut self, carea: usize) {
+        if carea > 0 {
+            println!("move_carea_up: carea {}", carea);
+
+            let moving_carea = self.careas.remove(carea);
+            self.careas.insert(carea - 1, moving_carea);
+
+            self.cleanup_carea(carea);
+        }
+        else {
+            println!("move_carea_up: not moving");
+        }
+    }
+    pub fn move_carea_down(&mut self, carea: usize) {
+        if carea < self.careas.len() - 1 {
+            println!("move_carea_down: carea {}", carea);
+
+            let moving_carea = self.careas.remove(carea);
+            self.careas.insert(carea + 1, moving_carea);
+
+            self.cleanup_carea(carea);
+        }
+        else {
+            println!("move_carea_down: not moving");
+        }
+    }
     pub fn move_block_up(&mut self, carea: usize, block: usize) {
 
         // Move within the same carea?
@@ -699,6 +723,16 @@ impl HocrPage {
     }
     pub fn add_block(&mut self, carea: usize, bbox: HocrBbox, block_type: Option<AddBlockType>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
 
+        if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
+            let erase_block_ids: Vec<String> = self.careas[carea].blocks
+                .iter()
+                .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
+                .map(|carea| carea.id.clone())
+                .collect();
+
+            self.careas.retain(|carea| !erase_block_ids.contains(&carea.id));
+        }
+
         // Nodes are not really meant to overlap. It is up to the user to handle this case.
         // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
 
@@ -727,10 +761,10 @@ impl HocrPage {
 
         self.cleanup_carea(carea);
     }
-    pub fn add_line(&mut self, carea: usize, block: usize, bbox: HocrBbox) {
+    pub fn add_line(&mut self, _carea: usize, _block: usize, _bbox: HocrBbox) {
         // Not implemented yet
     }
-    pub fn add_word(&mut self, carea: usize, block: usize, line: usize, bbox: HocrBbox, text: Option<String>) {
+    pub fn add_word(&mut self, _carea: usize, _block: usize, _line: usize, _bbox: HocrBbox, _text: Option<String>) {
         // Not implemented yet
     }
 
@@ -1070,6 +1104,7 @@ fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
         .any(|c| c == class_name)
 }
 
+#[allow(dead_code)]
 fn split_title(title: &str) -> HashMap<String, String> {
 
     let mut keyvals : HashMap<String, String> = HashMap::new();
@@ -1083,6 +1118,7 @@ fn split_title(title: &str) -> HashMap<String, String> {
     keyvals
 }
 
+#[allow(dead_code)]
 fn join_title(keyvals: &HashMap<String, String>) -> String {
     keyvals.iter()
         .map(|(k, v)| format!("{}={}", k, v))
