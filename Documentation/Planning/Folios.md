@@ -2,52 +2,6 @@
 
 **Status July 28th 2026: Many tools implemented**
 
-## Roadmap for the immediate future:
-
-As a more comprehensive picture is formed, I can better see where the pieces fit in.
-This is a suggestion:
-
-
-Master tools and keyboard:
-
-(Q) - Change carea flow:
-- (1), (2), ... Change selected CAREAs to the flow preset that one must set up ... TODO: Where?
-  - If 'merge' is ✔️then all selected will be merged into one and changed.
-  
-(W) - Change carea layout:
-- (1), (2), ... Change selected CAREAs to the layout preset that one must set up ... TODO: Where?
-  - If 'merge' is ✔️then all selected will be merged into one and changed.
-
-(E) - Edit
-
-Primary tool:
-- (1) - Edit CAREA
-- (2) - Edit BLOCK
-- (3) - Edit LINE
-- (4) - Edit WORD
-
-Secondary tool:
-- (A) - Add
-- (S) - Select
-- (D) - Delete / remove
-- (F) - Join/Split
-- (G) - Content tool
-
-(R) - Change block type:
-- (1) - H1
-- (2) - H2
-- ... 
-- (6) - H6
-- (7) - P
-- (0) - Part
-  - If 'merge' is ✔️then all selected will be merged into one and changed. Note that parent careas may need to merge too.
-
-The Q, W and R tools all select something (either a CAREA or a BLOCK) and change the given attribute.
-If merging is desired, the backend will first merge them together into one and then assign their new attribute and do
-whatever changes are required in hOCR and databases to accomplish the result.
-
-
-
 ## Functionality
 
 ### OCR:
@@ -90,7 +44,7 @@ need to adjust even pages differently from odd pages.
 Very typically, the book “slides” away from the center position as the scanning process progresses. That is why I need a
 tool for range-adjusting, for example, pages 200–400, with the strongest change around page 300.
 
-### Mode: Crop regions
+### Mode: Crop
 
 Once Crop mode begins, a session is started, and the current set of crop regions is captured.
 Either cancel the session or accept the changes made to affected pages to write back the changes.
@@ -169,7 +123,23 @@ On PC use ^ instead of ⎇
 Select pages and send to Tesseract.
 Set up ocr services and command line tools in Settings.
 
-### Mode: Edit
+### Mode: Assist - intelligent editing
+
+A toolset for working on multiple pages at a time.
+
+Tools:
+- Auto-assign layout to CAREAs
+- Auto-assign flow to CAREAs
+
+These are essential to get out of the way before manually editing single pages.
+
+Go to Overview to set up the book's layouts and flows.
+Note: These have not been planned yet.
+
+
+### Mode: Edit - manual editing
+
+A toolset for working on one page at a time.
 
 This mode will be documented later. It has already evolved substantially and further development
 happens live.
@@ -177,6 +147,53 @@ happens live.
 Tools available:
 Add/remove/join/split CAREAS, BLOCKS (paragraphs, images), LINES, WORDS.
 Change block type: Part, H1, ... H6, P
+
+
+
+#### Roadmap for the immediate future:
+
+As a more comprehensive picture is formed, I can better see where the pieces fit in.
+This is a suggestion:
+
+Master tools and keyboard:
+
+(Q) - Change carea flow:
+- (1), (2), ... Change selected CAREAs to the flow preset that one must set up ... TODO: Where?
+  - If 'merge' is ✔️then all selected will be merged into one and changed.
+  
+(W) - Change carea layout:
+- (1), (2), ... Change selected CAREAs to the layout preset that one must set up ... TODO: Where?
+  - If 'merge' is ✔️then all selected will be merged into one and changed.
+
+(E) - Edit
+
+Primary tool:
+- (1) - Edit CAREA
+- (2) - Edit BLOCK
+- (3) - Edit LINE
+- (4) - Edit WORD
+
+Secondary tool:
+- (A) - Add
+- (S) - Select
+- (D) - Delete / remove
+- (F) - Join/Split
+- (G) - Context tool
+
+(R) - Change block type:
+- (1) - H1
+- (2) - H2
+- ... 
+- (6) - H6
+- (7) - P
+- (0) - Part
+  - If 'merge' is ✔️then all selected will be merged into one and changed. Note that parent careas may need to merge too.
+
+The Q, W and R tools all select something (either a CAREA or a BLOCK) and change the given attribute.
+If merging is desired, the backend will first merge them together into one and then assign their new attribute and do
+whatever changes are required in hOCR and databases to accomplish the result.
+
+
 
 
 #### Section workflow
