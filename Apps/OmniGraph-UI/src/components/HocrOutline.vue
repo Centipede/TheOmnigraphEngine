@@ -4,8 +4,8 @@
     <div v-for="carea in hocrPage.careas" :key="carea.id" class="hocr-item">
 
       <!-- Carea row -->
-      <div class="hocr-row hocr-carea-row" :class="{ 'hocr-row-selected': selectedItemId === carea.id }" @click="toggleCarea(carea.id)" @mouseenter="indicate(carea.id)" @mouseleave="indicate(null)">
-        <span class="hocr-badge hocr-badge-c" title="Select CAREA" @click.stop="selectNode('carea', carea.id)">C</span>
+      <div class="hocr-row hocr-carea-row" :class="{ 'hocr-row-selected': selectedItemIds?.has(carea.id) }" @click="toggleCarea(carea.id)" @mouseenter="indicate(carea.id)" @mouseleave="indicate(null)">
+        <span class="hocr-badge hocr-badge-c" title="Select CAREA" @click.stop="selectNode('carea', carea.id, $event)">C</span>
         <span class="hocr-count">({{ carea.blocks.length }})</span>
         <span class="hocr-id" :title="carea.id">{{ carea.id }}</span>
         <span class="hocr-preview">{{ careaPreview(carea) }}</span>
@@ -17,8 +17,8 @@
         <div v-for="block in carea.blocks" :key="block.id" class="hocr-item">
 
           <!-- Block row -->
-          <div class="hocr-row hocr-block-row" :class="{ 'hocr-row-selected': selectedItemId === block.id }" @click="toggleBlock(block.id)" @mouseenter="indicate(block.id)" @mouseleave="indicate(null)">
-            <span class="hocr-badge hocr-badge-p" :title="`Select ${blockBadge(block)}`" @click.stop="selectNode('block', block.id)">{{ blockBadge(block) }}</span>
+          <div class="hocr-row hocr-block-row" :class="{ 'hocr-row-selected': selectedItemIds?.has(block.id) }" @click="toggleBlock(block.id)" @mouseenter="indicate(block.id)" @mouseleave="indicate(null)">
+            <span class="hocr-badge hocr-badge-p" :title="`Select ${blockBadge(block)}`" @click.stop="selectNode('block', block.id, $event)">{{ blockBadge(block) }}</span>
             <span class="hocr-count">({{ block.lines.length }})</span>
             <span class="hocr-id" :title="block.id">{{ block.id }}</span>
             <span v-if="block.lang" class="hocr-lang">{{ block.lang }}</span>
@@ -31,8 +31,8 @@
             <div v-for="line in block.lines" :key="line.id" class="hocr-item">
 
               <!-- Line row -->
-              <div class="hocr-row hocr-line-row" :class="{ 'hocr-row-selected': selectedItemId === line.id }" @click="toggleLine(line.id)" @mouseenter="indicate(line.id)" @mouseleave="indicate(null)">
-                <span class="hocr-badge hocr-badge-l" title="Select LINE" @click.stop="selectNode('line', line.id)">L</span>
+              <div class="hocr-row hocr-line-row" :class="{ 'hocr-row-selected': selectedItemIds?.has(line.id) }" @click="toggleLine(line.id)" @mouseenter="indicate(line.id)" @mouseleave="indicate(null)">
+                <span class="hocr-badge hocr-badge-l" title="Select LINE" @click.stop="selectNode('line', line.id, $event)">L</span>
                 <span class="hocr-count">({{ line.words.length }})</span>
                 <span class="hocr-id" :title="line.id">{{ line.id }}</span>
                 <span class="hocr-preview">{{ lineText(line) }}</span>
@@ -45,10 +45,10 @@
                     v-for="word in line.words"
                     :key="word.id"
                     class="hocr-row hocr-word-row"
-                    :class="{ 'hocr-row-selected': selectedItemId === word.id }"
+                    :class="{ 'hocr-row-selected': selectedItemIds?.has(word.id) }"
                     @mouseenter="indicate(word.id)" @mouseleave="indicate(null)"
                 >
-                  <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id)">W</span>
+                  <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id, $event)">W</span>
                   <span class="hocr-id" :title="word.id">{{ word.id }}</span>
                   <span class="hocr-preview">{{ word.text }}</span>
                   <span class="hocr-conf">{{ word.wconf }}%</span>
@@ -82,26 +82,27 @@ import {
 } from '../types/hocr';
 
 const hocrPage          = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
 const selectedItemId    = inject<Ref<string | null>>('selectedItemId',  ref(null));
 const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
-const selectNodeCb      = inject<(level: string, id: string) => void>('selectNode', () => {});
+const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => void>('selectNode', () => {});
 
 function indicate(id: string | null) {
   if (indicatedItemId) indicatedItemId.value = id;
 }
 
-watch(selectedItemId, () => {
-  if (! hocrPage || ! selectedItemId.value) return;
+watch(selectedItemIds, () => {
+  if (! hocrPage || ! selectedItemIds.value.size) return;
 
-  let chain = findMultilevelById(hocrPage.value!, selectedItemId.value)
-  if (chain) {
-    if(chain.carea) collapsedCareas.delete(chain.carea.id);
-    if(chain.block) expandedBlocks.add(chain.block.id);
-    if(chain.line) expandedLines.add(chain.line.id);
-
+  for (const id of selectedItemIds.value) {
+    let chain = findMultilevelById(hocrPage.value!, id)
+    if (chain) {
+      if(chain.carea) collapsedCareas.delete(chain.carea.id);
+      if(chain.block) expandedBlocks.add(chain.block.id);
+      if(chain.line) expandedLines.add(chain.line.id);
+    }
   }
-
-})
+}, { deep: true })
 
 // ── Collapse / expand state ──────────────────────────────────────────
 // Careas: empty = all expanded.  Blocks/lines: empty = all collapsed.
@@ -123,8 +124,8 @@ function toggleLine(id: string) {
 }
 
 // ── Selection ────────────────────────────────────────────────────────
-function selectNode(level: HocrLevel, id: string) {
-  selectNodeCb(level, id);
+function selectNode(level: HocrLevel, id: string, e?: MouseEvent) {
+  selectNodeCb(level, id, e);
 }
 
 // ── Display helpers ──────────────────────────────────────────────────

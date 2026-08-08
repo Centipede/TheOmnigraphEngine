@@ -162,12 +162,28 @@ const ocrOperation:Ref<OcrOperation> = ref('context');
 // ── Select ───────────────────────────────────────────────────────────
 
 const overItemId = ref<string | null>(null);
-const selectedItemId   = ref<string | null>(null);
+const selectedItemIds = ref<Set<string>>(new Set());
+const selectedItemId = computed({
+  get: () => selectedItemIds.value.size > 0 ? Array.from(selectedItemIds.value)[0] : null,
+  set: (val) => {
+    selectedItemIds.value.clear();
+    if (val) selectedItemIds.value.add(val);
+  }
+});
 const indicatedItemId  = ref<string | null>(null);
+provide('selectedItemIds', selectedItemIds);
 provide('selectedItemId',  selectedItemId);
 provide('indicatedItemId', indicatedItemId);
-provide('selectNode', (level: OcrTool, id: string) => {
-  selectedItemId.value = id;
+provide('selectNode', (level: OcrTool, id: string, e?: MouseEvent) => {
+  if (e?.shiftKey) {
+    if (selectedItemIds.value.has(id)) {
+      selectedItemIds.value.delete(id);
+    } else {
+      selectedItemIds.value.add(id);
+    }
+  } else {
+    selectedItemId.value = id;
+  }
   setOcrTool(level);
 });
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
@@ -185,6 +201,7 @@ const altDown   = ref(false);
 const metaDown  = ref(false);
 const ctrlDown  = ref(false);
 const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+const cmdDown = computed(() => isMac ? metaDown.value : ctrlDown.value);
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 
@@ -192,13 +209,15 @@ const effectiveOcrOperation = computed<OcrOperation>(() => {
   if (ocrOperation.value !== 'context') return ocrOperation.value;
 
   if (ocrTool.value === 'pick') return 'select';
-  if (isMac ? (shiftDown.value && altDown.value) : (ctrlDown.value && shiftDown.value)) return 'add';
-  if (isMac ? altDown.value : ctrlDown.value) return 'remove';
-  if (shiftDown.value) {
+
+  if (cmdDown.value) {
+    if (altDown.value && shiftDown.value) return 'remove';
+    if (shiftDown.value) return 'add';
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
     if (betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null) return 'split';
     return 'none';
   }
+
   return 'select';
 });
 
@@ -258,7 +277,9 @@ const pointerEnabled = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'add':    return true;
     case 'select':
-    case 'remove': return overItemId.value !== null;
+      return overItemId.value !== null;
+    case 'remove':
+      return overItemId.value !== null;
     case 'join':   return betweenTargets.value[0] !== null && betweenTargets.value[1] !== null;
     case 'split':  return betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null;
     default:       return false;
@@ -314,8 +335,11 @@ const BLOCK_KINDS = [
 ] as const;
 
 async function changeBlockType(kind: string): Promise<void> {
-  if (!selectedItemId.value || ocrTool.value !== 'block') return;
-  await callHocrEndpoint(selectedItemId.value, 'change-type', { kind });
+  if (selectedItemIds.value.size === 0 || ocrTool.value !== 'block') return;
+  const ids = Array.from(selectedItemIds.value);
+  for (const id of ids) {
+    await callHocrEndpoint(id, 'change-type', { kind });
+  }
 }
 
 // ── Mouse and key interactions ───────────────────────────────────────
@@ -338,13 +362,25 @@ async function pageInteractionClick(): Promise<void> {
   }
 
   if (mode === 'select') {
-    selectedItemId.value = overItemId.value;
+    if (shiftDown.value) {
+      if (overItemId.value) {
+        if (selectedItemIds.value.has(overItemId.value)) {
+          selectedItemIds.value.delete(overItemId.value);
+        } else {
+          selectedItemIds.value.add(overItemId.value);
+        }
+      }
+    } else {
+      selectedItemId.value = overItemId.value;
+    }
     return;
   }
 
-  if (mode === 'remove' && overItemId.value) {
-    await callHocrEndpoint(overItemId.value, 'remove');
-    if (selectedItemId.value === overItemId.value) selectedItemId.value = null;
+  if (mode === 'remove') {
+    if (overItemId.value) {
+      await callHocrEndpoint(overItemId.value, 'remove');
+      selectedItemIds.value.delete(overItemId.value);
+    }
   }
   else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
     await callHocrEndpoint(betweenTargets.value[0].id, 'merge', { other_id: betweenTargets.value[1].id });
@@ -414,8 +450,8 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
     return;
   }
 
-  // Block type change: 0–6, only when block tool is active and a block is selected.
-  if (ocrTool.value === 'block' && selectedItemId.value && !isTypingTarget()) {
+  // Block type change: 0–6, only when block tool is active and blocks are selected.
+  if (ocrTool.value === 'block' && selectedItemIds.value.size > 0 && !isTypingTarget()) {
     const kind = BLOCK_KIND_KEYS[e.key];
     if (kind) {
       e.preventDefault();
@@ -424,19 +460,28 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
     }
   }
 
-  if (!selectedItemId.value || isTypingTarget()) return;
+  if (selectedItemIds.value.size === 0 || isTypingTarget()) return;
   if (e.key === 'ArrowUp') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'move-up');
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'move-up');
+    }
   }
   else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'move-down');
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'move-down');
+    }
   }
   else if (e.key === 'Backspace' || e.key === 'Delete') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'remove');
-    selectedItemId.value = null;
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'remove');
+    }
+    selectedItemIds.value.clear();
   }
 }
 

@@ -39,7 +39,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': item.id === selectedItemId, 'hocr-overlay--indicated': item.id === indicatedItemId }]"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': selectedItemIds?.has(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -126,6 +126,7 @@ const props = withDefaults(defineProps<{
 });
 
 const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',        ref(null));
+const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',       ref(new Set()));
 const selectedItemId  = inject<Ref<string | null>>('selectedItemId',  ref(null));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 
