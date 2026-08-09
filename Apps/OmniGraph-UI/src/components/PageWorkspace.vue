@@ -576,13 +576,16 @@ const route = useRoute();
 
 watch(currentPage, (page) => {
   emit('currentPageChange', page);
-  if (page && route.params.hasOwnProperty('page')) {
-    const stem = page.scan.replace(/\.[^.]+$/, '');
-    if (route.params.page !== stem) {
-      router.replace({
-        name: route.name!,
-        params: { ...route.params, page: stem }
-      });
+  if (page && route.name) {
+    const supportsPage = route.matched.some(m => m.path.includes(':page'));
+    if (supportsPage) {
+      const stem = page.scan.replace(/\.[^.]+$/, '');
+      if (route.params.page !== stem) {
+        router.replace({
+          name: route.name,
+          params: { ...route.params, page: stem }
+        });
+      }
     }
   }
 });

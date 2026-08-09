@@ -58,52 +58,57 @@
 
       <div class="nav-start">
         <RouterLink
-            :to="`/projects/${machineName}`"
+            v-if="hasProject"
+            :to="{ name: 'project-detail', params: { machineName } }"
             custom
             v-slot="{ navigate, isExactActive }"
         >
           <sl-button
               :variant="isExactActive ? 'primary' : 'text'"
-              :disabled="!machineName"
               @click="navigate"
           >
             Overview
           </sl-button>
         </RouterLink>
+        <sl-button v-else variant="text" disabled>
+          Overview
+        </sl-button>
 
         <RouterLink
-            :to="`/projects/${machineName}/ingestor`"
+            v-if="hasProject"
+            :to="{ name: 'ingestor', params: { machineName, page: currentPageParam } }"
             custom
             v-slot="{ navigate, isActive }"
         >
           <sl-button
               :variant="isActive ? 'primary' : 'text'"
-              :disabled="!machineName"
               @click="navigate"
           >
             Ingestor
           </sl-button>
         </RouterLink>
-
+        <sl-button v-else variant="text" disabled>
+          Ingestor
+        </sl-button>
 
         <RouterLink
-            :to="`/projects/${machineName}/folios`"
+            v-if="hasProject"
+            :to="{ name: 'folios-inspect', params: { machineName, page: currentPageParam } }"
             custom
-            v-slot="{ navigate, isActive }"
+            v-slot="{ navigate }"
         >
           <sl-button
-              :variant="isActive ? 'primary' : 'text'"
-              :disabled="!machineName"
+              :variant="isFoliosRoute ? 'primary' : 'text'"
               @click="navigate"
           >
             Folios
           </sl-button>
-          <template v-if="isActive">
+          <template v-if="isFoliosRoute">
 
             <!-- Mode selector -->
             <sl-button-group>
               <RouterLink
-                  :to="`/projects/${machineName}/folios/inspect`"
+                  :to="{ name: 'folios-inspect', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"
               >
@@ -113,7 +118,7 @@
               </RouterLink>
 
               <RouterLink
-                  :to="`/projects/${machineName}/folios/crop`"
+                  :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"
               >
@@ -123,7 +128,7 @@
               </RouterLink>
 
               <RouterLink
-                  :to="`/projects/${machineName}/folios/recognise`"
+                  :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"
               >
@@ -133,7 +138,7 @@
               </RouterLink>
 
               <RouterLink
-                  :to="`/projects/${machineName}/folios/edit`"
+                  :to="{ name: 'folios-edit', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"
               >
@@ -145,6 +150,9 @@
 
           </template>
         </RouterLink>
+        <sl-button v-else variant="text" disabled>
+          Folios
+        </sl-button>
       </div>
 
       <div class="nav-end">
@@ -181,7 +189,7 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted} from 'vue';
-import {RouterLink} from 'vue-router';
+import {RouterLink, useRoute} from 'vue-router';
 import type {PanelVisibility, PanelId} from '../types';
 
 const props = defineProps<{
@@ -193,6 +201,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   togglePanel: [panelId: PanelId];
 }>();
+
+const route = useRoute();
+const hasProject = computed(() => props.machineName.length > 0);
+const currentPageParam = computed(() => route.params.page ? String(route.params.page) : undefined);
+const isFoliosRoute = computed(() => {
+  return typeof route.name === 'string' && route.name.startsWith('folios-');
+});
 
 const ICONS: Record<string, string> = {light: 'sun', system: 'circle-half', dark: 'moon'};
 

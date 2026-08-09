@@ -6,10 +6,13 @@
         :panels="activePanels"
         @toggle-panel="togglePanel"
     />
-    <RouterView v-slot="{ Component }">
+    <RouterView v-slot="{ Component, route }">
       <component
           :is="Component"
           :panels="activePanels"
+          :machine-name="machineName"
+          :project-name="projectName"
+          :initial-page-stem="route.params.page ? String(route.params.page) : undefined"
       />
     </RouterView>
   </div>
