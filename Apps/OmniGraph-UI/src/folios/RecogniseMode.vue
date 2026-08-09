@@ -6,9 +6,30 @@
                  hocr-level="block"
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
+                 :show-crop-overlay="true"
+                 crop-color="rgba(0, 180, 0, 0.12)"
+                 discard-color="rgba(220, 0, 0, 0.35)"
   >
 
-    <template #tools="{ selectionInfo, filteredPages }">
+    <template #tools="{ selectionInfo, filteredPages, currentPage }">
+      <div v-if="currentPage" class="crop-info-panel info-panel">
+        <div class="info-row">
+          <span class="info-label">Crop Top</span>
+          <span class="info-value">{{ currentPage.crop_edges.top }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Left</span>
+          <span class="info-value">{{ currentPage.crop_edges.left }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Right</span>
+          <span class="info-value">{{ currentPage.crop_edges.right }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Bottom</span>
+          <span class="info-value">{{ currentPage.crop_edges.bottom }}</span>
+        </div>
+      </div>
       <sl-button
           size="small"
           variant="primary"
@@ -212,5 +233,9 @@ onUnmounted(() => {
   font-size: 0.75rem;
   width: 100%;
   padding-left: 1rem;
+}
+
+.crop-info-panel {
+  margin-bottom: 0.75rem;
 }
 </style>
