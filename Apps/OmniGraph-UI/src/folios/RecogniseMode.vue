@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-import {onMounted, onUnmounted, ref} from 'vue';
+import {onMounted, onUnmounted, ref, inject} from 'vue';
 import type {Page} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
@@ -85,6 +85,7 @@ const panels = usePersistentPanels('panels.recognise', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
 provideHocrContext();
 
@@ -152,8 +153,17 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
     }
 
     if (!resp.ok) {
-      const err = await resp.json() as { error: string };
-      scanError.value = err.error ?? 'Scan failed.';
+      const text = await resp.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Scan failed: ${resp.statusText}`;
+      scanError.value = finalMsg;
+      showError?.(finalMsg);
       return;
     }
 

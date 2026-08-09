@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
+import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject} from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type OverlayItem, type HocrNode,
@@ -149,6 +149,7 @@ const panels = usePersistentPanels('panels.edit', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
 const { hocrPage, updateHocr } = provideHocrContext();
 
@@ -512,7 +513,17 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
     updateHocr(await resp.json() as HocrPage);
   }
   else {
-    console.error('callHocrEndpoint error:', resp.status, resp.statusText, await resp.text());
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `callHocrEndpoint error: ${resp.statusText}`;
+    console.error('callHocrEndpoint error:', resp.status, resp.statusText, text);
+    showError?.(finalMsg);
   }
 }
 
@@ -546,7 +557,18 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     updateHocr(await resp.json() as HocrPage);
   }
   else {
-    console.error('callAddEndpoint error:', resp.status, resp.statusText, await resp.text());
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `callAddEndpoint error: ${resp.statusText}`;
+    console.error('callAddEndpoint error:', resp.status, resp.statusText, text);
+    showError?.(finalMsg);
+    console.log(showError);
   }
 }
 
@@ -559,6 +581,16 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
   });
   if (resp.ok) {
     updateHocr(await resp.json() as HocrPage);
+  } else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    showError?.(errorMsg || `Failed to restore from original: ${resp.statusText}`);
   }
 }
 

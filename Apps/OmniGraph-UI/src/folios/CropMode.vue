@@ -198,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, onUnmounted } from 'vue';
+import { reactive, ref, onMounted, onUnmounted, inject } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import type {CropEdges, Page, PageDb} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
@@ -224,6 +224,7 @@ const panels = usePersistentPanels('panels.crop', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
 onMounted(() => setActivePanels(panels));
 onUnmounted(() => setActivePanels(null));
@@ -557,10 +558,21 @@ async function commitCrops(pages: Page[],
     if (res.ok) {
       for (const [idx, crop] of pageCrops) originalCrops.set(idx, {...crop});
     } else {
-      console.error('Commit failed:', res.status, await res.text());
+      const text = await res.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Commit failed: ${res.statusText}`;
+      console.error('Commit failed:', res.status, text);
+      showError?.(finalMsg);
     }
   } catch (e) {
     console.error('Commit error:', e);
+    showError?.(e instanceof Error ? e.message : String(e));
   }
 }
 

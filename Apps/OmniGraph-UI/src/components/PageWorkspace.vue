@@ -196,13 +196,12 @@
       </div>
     </div><!-- end workspace-right-sidebar -->
 
-
   </div>
 </template>
 
 <script setup lang="ts">
 import type {Ref, VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch, provide, inject} from 'vue';
 import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
@@ -392,6 +391,10 @@ const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const hocrOutlineRef = ref<InstanceType<typeof HocrOutline> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
 
+const showError = inject<(msg: string) => void>('showError', (msg: string) => {
+  console.error('showError fallback:', msg);
+});
+
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
 };
@@ -543,10 +546,16 @@ async function loadPageDb(data?: PageDb) {
   } else {
     try {
       const res = await fetch(`/api/projects/${props.machineName}/pages`);
+      if (!res.ok) {
+        const text = await res.text();
+        showError(text || `Failed to load pages: ${res.statusText}`);
+        return;
+      }
       const data = (await res.json()) as PageDb;
       setPageDb(data);
     } catch (e) {
       console.error('Failed to load pages:', e);
+      showError(e instanceof Error ? e.message : String(e));
     }
   }
 }
@@ -566,8 +575,17 @@ async function savePageDb(): Promise<void> {
   });
 
   if (!resp.ok) {
-    const err = await resp.json().catch(() => null) as { error?: string } | null;
-    throw new Error(err?.error ?? 'Failed to save pages.');
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `Failed to save pages: ${resp.statusText}`;
+    showError(finalMsg);
+    throw new Error(finalMsg);
   }
 }
 
@@ -600,6 +618,12 @@ watch(currentPage, (page) => {
   }
 });
 
+watch(() => hocrContext.error.value, (newError) => {
+  if (newError) {
+    showError(newError);
+  }
+});
+
 watch(() => route.params.page, (newStem) => {
   if (newStem && pages.value.length > 0) {
     const stem = String(newStem);
@@ -621,7 +645,8 @@ onUnmounted(() => {
 
 defineExpose({
   setPageDb,
-  savePageDb
+  savePageDb,
+  showError
 });
 
 </script>

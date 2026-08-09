@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import {reactive, ref, onMounted, onUnmounted, computed} from 'vue';
+import {reactive, ref, onMounted, onUnmounted, computed, inject} from 'vue';
 import type {Page} from "../types";
 import PageWorkspace from "../components/PageWorkspace.vue";
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
@@ -161,6 +161,7 @@ const panels = usePersistentPanels('panels.ingestor', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
 onMounted(() => setActivePanels(panels));
 onUnmounted(() => setActivePanels(null));
@@ -382,8 +383,17 @@ async function performUpload(): Promise<void> {
     });
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => null) as { error?: string } | null;
-      uploadError.value = err?.error ?? 'Upload failed.';
+      const text = await resp.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Upload failed: ${resp.statusText}`;
+      uploadError.value = finalMsg;
+      showError?.(finalMsg);
       return;
     }
 
@@ -416,8 +426,17 @@ async function removePages(pages: Page[]) {
     })
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => null) as { error?: string } | null;
-      console.error(err?.error ?? 'Failed to remove pages');
+      const text = await resp.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Failed to remove pages: ${resp.statusText}`;
+      console.error(finalMsg);
+      showError?.(finalMsg);
       return;
     }
 
