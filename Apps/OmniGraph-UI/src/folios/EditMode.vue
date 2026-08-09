@@ -113,6 +113,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject} from 'vue';
+import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type OverlayItem, type HocrNode,
@@ -152,8 +153,10 @@ const { setActivePanels } = usePanelVisibilityContext();
 const showError = inject<(msg: string) => void>('showError');
 
 const { hocrPage, updateHocr } = provideHocrContext();
+const route = useRoute();
 
 const currentStem = computed(() => {
+  if (route.params.page) return String(route.params.page);
   if (!hocrPage.value) return null;
   return hocrPage.value.page_id.replace(/\.[^.]+$/, '');
 });

@@ -533,12 +533,15 @@ pub async fn parse_page(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let mut page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
         .await
         .unwrap_or(None);
 
     match page {
-        Some(p) => Ok(p),
+        Some(mut p) => {
+            p.page_id = stem.to_string();
+            Ok(p)
+        }
         None => Err(StatusCode::UNPROCESSABLE_ENTITY),
     }
 }

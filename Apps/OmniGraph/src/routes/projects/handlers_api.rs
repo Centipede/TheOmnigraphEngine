@@ -247,12 +247,15 @@ pub async fn get_hocr_json(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let mut page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
         .await
         .unwrap_or(None);
 
     match page {
-        Some(p) => Json(p).into_response(),
+        Some(mut p) => {
+            p.page_id = stem;
+            Json(p).into_response()
+        }
         None => (
             StatusCode::UNPROCESSABLE_ENTITY,
             Json(serde_json::json!({"error": "failed to parse hOCR"})),
