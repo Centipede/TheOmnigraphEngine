@@ -19,33 +19,33 @@
 
       <div class="ocr-info-panel">
         <div class="ocr-info-row">
-          <span class="ocr-info-label">Mode</span>
-          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
-        </div>
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Target</span>
+          <span class="ocr-info-label">Tool</span>
           <span class="ocr-info-value">{{ ocrTool }}</span>
         </div>
         <div class="ocr-info-row">
-          <span class="ocr-info-label">Keys</span>
-          <span class="ocr-info-value">Shift join/split · {{ isMac ? 'Alt' : 'Ctrl' }} remove</span>
+          <span class="ocr-info-label">Mode</span>
+          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
         </div>
         <template v-if="ocrTool === 'pick'">
           <div class="ocr-info-row">
             <span class="ocr-info-label">Carea</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Block</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Line</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Word</span>
-            <span class="ocr-info-value">{{ multiSelect?.word?.text ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
           </div>
         </template>
         <template v-else>
@@ -600,6 +600,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.75rem;
+  min-height: 8rem;
 }
 
 .ocr-info-row {

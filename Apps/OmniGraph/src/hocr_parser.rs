@@ -774,32 +774,17 @@ impl HocrPage {
     }
     pub fn remove_block(&mut self, carea: usize, block: usize) {
         self.careas[carea].blocks.remove(block);
-        if self.careas[carea].blocks.is_empty() {
-            self.remove_carea(carea);
-        } else {
-            self.careas[carea].rebuild_bbox();
-        }
+        self.cleanup_carea(carea);
     }
     pub fn remove_line(&mut self, carea: usize, block: usize, line: usize) {
         self.careas[carea].blocks[block].lines.remove(line);
-        if self.careas[carea].blocks[block].lines.is_empty() {
-            self.remove_block(carea, block);
-        } else {
-            self.careas[carea].blocks[block].rebuild_bbox();
-        }
+        self.cleanup_block(carea, block);
     }
     pub fn remove_word(&mut self, carea: usize, block: usize, line: usize, word: usize) {
         self.careas[carea].blocks[block].lines[line]
             .words
             .remove(word);
-        if self.careas[carea].blocks[block].lines[line]
-            .words
-            .is_empty()
-        {
-            self.remove_line(carea, block, line);
-        } else {
-            self.careas[carea].blocks[block].lines[line].rebuild_bbox();
-        }
+        self.cleanup_line(carea, block, line);
     }
 
     pub fn change_block_kind(&mut self, carea: usize, block: usize, kind: HocrBlockKind) {
