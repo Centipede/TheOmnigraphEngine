@@ -206,6 +206,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
 import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
+import { useHocrContext } from '../composables/useHocr';
 import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
@@ -574,8 +575,17 @@ async function savePageDb(): Promise<void> {
 const router = useRouter();
 const route = useRoute();
 
+const hocrContext = useHocrContext();
+
 watch(currentPage, (page) => {
   emit('currentPageChange', page);
+  if (page) {
+    const stem = page.scan.replace(/\.[^.]+$/, '');
+    hocrContext.loadHocr(props.machineName, stem);
+  } else {
+    hocrContext.clearHocr();
+  }
+
   if (page && route.name) {
     const supportsPage = route.matched.some(m => m.path.includes(':page'));
     if (supportsPage) {

@@ -140,12 +140,15 @@ import type {Page} from "../types";
 import PageWorkspace from "../components/PageWorkspace.vue";
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
   initialPageStem?: string;
 }>();
+
+provideHocrContext();
 
 const panels = usePersistentPanels('panels.ingestor', {
   'page-list': true,

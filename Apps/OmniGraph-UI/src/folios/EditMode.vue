@@ -11,7 +11,6 @@
       line-overlay-color="rgba(59, 130, 246)"
       word-overlay-color="rgba(34, 197, 94)"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
-      @current-page-change="loadHocrPage"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
@@ -121,6 +120,7 @@ import {
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 import {type HocrPage} from '../types/hocr';
 
 interface AddRequest {
@@ -150,10 +150,12 @@ const panels = usePersistentPanels('panels.edit', {
 
 const { setActivePanels } = usePanelVisibilityContext();
 
-const hocrPage = ref<HocrPage | null>(null);
-provide('hocrPage', hocrPage);
+const { hocrPage, updateHocr } = provideHocrContext();
 
-const currentStem = ref<string | null>(null);
+const currentStem = computed(() => {
+  if (!hocrPage.value) return null;
+  return hocrPage.value.page_id.replace(/\.[^.]+$/, '');
+});
 
 type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
@@ -507,7 +509,7 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
       : { method: 'POST' });
 
   if (resp.ok) {
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+    updateHocr(await resp.json() as HocrPage);
   }
   else {
     console.error('callHocrEndpoint error:', resp.status, resp.statusText, await resp.text());
@@ -541,7 +543,7 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     body: JSON.stringify(body),
   });
   if (resp.ok) {
-    hocrPage.value = await resp.json() as HocrPage;
+    updateHocr(await resp.json() as HocrPage);
   }
   else {
     console.error('callAddEndpoint error:', resp.status, resp.statusText, await resp.text());
@@ -556,24 +558,7 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
   });
   if (resp.ok) {
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
-  }
-}
-
-async function loadHocrPage(page: Page | null): Promise<void> {
-  if (!page) {
-    hocrPage.value = null;
-    currentStem.value = null;
-    return;
-  }
-  const stem = page.scan.replace(/\.[^.]+$/, '');
-  currentStem.value = stem;
-
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/hocr-json`);
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
-  } catch {
-    hocrPage.value = null;
+    updateHocr(await resp.json() as HocrPage);
   }
 }
 

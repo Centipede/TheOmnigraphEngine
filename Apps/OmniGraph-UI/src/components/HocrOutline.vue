@@ -72,16 +72,16 @@
 <script setup lang="ts">
 import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
+import { useHocrContext } from '../composables/useHocr';
 import {
   type HocrCarea,
   type HocrLine,
-  type HocrPage,
   type HocrBlock,
   type HocrLevel,
   findMultilevelById
 } from '../types/hocr';
 
-const hocrPage          = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
+const { hocrPage } = useHocrContext();
 const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
 const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => void>('selectNode', () => {});

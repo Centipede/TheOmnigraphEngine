@@ -78,6 +78,7 @@
 
 <script setup lang="ts">
 import {computed, inject, ref, type Ref} from 'vue';
+import { useHocrContext } from '../composables/useHocr';
 import {
   type CropEdges,
   findItem,
@@ -125,7 +126,7 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',      ref(null));
+const { hocrPage } = useHocrContext();
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 

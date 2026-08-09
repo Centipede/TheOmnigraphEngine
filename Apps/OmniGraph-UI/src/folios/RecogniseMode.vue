@@ -45,6 +45,7 @@ import {onMounted, onUnmounted, ref} from 'vue';
 import type {Page} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 
 const props = defineProps<{
   machineName: string;
@@ -63,6 +64,8 @@ const panels = usePersistentPanels('panels.recognise', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+
+provideHocrContext();
 
 // ── hOCR status ──────────────────────────────────────────────────────
 const hocrScanned = ref<Set<string>>(new Set());
