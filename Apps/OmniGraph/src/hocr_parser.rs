@@ -730,7 +730,7 @@ impl HocrPage {
                 .map(|carea| carea.id.clone())
                 .collect();
 
-            self.careas.retain(|carea| !erase_block_ids.contains(&carea.id));
+            self.careas[carea].blocks.retain(|block| !erase_block_ids.contains(&block.id));
         }
 
         // Nodes are not really meant to overlap. It is up to the user to handle this case.
@@ -864,6 +864,7 @@ impl HocrBlockKind {
     }
     pub fn from_class_name(class_name: &str) -> Option<Self> {
         match class_name {
+            "ocr_photo" => Some(HocrBlockKind::Image),
             "ocr_par" => Some(HocrBlockKind::Paragraph),
             "ocr_part" => Some(HocrBlockKind::Part),
             "ocr_chapter" => Some(HocrBlockKind::Chapter),
@@ -878,6 +879,7 @@ impl HocrBlockKind {
 
     pub fn from_json_name(class_name: &str) -> Option<Self> {
         match class_name {
+            "image" => Some(HocrBlockKind::Image),
             "paragraph" => Some(HocrBlockKind::Paragraph),
             "part" => Some(HocrBlockKind::Part),
             "chapter" => Some(HocrBlockKind::Chapter),
@@ -1029,7 +1031,6 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             let words = line_el
                                 .select(&sel_word)
                                 .filter_map(|word_el| {
-                                    let title_keyvals = split_title(line_el.attr("title").unwrap_or(""));
                                     let title = word_el.attr("title").unwrap_or("");
                                     let word_bbox = bbox(title)?;
                                     Some(HocrWord {
@@ -1055,11 +1056,15 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                         })
                         .collect();
 
-                    let kind = block_el
-                        .attr("class")
-                        .unwrap_or("")
-                        .split_whitespace()
-                        .find_map(HocrBlockKind::from_class_name)?;
+                    let kind = if block_el.value().name() == "img" {
+                        Some(HocrBlockKind::Image)
+                    } else {
+                        block_el
+                            .attr("class")
+                            .unwrap_or("")
+                            .split_whitespace()
+                            .find_map(HocrBlockKind::from_class_name)
+                    }?;
                     let block = HocrBlock {
                         level: "block".to_string(),
                         id: block_id,

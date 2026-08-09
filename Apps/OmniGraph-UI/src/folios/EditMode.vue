@@ -94,6 +94,7 @@
               class="form-grid"
           >
             <sl-radio-group
+                v-if="ocrTool === 'block'"
                 label="Block type"
                 :value="addForm.blockType"
                 @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as AddBlockType">
