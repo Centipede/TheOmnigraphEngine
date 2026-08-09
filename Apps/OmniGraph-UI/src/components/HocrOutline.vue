@@ -83,7 +83,6 @@ import {
 
 const hocrPage          = inject<Ref<HocrPage | null>>('hocrPage', ref(null));
 const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
-const selectedItemId    = inject<Ref<string | null>>('selectedItemId',  ref(null));
 const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => void>('selectNode', () => {});
 

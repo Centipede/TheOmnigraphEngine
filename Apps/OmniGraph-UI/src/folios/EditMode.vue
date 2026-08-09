@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :initial-page-stem="initialPageStem"
       :panels="panels"
       :show-crop-overlay="false"
       :hocr-level="ocrTool=='pick' ? null : ocrTool"
@@ -134,6 +135,7 @@ interface AddRequest {
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.edit', {
@@ -566,6 +568,7 @@ async function loadHocrPage(page: Page | null): Promise<void> {
   }
   const stem = page.scan.replace(/\.[^.]+$/, '');
   currentStem.value = stem;
+
   try {
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/hocr-json`);
     hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;

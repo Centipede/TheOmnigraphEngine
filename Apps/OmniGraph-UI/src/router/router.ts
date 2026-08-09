@@ -14,6 +14,11 @@ const projectProps = (route: { params: Record<string, unknown> }) => ({
     projectName: String(route.params.machineName),
 });
 
+const folioProps = (route: { params: Record<string, unknown> }) => ({
+    ...projectProps(route),
+    initialPageStem: route.params.page ? String(route.params.page) : undefined,
+});
+
 export const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -34,10 +39,10 @@ export const router = createRouter({
             props: projectProps,
         },
         {
-            path: '/projects/:machineName/ingestor',
+            path: '/projects/:machineName/ingestor/:page?',
             name: 'ingestor',
             component: IngestorView,
-            props: projectProps,
+            props: folioProps,
         },
         {
             path: '/projects/:machineName/folios',
@@ -49,28 +54,28 @@ export const router = createRouter({
                     redirect: { name: 'folios-inspect' },
                 },
                 {
-                    path: 'inspect',
+                    path: 'inspect/:page?',
                     name: 'folios-inspect',
                     component: InspectMode,
-                    props: projectProps,
+                    props: folioProps,
                 },
                 {
-                    path: 'crop',
+                    path: 'crop/:page?',
                     name: 'folios-crop',
                     component: CropMode,
-                    props: projectProps,
+                    props: folioProps,
                 },
                 {
-                    path: 'recognise',
+                    path: 'recognise/:page?',
                     name: 'folios-recognise',
                     component: RecogniseMode,
-                    props: projectProps,
+                    props: folioProps,
                 },
                 {
-                    path: 'edit',
+                    path: 'edit/:page?',
                     name: 'folios-edit',
                     component: EditMode,
-                    props: projectProps,
+                    props: folioProps,
                 },
             ],
         },

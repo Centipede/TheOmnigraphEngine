@@ -1,6 +1,7 @@
 <template>
   <PageWorkspace :machine-name="machineName"
                  :project-name="projectName"
+                 :initial-page-stem="initialPageStem"
                  :panels="panels"
                  hocr-level="block"
                  :page-list-columns="['name-or-scan', 'extras']"
@@ -48,6 +49,7 @@ import { usePersistentPanels } from '../composables/usePersistentPanels';
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.recognise', {

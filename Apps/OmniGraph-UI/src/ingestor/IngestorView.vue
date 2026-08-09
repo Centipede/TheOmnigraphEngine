@@ -3,6 +3,7 @@
       ref="workspaceRef"
       :machine-name="machineName"
       :project-name="projectName"
+      :initial-page-stem="initialPageStem"
       :panels="panels"
       :page-list-columns="['index', 'batch', 'name', 'scan']"
       :can-pages-be-filtered="false"
@@ -143,6 +144,7 @@ import { usePersistentPanels } from '../composables/usePersistentPanels';
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.ingestor', {

@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :initial-page-stem="initialPageStem"
       :panels="panels"
       :strip-edge="edge"
       :strip-fraction="viewPercent / 100"
@@ -206,6 +207,7 @@ import { usePersistentPanels } from '../composables/usePersistentPanels';
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.crop', {

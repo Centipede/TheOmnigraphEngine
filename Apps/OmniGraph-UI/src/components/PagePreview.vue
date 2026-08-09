@@ -125,9 +125,8 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',        ref(null));
-const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',       ref(new Set()));
-const selectedItemId  = inject<Ref<string | null>>('selectedItemId',  ref(null));
+const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',      ref(null));
+const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);

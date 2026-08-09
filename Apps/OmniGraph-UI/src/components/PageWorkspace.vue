@@ -203,7 +203,7 @@
 <script setup lang="ts">
 import type {Ref, VNodeRef} from 'vue';
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
-import {onBeforeRouteLeave} from 'vue-router';
+import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
@@ -259,6 +259,7 @@ const props = withDefaults(defineProps<{
       wordOverlayColor?: string;
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
+      initialPageStem?: string;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
@@ -525,7 +526,14 @@ function setPageDb(data: PageDb) {
   pages.value = data.pages;
   pageDbNextBatch = data.next_batch;
   emit('pagesLoaded', data);
-  if (data.pages.length > 0) setAnchor(data.pages[0].index);
+  if (data.pages.length > 0) {
+    let initialIndex = 0;
+    if (props.initialPageStem) {
+      const found = data.pages.findIndex(p => p.scan.replace(/\.[^.]+$/, '') === props.initialPageStem);
+      if (found !== -1) initialIndex = found;
+    }
+    setAnchor(data.pages[initialIndex].index);
+  }
 }
 
 async function loadPageDb(data?: PageDb) {
@@ -563,7 +571,31 @@ async function savePageDb(): Promise<void> {
 }
 
 
-watch(currentPage, (page) => emit('currentPageChange', page));
+const router = useRouter();
+const route = useRoute();
+
+watch(currentPage, (page) => {
+  emit('currentPageChange', page);
+  if (page && route.params.hasOwnProperty('page')) {
+    const stem = page.scan.replace(/\.[^.]+$/, '');
+    if (route.params.page !== stem) {
+      router.replace({
+        name: route.name!,
+        params: { ...route.params, page: stem }
+      });
+    }
+  }
+});
+
+watch(() => route.params.page, (newStem) => {
+  if (newStem && pages.value.length > 0) {
+    const stem = String(newStem);
+    const found = pages.value.findIndex(p => p.scan.replace(/\.[^.]+$/, '') === stem);
+    if (found !== -1 && pages.value[found].index !== currentPageIndex.value) {
+      setAnchor(pages.value[found].index);
+    }
+  }
+});
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
