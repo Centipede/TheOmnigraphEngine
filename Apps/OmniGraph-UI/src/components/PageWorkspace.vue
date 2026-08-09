@@ -196,16 +196,16 @@
       </div>
     </div><!-- end workspace-right-sidebar -->
 
-
   </div>
 </template>
 
 <script setup lang="ts">
 import type {Ref, VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue';
-import {onBeforeRouteLeave} from 'vue-router';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch, provide, inject} from 'vue';
+import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
+import { useHocrContext } from '../composables/useHocr';
 import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
@@ -259,6 +259,7 @@ const props = withDefaults(defineProps<{
       wordOverlayColor?: string;
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
+      initialPageStem?: string;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
@@ -389,6 +390,10 @@ onBeforeRouteLeave(() => {
 const pageListComponentRef = ref<InstanceType<typeof PageList> | null>(null);
 const hocrOutlineRef = ref<InstanceType<typeof HocrOutline> | null>(null);
 const stripWorkareaRef = ref<HTMLElement | null>(null);
+
+const showError = inject<(msg: string) => void>('showError', (msg: string) => {
+  console.error('showError fallback:', msg);
+});
 
 const setStripWorkareaRef: VNodeRef = el => {
   stripWorkareaRef.value = el instanceof HTMLElement ? el : null;
@@ -525,7 +530,14 @@ function setPageDb(data: PageDb) {
   pages.value = data.pages;
   pageDbNextBatch = data.next_batch;
   emit('pagesLoaded', data);
-  if (data.pages.length > 0) setAnchor(data.pages[0].index);
+  if (data.pages.length > 0) {
+    let initialIndex = 0;
+    if (props.initialPageStem) {
+      const found = data.pages.findIndex(p => p.scan.replace(/\.[^.]+$/, '') === props.initialPageStem);
+      if (found !== -1) initialIndex = found;
+    }
+    setAnchor(data.pages[initialIndex].index);
+  }
 }
 
 async function loadPageDb(data?: PageDb) {
@@ -534,10 +546,16 @@ async function loadPageDb(data?: PageDb) {
   } else {
     try {
       const res = await fetch(`/api/projects/${props.machineName}/pages`);
+      if (!res.ok) {
+        const text = await res.text();
+        showError(text || `Failed to load pages: ${res.statusText}`);
+        return;
+      }
       const data = (await res.json()) as PageDb;
       setPageDb(data);
     } catch (e) {
       console.error('Failed to load pages:', e);
+      showError(e instanceof Error ? e.message : String(e));
     }
   }
 }
@@ -557,13 +575,64 @@ async function savePageDb(): Promise<void> {
   });
 
   if (!resp.ok) {
-    const err = await resp.json().catch(() => null) as { error?: string } | null;
-    throw new Error(err?.error ?? 'Failed to save pages.');
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `Failed to save pages: ${resp.statusText}`;
+    showError(finalMsg);
+    throw new Error(finalMsg);
   }
 }
 
 
-watch(currentPage, (page) => emit('currentPageChange', page));
+const router = useRouter();
+const route = useRoute();
+
+const hocrContext = useHocrContext();
+
+watch(currentPage, (page) => {
+  emit('currentPageChange', page);
+  if (page) {
+    const stem = page.scan.replace(/\.[^.]+$/, '');
+    hocrContext.loadHocr(props.machineName, stem);
+  } else {
+    hocrContext.clearHocr();
+  }
+
+  if (page && route.name) {
+    const supportsPage = route.matched.some(m => m.path.includes(':page'));
+    if (supportsPage) {
+      const stem = page.scan.replace(/\.[^.]+$/, '');
+      if (route.params.page !== stem) {
+        router.replace({
+          name: route.name,
+          params: { ...route.params, page: stem }
+        });
+      }
+    }
+  }
+});
+
+watch(() => hocrContext.error.value, (newError) => {
+  if (newError) {
+    showError(newError);
+  }
+});
+
+watch(() => route.params.page, (newStem) => {
+  if (newStem && pages.value.length > 0) {
+    const stem = String(newStem);
+    const found = pages.value.findIndex(p => p.scan.replace(/\.[^.]+$/, '') === stem);
+    if (found !== -1 && pages.value[found].index !== currentPageIndex.value) {
+      setAnchor(pages.value[found].index);
+    }
+  }
+});
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
@@ -576,7 +645,8 @@ onUnmounted(() => {
 
 defineExpose({
   setPageDb,
-  savePageDb
+  savePageDb,
+  showError
 });
 
 </script>

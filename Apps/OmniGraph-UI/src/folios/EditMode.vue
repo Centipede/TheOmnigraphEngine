@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :initial-page-stem="initialPageStem"
       :panels="panels"
       :show-crop-overlay="false"
       :hocr-level="ocrTool=='pick' ? null : ocrTool"
@@ -10,7 +11,6 @@
       line-overlay-color="rgba(59, 130, 246)"
       word-overlay-color="rgba(34, 197, 94)"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
-      @current-page-change="loadHocrPage"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
@@ -19,33 +19,33 @@
 
       <div class="ocr-info-panel">
         <div class="ocr-info-row">
-          <span class="ocr-info-label">Mode</span>
-          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
-        </div>
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Target</span>
+          <span class="ocr-info-label">Tool</span>
           <span class="ocr-info-value">{{ ocrTool }}</span>
         </div>
         <div class="ocr-info-row">
-          <span class="ocr-info-label">Keys</span>
-          <span class="ocr-info-value">Shift join/split · {{ isMac ? 'Alt' : 'Ctrl' }} remove</span>
+          <span class="ocr-info-label">Mode</span>
+          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
         </div>
         <template v-if="ocrTool === 'pick'">
           <div class="ocr-info-row">
             <span class="ocr-info-label">Carea</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Block</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Line</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
           </div>
           <div class="ocr-info-row">
             <span class="ocr-info-label">Word</span>
-            <span class="ocr-info-value">{{ multiSelect?.word?.text ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
           </div>
         </template>
         <template v-else>
@@ -94,14 +94,15 @@
               class="form-grid"
           >
             <sl-radio-group
+                v-if="ocrTool === 'block'"
                 label="Block type"
                 :value="addForm.blockType"
                 @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as AddBlockType">
               <sl-radio-button value="text">Text</sl-radio-button>
               <sl-radio-button value="image">Image</sl-radio-button>
             </sl-radio-group>
-            <sl-checkbox v-model="addForm.eraseUnderneath">Erase overlapping > N %</sl-checkbox>
-            <sl-input v-model="addForm.eraseOverlapPercentage" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
+            <sl-checkbox :checked="addForm.eraseUnderneath" @sl-change="addForm.eraseUnderneath = ($event.target as HTMLInputElement).checked">Erase overlapping > N %</sl-checkbox>
+            <sl-input :value="addForm.eraseOverlapPercentage" @sl-change="addForm.eraseOverlapPercentage = parseInt(($event.target as HTMLInputElement).value)" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
           </form>
         </template>
       </div>
@@ -111,7 +112,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, provide, type Ref, ref} from 'vue';
+import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject} from 'vue';
+import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type OverlayItem, type HocrNode,
@@ -119,11 +121,22 @@ import {
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 import {type HocrPage} from '../types/hocr';
+
+interface AddRequest {
+  to_carea?: string | null; to_block?: string | null; to_line?: string | null;
+  bbox: [number, number, number, number];
+  block_type: AddBlockType;
+  text?: string;
+  erase_underneath: boolean;
+  erase_overlap: number;
+}
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.edit', {
@@ -137,11 +150,16 @@ const panels = usePersistentPanels('panels.edit', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
-const hocrPage = ref<HocrPage | null>(null);
-provide('hocrPage', hocrPage);
+const { hocrPage, updateHocr } = provideHocrContext();
+const route = useRoute();
 
-const currentStem = ref<string | null>(null);
+const currentStem = computed(() => {
+  if (route.params.page) return String(route.params.page);
+  if (!hocrPage.value) return null;
+  return hocrPage.value.page_id.replace(/\.[^.]+$/, '');
+});
 
 type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
@@ -153,12 +171,28 @@ const ocrOperation:Ref<OcrOperation> = ref('context');
 // ── Select ───────────────────────────────────────────────────────────
 
 const overItemId = ref<string | null>(null);
-const selectedItemId   = ref<string | null>(null);
+const selectedItemIds = ref<Set<string>>(new Set());
+const selectedItemId = computed({
+  get: () => selectedItemIds.value.size > 0 ? Array.from(selectedItemIds.value)[0] : null,
+  set: (val) => {
+    selectedItemIds.value.clear();
+    if (val) selectedItemIds.value.add(val);
+  }
+});
 const indicatedItemId  = ref<string | null>(null);
+provide('selectedItemIds', selectedItemIds);
 provide('selectedItemId',  selectedItemId);
 provide('indicatedItemId', indicatedItemId);
-provide('selectNode', (level: OcrTool, id: string) => {
-  selectedItemId.value = id;
+provide('selectNode', (level: OcrTool, id: string, e?: MouseEvent) => {
+  if (e?.shiftKey) {
+    if (selectedItemIds.value.has(id)) {
+      selectedItemIds.value.delete(id);
+    } else {
+      selectedItemIds.value.add(id);
+    }
+  } else {
+    selectedItemId.value = id;
+  }
   setOcrTool(level);
 });
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
@@ -176,6 +210,7 @@ const altDown   = ref(false);
 const metaDown  = ref(false);
 const ctrlDown  = ref(false);
 const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+const cmdDown = computed(() => isMac ? metaDown.value : ctrlDown.value);
 
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 
@@ -183,20 +218,21 @@ const effectiveOcrOperation = computed<OcrOperation>(() => {
   if (ocrOperation.value !== 'context') return ocrOperation.value;
 
   if (ocrTool.value === 'pick') return 'select';
-  if (isMac ? (shiftDown.value && altDown.value) : (ctrlDown.value && shiftDown.value)) return 'add';
-  if (isMac ? altDown.value : ctrlDown.value) return 'remove';
-  if (shiftDown.value) {
+
+  if (cmdDown.value) {
+    if (altDown.value && shiftDown.value) return 'remove';
+    if (shiftDown.value) return 'add';
     if (betweenTargets.value[0] !== null && betweenTargets.value[1] !== null) return 'join';
     if (betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null) return 'split';
     return 'none';
   }
+
   return 'select';
 });
 
 // ── Add ──────────────────────────────────────────────────────────────
 
 type AddBlockType = 'text' | 'image';
-
 type AddForm = {
   blockType: AddBlockType
   text?: string
@@ -224,7 +260,6 @@ const pointerLabel = computed(() => {
   }
   return '';
 });
-
 const pointerColor = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'none':   return '#000000';
@@ -236,7 +271,6 @@ const pointerColor = computed(() => {
   }
   return '';
 });
-
 const pointerIcon = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'none':   return 'question-lg';
@@ -248,12 +282,13 @@ const pointerIcon = computed(() => {
   }
   return '';
 });
-
 const pointerEnabled = computed(() => {
   switch (effectiveOcrOperation.value) {
     case 'add':    return true;
     case 'select':
-    case 'remove': return overItemId.value !== null;
+      return overItemId.value !== null;
+    case 'remove':
+      return overItemId.value !== null;
     case 'join':   return betweenTargets.value[0] !== null && betweenTargets.value[1] !== null;
     case 'split':  return betweenSubTargets.value[0] !== null && betweenSubTargets.value[1] !== null;
     default:       return false;
@@ -278,6 +313,8 @@ function setOcrOperation(mode: OcrOperation) {
   ocrOperation.value = mode;
 }
 
+// ── Change block type ────────────────────────────────────────────────
+
 const LEVEL_SEGMENT: Record<string, string> = {
   carea: 'careas', block: 'blocks', line: 'lines', word: 'words',
 };
@@ -291,6 +328,7 @@ const BLOCK_KIND_KEYS: Record<string, string> = {
   '4': 'subsubsection',       // H4
   '5': 'subsubsubsection',    // H5
   '6': 'subsubsubsubsection', // H6
+  '7': 'paragraph',           // P
 };
 
 // Ordered list for the button palette, including paragraph.
@@ -302,62 +340,18 @@ const BLOCK_KINDS = [
   { key: '4', kind: 'subsubsection',        label: 'H4' },
   { key: '5', kind: 'subsubsubsection',     label: 'H5' },
   { key: '6', kind: 'subsubsubsubsection',  label: 'H6' },
-  { key: '',  kind: 'paragraph',            label: 'P'  },
+  { key: '7', kind: 'paragraph',            label: 'P'  },
 ] as const;
 
 async function changeBlockType(kind: string): Promise<void> {
-  if (!selectedItemId.value || ocrTool.value !== 'block') return;
-  await callHocrEndpoint(selectedItemId.value, 'change-type', { kind });
-}
-
-async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
-  const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
-  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
-  const resp = await fetch(url, body
-      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-      : { method: 'POST' });
-
-  if (resp.ok) {
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+  if (selectedItemIds.value.size === 0 || ocrTool.value !== 'block') return;
+  const ids = Array.from(selectedItemIds.value);
+  for (const id of ids) {
+    await callHocrEndpoint(id, 'change-type', { kind });
   }
 }
 
-async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
-  const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
-
-  const form = addForm.value;
-  const body: {
-    to_carea?: string | null; to_block?: string | null; to_line?: string | null;
-    bbox: [number, number, number, number];
-    block_type: AddBlockType;
-    text?: string;
-    erase_underneath: boolean;
-    erase_overlap: number;
-  } = {
-    bbox,
-    block_type: form.blockType,
-    text: form.text,
-    erase_underneath: form.eraseUnderneath,
-    erase_overlap: form.eraseOverlapPercentage,
-  };
-
-  const parent = selectedTarget.value;
-  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
-  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
-  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
-
-  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (resp.ok) hocrPage.value = await resp.json() as HocrPage;
-}
+// ── Mouse and key interactions ───────────────────────────────────────
 
 async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: number): Promise<void> {
   if (effectiveOcrOperation.value !== 'add') return;
@@ -377,13 +371,25 @@ async function pageInteractionClick(): Promise<void> {
   }
 
   if (mode === 'select') {
-    selectedItemId.value = overItemId.value;
+    if (shiftDown.value) {
+      if (overItemId.value) {
+        if (selectedItemIds.value.has(overItemId.value)) {
+          selectedItemIds.value.delete(overItemId.value);
+        } else {
+          selectedItemIds.value.add(overItemId.value);
+        }
+      }
+    } else {
+      selectedItemId.value = overItemId.value;
+    }
     return;
   }
 
-  if (mode === 'remove' && overItemId.value) {
-    await callHocrEndpoint(overItemId.value, 'remove');
-    if (selectedItemId.value === overItemId.value) selectedItemId.value = null;
+  if (mode === 'remove') {
+    if (overItemId.value) {
+      await callHocrEndpoint(overItemId.value, 'remove');
+      selectedItemIds.value.delete(overItemId.value);
+    }
   }
   else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
     await callHocrEndpoint(betweenTargets.value[0].id, 'merge', { other_id: betweenTargets.value[1].id });
@@ -453,8 +459,8 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
     return;
   }
 
-  // Block type change: 0–6, only when block tool is active and a block is selected.
-  if (ocrTool.value === 'block' && selectedItemId.value && !isTypingTarget()) {
+  // Block type change: 0–6, only when block tool is active and blocks are selected.
+  if (ocrTool.value === 'block' && selectedItemIds.value.size > 0 && !isTypingTarget()) {
     const kind = BLOCK_KIND_KEYS[e.key];
     if (kind) {
       e.preventDefault();
@@ -463,19 +469,109 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
     }
   }
 
-  if (!selectedItemId.value || isTypingTarget()) return;
+  if (selectedItemIds.value.size === 0 || isTypingTarget()) return;
   if (e.key === 'ArrowUp') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'move-up');
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'move-up');
+    }
   }
   else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'move-down');
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'move-down');
+    }
   }
   else if (e.key === 'Backspace' || e.key === 'Delete') {
     e.preventDefault();
-    await callHocrEndpoint(selectedItemId.value, 'remove');
-    selectedItemId.value = null;
+    const ids = Array.from(selectedItemIds.value);
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'remove');
+    }
+    selectedItemIds.value.clear();
+  }
+}
+
+function updateModifiers(e: KeyboardEvent) {
+  shiftDown.value = e.shiftKey;
+  altDown.value   = e.altKey;
+  metaDown.value  = e.metaKey;
+  ctrlDown.value  = e.ctrlKey;
+}
+
+// ── API endpoints ────────────────────────────────────────────────────
+
+async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
+  const resp = await fetch(url, body
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : { method: 'POST' });
+
+  if (resp.ok) {
+    updateHocr(await resp.json() as HocrPage);
+  }
+  else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `callHocrEndpoint error: ${resp.statusText}`;
+    console.error('callHocrEndpoint error:', resp.status, resp.statusText, text);
+    showError?.(finalMsg);
+  }
+}
+
+async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+
+  const form = addForm.value;
+  const body: AddRequest = {
+    bbox,
+    block_type: form.blockType,
+    text: form.text,
+    erase_underneath: form.eraseUnderneath,
+    erase_overlap: form.eraseOverlapPercentage,
+  };
+
+  const parent = selectedTarget.value;
+  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
+  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
+  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
+  console.log('callAddEndpoint', body, tool);
+
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (resp.ok) {
+    updateHocr(await resp.json() as HocrPage);
+  }
+  else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `callAddEndpoint error: ${resp.statusText}`;
+    console.error('callAddEndpoint error:', resp.status, resp.statusText, text);
+    showError?.(finalMsg);
+    console.log(showError);
   }
 }
 
@@ -487,31 +583,18 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
   });
   if (resp.ok) {
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
+    updateHocr(await resp.json() as HocrPage);
+  } else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    showError?.(errorMsg || `Failed to restore from original: ${resp.statusText}`);
   }
-}
-
-async function loadHocrPage(page: Page | null): Promise<void> {
-  if (!page) {
-    hocrPage.value = null;
-    currentStem.value = null;
-    return;
-  }
-  const stem = page.scan.replace(/\.[^.]+$/, '');
-  currentStem.value = stem;
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/hocr-json`);
-    hocrPage.value = resp.ok ? (await resp.json() as HocrPage) : null;
-  } catch {
-    hocrPage.value = null;
-  }
-}
-
-function updateModifiers(e: KeyboardEvent) {
-  shiftDown.value = e.shiftKey;
-  altDown.value   = e.altKey;
-  metaDown.value  = e.metaKey;
-  ctrlDown.value  = e.ctrlKey;
 }
 
 onMounted(() => {
@@ -540,6 +623,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.75rem;
+  min-height: 8rem;
 }
 
 .ocr-info-row {
@@ -581,16 +665,25 @@ onUnmounted(() => {
 .tool-palette > sl-button,
 .tool-palette > sl-button-group {
   width: 100%;
+  min-width: 0;
 }
 
 .tool-palette > sl-button-group::part(base) {
   display: flex;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
 }
 
 .tool-palette > sl-button-group sl-button {
   flex: 1 1 0;
+  min-width: 0;
+}
+
+.tool-palette > sl-button-group sl-button::part(base) {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 0.25em;
 }
 
 .kind-key {

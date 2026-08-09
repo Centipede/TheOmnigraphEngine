@@ -1,13 +1,35 @@
 <template>
   <PageWorkspace :machine-name="machineName"
                  :project-name="projectName"
+                 :initial-page-stem="initialPageStem"
                  :panels="panels"
                  hocr-level="block"
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
+                 :show-crop-overlay="true"
+                 crop-color="rgba(0, 180, 0, 0.12)"
+                 discard-color="rgba(220, 0, 0, 0.35)"
   >
 
-    <template #tools="{ selectionInfo, filteredPages }">
+    <template #tools="{ selectionInfo, filteredPages, currentPage }">
+      <div v-if="currentPage" class="crop-info-panel info-panel">
+        <div class="info-row">
+          <span class="info-label">Crop Top</span>
+          <span class="info-value">{{ currentPage.crop_edges.top }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Left</span>
+          <span class="info-value">{{ currentPage.crop_edges.left }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Right</span>
+          <span class="info-value">{{ currentPage.crop_edges.right }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Crop Bottom</span>
+          <span class="info-value">{{ currentPage.crop_edges.bottom }}</span>
+        </div>
+      </div>
       <sl-button
           size="small"
           variant="primary"
@@ -40,14 +62,16 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-import {onMounted, onUnmounted, ref} from 'vue';
+import {onMounted, onUnmounted, ref, inject} from 'vue';
 import type {Page} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
 
 const panels = usePersistentPanels('panels.recognise', {
@@ -61,6 +85,9 @@ const panels = usePersistentPanels('panels.recognise', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
+
+provideHocrContext();
 
 // ── hOCR status ──────────────────────────────────────────────────────
 const hocrScanned = ref<Set<string>>(new Set());
@@ -126,8 +153,17 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
     }
 
     if (!resp.ok) {
-      const err = await resp.json() as { error: string };
-      scanError.value = err.error ?? 'Scan failed.';
+      const text = await resp.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Scan failed: ${resp.statusText}`;
+      scanError.value = finalMsg;
+      showError?.(finalMsg);
       return;
     }
 
@@ -207,5 +243,9 @@ onUnmounted(() => {
   font-size: 0.75rem;
   width: 100%;
   padding-left: 1rem;
+}
+
+.crop-info-panel {
+  margin-bottom: 0.75rem;
 }
 </style>

@@ -77,7 +77,7 @@ pub struct IngestQuery {
     pub before: Option<usize>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AddBlockType {
     Text,
@@ -93,7 +93,7 @@ pub struct AddRequest {
     pub block_type: Option<AddBlockType>,
     pub text: Option<String>,
     pub erase_underneath: Option<bool>,
-    pub erase_overlap: Option<usize>
+    pub erase_overlap: Option<u8>
 }
 
 #[derive(Deserialize, Serialize)]

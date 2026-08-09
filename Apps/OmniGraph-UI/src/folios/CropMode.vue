@@ -2,6 +2,7 @@
   <PageWorkspace
       :machine-name="machineName"
       :project-name="projectName"
+      :initial-page-stem="initialPageStem"
       :panels="panels"
       :strip-edge="edge"
       :strip-fraction="viewPercent / 100"
@@ -12,6 +13,7 @@
       crop-color="rgba(0, 180, 0, 0.12)"
       discard-color="rgba(220, 0, 0, 0.35)"
       @pages-loaded="syncCropStateFromPageDb"
+      @current-page-change="onPageChange"
   >
     <template #tools="workspace">
 
@@ -83,7 +85,7 @@
             name="edge"
             size="small"
             :value="edge"
-            @sl-change="onEdgeChange(($event.target as HTMLInputElement).value, workspace.pages)"
+            @sl-change="onEdgeChange(($event.target as HTMLInputElement).value)"
         >
           <sl-radio-button value="none">None</sl-radio-button>
           <sl-radio-button value="left">Left</sl-radio-button>
@@ -178,7 +180,7 @@
         <sl-button
             variant="danger"
             :disabled="!workspace.hasChanges"
-            @click="abandonCrop(workspace.pages)"
+            @click="abandonCrop()"
         >
           Abandon
         </sl-button>
@@ -196,16 +198,20 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, onUnmounted } from 'vue';
+import { reactive, ref, onMounted, onUnmounted, inject } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import type {CropEdges, Page, PageDb} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
+import { provideHocrContext } from '../composables/useHocr';
 
 const props = defineProps<{
   machineName: string;
   projectName: string;
+  initialPageStem?: string;
 }>();
+
+provideHocrContext();
 
 const panels = usePersistentPanels('panels.crop', {
   'page-list': true,
@@ -218,6 +224,7 @@ const panels = usePersistentPanels('panels.crop', {
 });
 
 const { setActivePanels } = usePanelVisibilityContext();
+const showError = inject<(msg: string) => void>('showError');
 
 onMounted(() => setActivePanels(panels));
 onUnmounted(() => setActivePanels(null));
@@ -261,7 +268,7 @@ function syncCropStateFromPageDb(data: PageDb) {
     originalCrops.set(page.index, { ...crop });
   }
 
-  rebuildRoundBase(data.pages);
+  rebuildRoundBase();
 }
 
 function isPageChanged(page: Page): boolean {
@@ -334,14 +341,10 @@ function applyMagnet(
 }
 
 
-function rebuildRoundBase(
-    pages: Page[],
-) {
+function rebuildRoundBase() {
   roundBaseCrops.clear();
-
-  for (const page of pages) {
-    const crop = pageCrops.get(page.index);
-    if (crop) roundBaseCrops.set(page.index, { ...crop });
+  for (const [index, crop] of pageCrops) {
+    roundBaseCrops.set(index, { ...crop });
   }
 }
 
@@ -357,11 +360,15 @@ function adjustRange(
 
 function onEdgeChange(
     newEdge: string,
-    pages: Page[],
 ) {
   accumulator.value = 0;
-  rebuildRoundBase(pages);
+  rebuildRoundBase();
   edge.value = newEdge;
+}
+
+function onPageChange() {
+  accumulator.value = 0;
+  rebuildRoundBase();
 }
 
 // ── Adjust tool functions ────────────────────────────────────────────
@@ -383,19 +390,19 @@ function handleCropKey(e: KeyboardEvent, context: CropKeyboardContext): boolean 
     switch (e.key) {
       case 'ArrowUp':
         e.preventDefault();
-        onEdgeChange('top', context.pages);
+        onEdgeChange('top');
         return true;
       case 'ArrowDown':
         e.preventDefault();
-        onEdgeChange('bottom', context.pages);
+        onEdgeChange('bottom');
         return true;
       case 'ArrowLeft':
         e.preventDefault();
-        onEdgeChange('left', context.pages);
+        onEdgeChange('left');
         return true;
       case 'ArrowRight':
         e.preventDefault();
-        onEdgeChange('right', context.pages);
+        onEdgeChange('right');
         return true;
     }
   }
@@ -526,11 +533,11 @@ function assignAllEdges(
 }
 
 // ── Crop session: abandon / commit ───────────────────────────────────
-function abandonCrop(pages: Page[]) {
+function abandonCrop() {
   accumulator.value = 0;
   pageCrops.clear();
   for (const [idx, crop] of originalCrops) pageCrops.set(idx, {...crop});
-  rebuildRoundBase(pages);
+  rebuildRoundBase();
 }
 
 async function commitCrops(pages: Page[],
@@ -551,10 +558,21 @@ async function commitCrops(pages: Page[],
     if (res.ok) {
       for (const [idx, crop] of pageCrops) originalCrops.set(idx, {...crop});
     } else {
-      console.error('Commit failed:', res.status, await res.text());
+      const text = await res.text();
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.error) errorMsg = json.error;
+      } catch (e) {
+        // Not JSON
+      }
+      const finalMsg = errorMsg || `Commit failed: ${res.statusText}`;
+      console.error('Commit failed:', res.status, text);
+      showError?.(finalMsg);
     }
   } catch (e) {
     console.error('Commit error:', e);
+    showError?.(e instanceof Error ? e.message : String(e));
   }
 }
 

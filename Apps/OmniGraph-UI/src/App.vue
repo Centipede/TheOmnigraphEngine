@@ -6,17 +6,26 @@
         :panels="activePanels"
         @toggle-panel="togglePanel"
     />
-    <RouterView v-slot="{ Component }">
+    <RouterView v-slot="{ Component, route }">
       <component
           :is="Component"
           :panels="activePanels"
+          :machine-name="machineName"
+          :project-name="projectName"
+          :initial-page-stem="route.params.page ? String(route.params.page) : undefined"
       />
     </RouterView>
+
+    <sl-alert ref="errorAlertRef" variant="danger" closable duration="5000">
+      <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>
+      <strong>Error</strong><br />
+      {{ errorMessage }}
+    </sl-alert>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, ref, provide, nextTick} from 'vue';
 import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
 import type {PanelId} from './types';
@@ -28,6 +37,18 @@ const machineName = computed(() => String(route.params.machineName ?? ''));
 const projectName = computed(() => machineName.value);
 
 const { activePanels } = providePanelVisibilityContext();
+
+const errorAlertRef = ref<HTMLElement & { toast: () => void } | null>(null);
+const errorMessage = ref('');
+
+function showError(msg: string) {
+  errorMessage.value = msg;
+  nextTick(() => {
+    errorAlertRef.value?.toast();
+  });
+}
+
+provide('showError', showError);
 
 function togglePanel(panelId: PanelId) {
   if (!activePanels.value) return;

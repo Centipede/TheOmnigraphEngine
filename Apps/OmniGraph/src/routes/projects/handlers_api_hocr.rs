@@ -105,17 +105,39 @@ pub async fn carea_split(
 }
 
 pub async fn carea_move_up(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Carea { carea } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_carea_up(carea);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn carea_move_down(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let HocrPath::Carea { carea } = path else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    page.move_carea_down(carea);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
 pub async fn carea_add(
@@ -128,7 +150,7 @@ pub async fn carea_add(
         Err(status_code) => return status_code.into_response(),
     };
 
-    page.add_carea(payload.bbox);
+    page.add_carea(payload.bbox, payload.erase_underneath, payload.erase_overlap);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
@@ -288,13 +310,13 @@ pub async fn block_add(
         Err(status_code) => return status_code.into_response(),
     };
     let Some(to_carea) = payload.to_carea else {
-        return StatusCode::BAD_REQUEST.into_response();
+        return (StatusCode::BAD_REQUEST, "to_carea missing").into_response();
     };
     let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) else {
-        return StatusCode::NOT_FOUND.into_response();
+        return (StatusCode::NOT_FOUND, "to_carea not found").into_response();
     };
 
-    page.add_block(carea, payload.bbox);
+    page.add_block(carea, payload.bbox, payload.block_type, payload.erase_underneath, payload.erase_overlap);
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
@@ -511,12 +533,15 @@ pub async fn parse_page(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let mut page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
         .await
         .unwrap_or(None);
 
     match page {
-        Some(p) => Ok(p),
+        Some(mut p) => {
+            p.page_id = stem.to_string();
+            Ok(p)
+        }
         None => Err(StatusCode::UNPROCESSABLE_ENTITY),
     }
 }

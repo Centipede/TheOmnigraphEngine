@@ -39,7 +39,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': item.id === selectedItemId, 'hocr-overlay--indicated': item.id === indicatedItemId }]"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': selectedItemIds?.has(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -78,6 +78,7 @@
 
 <script setup lang="ts">
 import {computed, inject, ref, type Ref} from 'vue';
+import { useHocrContext } from '../composables/useHocr';
 import {
   type CropEdges,
   findItem,
@@ -125,8 +126,8 @@ const props = withDefaults(defineProps<{
   wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
-const hocrPage        = inject<Ref<HocrPage | null>>('hocrPage',        ref(null));
-const selectedItemId  = inject<Ref<string | null>>('selectedItemId',  ref(null));
+const { hocrPage } = useHocrContext();
+const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 
 const label = computed(() => props.page.name || props.page.scan);
@@ -336,7 +337,7 @@ function handleMouseUp(e: MouseEvent) {
   isDragging.value = false;
 }
 
-function updatePointerAction(event: MouseEvent) {
+function updateDragState(event: MouseEvent) {
   // Update drag rect while dragging
   if (dragStart.value) {
     const point = getScanPointForEvent(event);
@@ -347,13 +348,19 @@ function updatePointerAction(event: MouseEvent) {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) isDragging.value = true;
     }
   }
-  if (hocrPage === undefined || hocrPage.value === null)
-    return;
+}
 
-  const page: HocrPage = hocrPage.value
+function updatePointerAction(event: MouseEvent) {
 
   pointerX.value = event.clientX;
   pointerY.value = event.clientY;
+
+  updateDragState(event);
+
+  if (!hocrPage?.value) return;
+  if (!props.interactionUpdate) return;
+
+  const page: HocrPage = hocrPage.value
 
   if (props.interactionUpdate) {
     const pagePoint = getScanPointForEvent(event);
