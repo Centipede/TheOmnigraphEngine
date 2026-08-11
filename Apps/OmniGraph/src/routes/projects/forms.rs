@@ -1,7 +1,7 @@
 use crate::app_settings::OcrCommandFormat;
 use crate::ocr_poll::ServerStatus;
 use serde::{Deserialize, Serialize};
-use crate::hocr_parser::HocrBbox;
+use crate::hocr_parser::{HocrBbox, AddBlockType};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct OcrServerData {
@@ -75,13 +75,6 @@ pub struct CreateProject {
 pub struct IngestQuery {
     pub after: Option<usize>,
     pub before: Option<usize>,
-}
-
-#[derive(Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AddBlockType {
-    Text,
-    Image,
 }
 
 #[derive(Deserialize, Serialize)]

@@ -1,17 +1,31 @@
 use std::cmp::PartialEq;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
-use crate::routes::projects::forms::AddBlockType;
 
 pub fn stem_from_id(id: &str) -> String {
-    id.chars()
+
+    let stem = id.chars()
         .rev()
-        .skip_while(|c| c.is_numeric())
+        .skip_while(|c| c.is_numeric() )
         .collect::<String>()
         .chars()
         .rev()
-        .collect::<String>()
+        .collect::<String>();
+
+    if(stem.ends_with('_')) {
+        stem.chars()
+            .rev()
+            .skip_while(|c| *c == '_' )
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    } else {
+        stem
+    }
 }
 
 pub fn count_from_id(id: &str) -> Result<usize, std::num::ParseIntError> {
@@ -107,6 +121,13 @@ pub enum HocrBlockKind {
     Subsubsection,
     Subsubsubsection,
     Subsubsubsubsection,
+    Image,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum AddBlockType {
+    Text,
     Image,
 }
 
@@ -380,8 +401,8 @@ impl HocrPage {
         let next = self.get_next_number_with_stem(preferred_stem.as_str());
 
         match next {
-            Some(n) => format!("{preferred_stem}{n}"),
-            None => format!("{preferred_stem}1"),
+            Some(n) => format!("{preferred_stem}_{n}"),
+            None => format!("{preferred_stem}_1"),
         }
     }
 
@@ -820,7 +841,25 @@ impl HocrCarea {
     }
 }
 
+impl Display for HocrBlockKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let code = match self {
+            HocrBlockKind::Image => "IMG",
+            HocrBlockKind::Paragraph => "P",
+            HocrBlockKind::Part => "PART",
+            HocrBlockKind::Chapter => "H1",
+            HocrBlockKind::Section => "H2",
+            HocrBlockKind::Subsection => "H3",
+            HocrBlockKind::Subsubsection => "H4",
+            HocrBlockKind::Subsubsubsection => "H5",
+            HocrBlockKind::Subsubsubsubsection => "H6",
+        };
+        write!(f, "{}", code)
+    }
+}
 impl HocrBlockKind {
+
+
     pub fn tag_name(self) -> &'static str {
         match self {
             HocrBlockKind::Image => "img",
@@ -861,7 +900,6 @@ impl HocrBlockKind {
             _ => None,
         }
     }
-
     pub fn from_json_name(class_name: &str) -> Option<Self> {
         match class_name {
             "image" => Some(HocrBlockKind::Image),
@@ -1220,4 +1258,193 @@ pub fn find_node(page: &HocrPage, id: &str) -> Option<HocrPath> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SAMPLE1: &str = r#"
+            <html>
+                <body>
+                    <div class='ocr_page' id='page_1' title='image "/tmp/side-014.jpg"; bbox 0 0 2537 3160; ppageno 0; scan_res 320 320'>
+                       <div class='ocr_carea' id='block_1_1' title="bbox 483 286 1645 422">
+                        <p class='ocr_par' id='par_1_1' lang='eng' title="bbox 483 286 1645 422">
+                         <span class='ocr_line' id='line_1_1' title="bbox 483 286 1645 336; baseline -0.004 0; x_size 59.625; x_descenders 14.90625; x_ascenders 14.90625">
+                          <span class='ocrx_word' id='word_1_1' title='bbox 483 290 586 336; x_wconf 96'>Line1-Word1</span>
+                          <span class='ocrx_word' id='word_1_2' title='bbox 604 290 926 335; x_wconf 93'>Line1-Word2</span>
+                          <span class='ocrx_word' id='word_1_3' title='bbox 951 290 1025 335; x_wconf 28'>Line1-Word3</span>
+                          <span class='ocrx_word' id='word_1_4' title='bbox 1077 286 1645 334; x_wconf 91'>Line1-Word4</span>
+                         </span>
+                         <span class='ocr_line' id='line_1_2' title="bbox 483 361 1256 422; baseline -0.003 -14; x_size 59.625; x_descenders 14.90625; x_ascenders 14.90625">
+                          <span class='ocrx_word' id='word_1_5' title='bbox 483 363 1005 408; x_wconf 96'>Line2-Word1</span>
+                          <span class='ocrx_word' id='word_1_6' title='bbox 1024 361 1256 422; x_wconf 95'>Line2-Word2</span>
+                         </span>
+                        </p>
+                       </div>
+                    </div>
+                </body>
+            </html>
+        "#;
+
+    const SAMPLE2: &str = r#"
+            <html>
+                <body>
+                    <div class='ocr_page' id='page_1' title='image "/tmp/side-014.jpg"; bbox 0 0 2537 3160; ppageno 0; scan_res 320 320'>
+
+                       <div class='ocr_carea' id='block_1_1' title="bbox 483 286 1645 422">
+                        <p class='ocr_par' id='par_1_1' lang='eng' title="bbox 483 286 1645 422">
+                         <span class='ocr_line' id='line_1_1' title="bbox 483 286 1645 336; baseline -0.004 0; x_size 59.625; x_descenders 14.90625; x_ascenders 14.90625">
+                          <span class='ocrx_word' id='word_1_1' title='bbox 483 290 586 336; x_wconf 96'>Line1-Word1</span>
+                          <span class='ocrx_word' id='word_1_2' title='bbox 604 290 926 335; x_wconf 93'>Line1-Word2</span>
+                          <span class='ocrx_word' id='word_1_3' title='bbox 951 290 1025 335; x_wconf 28'>Line1-Word3</span>
+                          <span class='ocrx_word' id='word_1_4' title='bbox 1077 286 1645 334; x_wconf 91'>Line1-Word4</span>
+                         </span>
+                         <span class='ocr_line' id='line_1_2' title="bbox 483 361 1256 422; baseline -0.003 -14; x_size 59.625; x_descenders 14.90625; x_ascenders 14.90625">
+                          <span class='ocrx_word' id='word_1_5' title='bbox 483 363 1005 408; x_wconf 96'>Line2-Word1</span>
+                          <span class='ocrx_word' id='word_1_6' title='bbox 1024 361 1256 422; x_wconf 95'>Line2-Word2</span>
+                         </span>
+                        </p>
+                       </div>
+
+                       <div class='ocr_carea' id='block_1_2' title="bbox 485 440 2298 785">
+                        <p class='ocr_par' id='par_1_2' lang='eng' title="bbox 485 440 2298 785">
+                         <span class='ocr_line' id='line_1_3' title="bbox 485 440 2298 492; baseline -0.004 -11; x_size 46; x_descenders 11; x_ascenders 12">
+                          <span class='ocrx_word' id='word_1_7' title='bbox 485 446 625 492; x_wconf 96'>Line3-Word1</span>
+                          <span class='ocrx_word' id='word_1_8' title='bbox 642 446 702 480; x_wconf 96'>Line3-Word2</span>
+                          <span class='ocrx_word' id='word_1_9' title='bbox 720 445 961 490; x_wconf 96'>Line3-Word3</span>
+                         </span>
+
+                         <span class='ocr_line' id='line_1_4' title="bbox 486 499 2295 549; baseline -0.004 -9; x_size 46; x_descenders 11; x_ascenders 12">
+                          <span class='ocrx_word' id='word_1_10' title='bbox 486 505 632 540; x_wconf 91'>Line4-Word1</span>
+                          <span class='ocrx_word' id='word_1_11' title='bbox 645 504 709 540; x_wconf 96'>Line4-Word2</span>
+                          <span class='ocrx_word' id='word_1_12' title='bbox 723 505 842 539; x_wconf 96'>Line4-Word3</span>
+                         </span>
+                        </p>
+                       </div>
+                       </div>
+                </body>
+            </html>
+        "#;
+    fn signature_word(word: &HocrWord) -> String {
+        word.id.clone()
+    }
+
+    fn signature_line(line: &HocrLine) -> String {
+       let word_sigs = line.words.iter().map(signature_word).collect::<Vec<String>>();
+       format!("{}({})", line.id.clone(), word_sigs.join(","))
+    }
+
+    fn signature_block(block: &HocrBlock) -> String {
+        let line_sigs = block.lines.iter().map(signature_line).collect::<Vec<String>>();
+        format!("{}:{}({})", block.id.clone(), block.kind, line_sigs.join(","))
+    }
+
+    fn signature_carea(carea: &HocrCarea) -> String {
+        let block_sigs = carea.blocks.iter().map(signature_block).collect::<Vec<String>>();
+        format!("{}({})", carea.id.clone(), block_sigs.join(","))
+    }
+
+    fn signature(page: &HocrPage) -> String {
+        let carea_sigs = page.careas.iter().map(signature_carea).collect::<Vec<String>>();
+        format!("{}({})", page.page_id, carea_sigs.join(","))
+    }
+
+    fn to_sig(s: &str) -> String {
+        s.replace(' ', "").replace('\n', "").replace('\r', "")
+    }
+
+    #[test]
+    fn stem_from_id_removed_trailing_digits() {
+        assert_eq!(stem_from_id(""), "");
+        assert_eq!(stem_from_id("page_1"), "page");
+        assert_eq!(stem_from_id("line_1_100"), "line_1");
+        assert_eq!(stem_from_id("page_1_shouldnotbe"), "page_1_shouldnotbe");
+        assert_eq!(stem_from_id("id___4"), "id");
+        assert_eq!(stem_from_id("id__1__4"), "id__1");
+    }
+
+    #[test]
+    fn count_from_id_correct_number() {
+        assert_eq!(count_from_id("page_1"), Ok(1));
+        assert_eq!(count_from_id("line_1_100"), Ok(100));
+        assert!(count_from_id("linebad").is_err());
+    }
+
+    #[test]
+    fn next_unique_id() {
+
+        let page = parse(SAMPLE1).unwrap();
+
+        assert_eq!(page.page_id, "page_1");
+        assert_eq!(page.get_next_number_with_stem("block"), Some(2));
+        assert_eq!(page.get_next_number_with_stem("par"), Some(2));
+        assert_eq!(page.get_next_number_with_stem("line"), Some(3));
+        assert_eq!(page.get_next_number_with_stem("word"), Some(7));
+        assert_eq!(page.get_unique_id("par_1_1"), "par_1_2");
+        assert_eq!(page.get_unique_id("line_1_2"), "line_1_3");
+        assert_eq!(page.get_unique_id("word_1_1"), "word_1_7");
+    }
+
+    #[test]
+    fn signatures_match() {
+        let page = parse(SAMPLE1).unwrap();
+        let sig = signature(&page);
+        assert_eq!(sig, to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4),
+                    line_1_2(word_1_5, word_1_6)))
+        )"#));
+
+        let page = parse(SAMPLE2).unwrap();
+        let sig = signature(&page);
+        assert_eq!(sig, to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4),
+                    line_1_2(word_1_5, word_1_6)
+                )
+            ),
+            block_1_2(
+                par_1_2:P(
+                    line_1_3(word_1_7, word_1_8, word_1_9),
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+    }
+
+    #[test]
+    fn locating_items() {
+        let page = parse(SAMPLE2).unwrap();
+        assert_eq!(find_node(&page, "line_1_1"), Some(HocrPath::Line {carea:0, block:0, line:0}))
+    }
+
+    #[test]
+    fn move_line_up() {
+        let mut page = parse(SAMPLE2).unwrap();
+        let orig_sig = signature(&page);
+        page.move_line_up(0,0,0);
+        let sig = signature(&page);
+        assert_eq!(signature(&page), orig_sig);
+
+        page.move_line_up(1,0,0);
+
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4),
+                    line_1_2(word_1_5, word_1_6),
+                    line_1_3(word_1_7, word_1_8, word_1_9)
+                )
+            ),
+            block_1_2(
+                par_1_2:P(
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+
+    }
 }
