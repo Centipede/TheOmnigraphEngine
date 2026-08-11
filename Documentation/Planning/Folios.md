@@ -158,11 +158,11 @@ This is a suggestion:
 Master tools and keyboard:
 
 (Q) - Change carea flow:
-- (1), (2), ... Change selected CAREAs to the flow preset that one must set up ... TODO: Where?
+- (1), (2), ... Change selected CAREAs to the flow preset that one must set up in the project Overview.
   - If 'merge' is ✔️then all selected will be merged into one and changed.
   
 (W) - Change carea layout:
-- (1), (2), ... Change selected CAREAs to the layout preset that one must set up ... TODO: Where?
+- (1), (2), ... Change selected CAREAs to the layout preset that one must set up in the project Overview.
   - If 'merge' is ✔️then all selected will be merged into one and changed.
 
 (E) - Edit

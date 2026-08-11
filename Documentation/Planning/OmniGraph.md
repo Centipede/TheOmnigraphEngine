@@ -39,7 +39,7 @@ Contains information about page names, scanned image, dimensions etc.
 
 ### Structure database
 
-Though the documentation uses the term 'section', it is really meant to cover a mix of two concepts: Flow and sections.
+Though the documentation uses the term 'section', it is really meant to cover a mix of two concepts: **Flow** and **sections**.
 
 This is best illustrated with an example:
 
@@ -57,6 +57,13 @@ This is best illustrated with an example:
 This is a book with two chapters and a similar top-level structure for each chapter: A _main_ flow and an _infoboxes_ flow.
 What is a flow? Flows are _treated_ as sections but act as parallel sections or containers for subsections and content.
 
+I.e. a section can contain text and optionally one of two subsection strategies:
+
+- Child **sections**: Sequential collection of containers of content
+- Child **flows**: Parallel collection of containers of content
+
+Either/or. No mixing.
+
 In many textbooks you see this system where you have a main flow of content and a lot of margin boxes and inserted boxes with extra information.
 Originally I simply discarded all those boxes which were not a strict part of the main flow. Later I moved them to top level flows.
 But this design had the advantage of being able to bundle main-flow, footnotes, infoboxes, further reading, etc. into each chapter, which is also what a lot of books do.
@@ -70,12 +77,14 @@ The reason one would want to maintain a list of headlines is to avoid having to 
 
 ### Sections & flows
 
+Curated list of sections / flows across the whole project.
+
 Organised as a tree of section objects where each section object have these properties:
 - path_id: Like machine name... unique within the scope of its parent
 - level: Part, section... etc.
 - title: Pure text, cleaned up... can be different from the OCR text in the associated headline
-- is_linked: If yes, this is a free-floating section)
-- is_orphaned: If yes, the headline is no longer valid. Only retained  for survival's sake.
+- is_linked: If yes, this is a free-floating section
+- is_orphaned: If yes, the headline is no longer valid. Only retained  for survival's sake
 - headline: The associated hOCR block element that causes this to exist
   - page
   - block id (hOCR block id)
