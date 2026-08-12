@@ -77,6 +77,15 @@
           </sl-button>
         </sl-button-group>
 
+        <sl-checkbox
+            v-if="['carea-flow', 'carea-layout', 'block-type'].includes(activeMasterTool)"
+            :checked="mergeItems[activeMasterTool]"
+            @sl-change="mergeItems[activeMasterTool] = ($event.target as HTMLInputElement).checked"
+            size="small"
+        >
+          Merge items
+        </sl-checkbox>
+
         <sl-button-group v-if="activeMasterTool === 'edit'">
           <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
           <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea <span class="kind-key">1</span></sl-button>
@@ -185,6 +194,13 @@ type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | '
 const activeMasterTool = ref<MasterTool>('edit');
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
+
+const mergeItems = ref<Record<MasterTool, boolean>>({
+  'carea-flow': false,
+  'carea-layout': false,
+  'edit': false,
+  'block-type': true,
+});
 
 watch(activeMasterTool, (newVal) => {
   if (newVal === 'carea-flow' || newVal === 'carea-layout') {
@@ -387,8 +403,26 @@ async function changeBlockType(kind: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrTool.value !== 'block') return;
   activeMasterTool.value = 'block-type';
   const ids = Array.from(selectedItemIds.value);
-  for (const id of ids) {
-    await callHocrEndpoint(id, 'change-type', { kind });
+
+  if (mergeItems.value['block-type'] && ids.length > 1) {
+    await callBulkHocrEndpoint('change-type', { item_ids: ids, kind });
+  } else {
+    for (const id of ids) {
+      await callHocrEndpoint(id, 'change-type', { kind });
+    }
+  }
+}
+
+async function changeCareaOperation(action: 'change-flow' | 'change-layout', kind: string): Promise<void> {
+  if (selectedItemIds.value.size === 0 || ocrTool.value !== 'carea') return;
+  const ids = Array.from(selectedItemIds.value);
+
+  if (mergeItems.value[activeMasterTool.value as MasterTool] && ids.length > 1) {
+    await callBulkHocrEndpoint(action, { item_ids: ids, kind });
+  } else {
+    for (const id of ids) {
+      await callHocrEndpoint(id, action, { kind });
+    }
   }
 }
 
@@ -512,6 +546,18 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
         await changeBlockType(kind);
         return;
       }
+    } else if (activeMasterTool.value === 'carea-flow') {
+      if (selectedItemIds.value.size > 0 && ocrTool.value === 'carea') {
+        e.preventDefault();
+        await changeCareaOperation('change-flow', e.key);
+        return;
+      }
+    } else if (activeMasterTool.value === 'carea-layout') {
+      if (selectedItemIds.value.size > 0 && ocrTool.value === 'carea') {
+        e.preventDefault();
+        await changeCareaOperation('change-layout', e.key);
+        return;
+      }
     }
     // Note: carea-flow and carea-layout numeric logic is reserved but not yet implemented.
   }
@@ -591,6 +637,34 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
     }
     const finalMsg = errorMsg || `callHocrEndpoint error: ${resp.statusText}`;
     console.error('callHocrEndpoint error:', resp.status, resp.statusText, text);
+    showError?.(finalMsg);
+  }
+}
+
+async function callBulkHocrEndpoint(action: string, body: object): Promise<void> {
+  const stem = currentStem.value;
+  const tool = ocrTool.value;
+  if (!stem || tool === 'pick') return;
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${action}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (resp.ok) {
+    updateHocr(await resp.json() as HocrPage);
+  } else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `callBulkHocrEndpoint error: ${resp.statusText}`;
+    console.error('callBulkHocrEndpoint error:', resp.status, resp.statusText, text);
     showError?.(finalMsg);
   }
 }

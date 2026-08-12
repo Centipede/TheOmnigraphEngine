@@ -115,3 +115,9 @@ pub struct SplitRequest {
 pub struct ChangeTypeRequest {
     pub kind: String,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct ChangeTypeBulkRequest {
+    pub item_ids: Vec<String>,
+    pub kind: String,
+}

@@ -201,7 +201,7 @@
 
 <script setup lang="ts">
 import type {Ref, VNodeRef} from 'vue';
-import {computed, nextTick, onMounted, onUnmounted, ref, watch, provide, inject} from 'vue';
+import {computed, nextTick, onMounted, onUnmounted, ref, watch, inject} from 'vue';
 import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";

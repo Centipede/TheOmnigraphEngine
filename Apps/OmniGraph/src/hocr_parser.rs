@@ -60,6 +60,34 @@ fn word_level() -> String {
     "word".to_string()
 }
 
+
+fn signature_word(word: &HocrWord) -> String {
+    word.id.clone()
+}
+
+fn signature_line(line: &HocrLine) -> String {
+    let word_sigs = line.words.iter().map(signature_word).collect::<Vec<String>>();
+    format!("{}({})", line.id.clone(), word_sigs.join(","))
+}
+
+fn signature_block(block: &HocrBlock) -> String {
+    let line_sigs = block.lines.iter().map(signature_line).collect::<Vec<String>>();
+    format!("{}:{}({})", block.id.clone(), block.kind, line_sigs.join(","))
+}
+
+fn signature_carea(carea: &HocrCarea) -> String {
+    let block_sigs = carea.blocks.iter().map(signature_block).collect::<Vec<String>>();
+    format!("{}({})", carea.id.clone(), block_sigs.join(","))
+}
+
+fn signature(page: &HocrPage) -> String {
+    let carea_sigs = page.careas.iter().map(signature_carea).collect::<Vec<String>>();
+    format!("{}({})", page.page_id, carea_sigs.join(","))
+}
+
+fn to_sig(s: &str) -> String {
+    s.replace(' ', "").replace('\n', "").replace('\r', "")
+}
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -716,6 +744,13 @@ impl HocrPage {
         let insert_at = block + 1;
 
         self.careas[carea].blocks.splice(insert_at..insert_at, moving_blocks);
+
+        // Now all blocks exist in one contiguous range in the first carea. Time to actually merge the blocks.
+        for i in (0..blocks.len() - 1).rev() {
+
+            self.merge_block(carea, block+i
+                             , block+i+1);
+        }
 
         let mut affected_careas: Vec<usize> = blocks.iter().map(|(c, _)| *c).collect();
         affected_careas.dedup();
@@ -1537,33 +1572,6 @@ mod tests {
             </html>
     "#;
 
-    fn signature_word(word: &HocrWord) -> String {
-        word.id.clone()
-    }
-
-    fn signature_line(line: &HocrLine) -> String {
-       let word_sigs = line.words.iter().map(signature_word).collect::<Vec<String>>();
-       format!("{}({})", line.id.clone(), word_sigs.join(","))
-    }
-
-    fn signature_block(block: &HocrBlock) -> String {
-        let line_sigs = block.lines.iter().map(signature_line).collect::<Vec<String>>();
-        format!("{}:{}({})", block.id.clone(), block.kind, line_sigs.join(","))
-    }
-
-    fn signature_carea(carea: &HocrCarea) -> String {
-        let block_sigs = carea.blocks.iter().map(signature_block).collect::<Vec<String>>();
-        format!("{}({})", carea.id.clone(), block_sigs.join(","))
-    }
-
-    fn signature(page: &HocrPage) -> String {
-        let carea_sigs = page.careas.iter().map(signature_carea).collect::<Vec<String>>();
-        format!("{}({})", page.page_id, carea_sigs.join(","))
-    }
-
-    fn to_sig(s: &str) -> String {
-        s.replace(' ', "").replace('\n', "").replace('\r', "")
-    }
 
     #[test]
     fn stem_from_id_removed_trailing_digits() {
@@ -1775,13 +1783,16 @@ mod tests {
         let mut page = parse(SAMPLE_COMPLEX).unwrap();
         let orig_sig = signature(&page);
         page.merge_blocks(&mut vec![(0, 0), (0, 1)]).unwrap();
-        assert_eq!(signature(&page), orig_sig);
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1),line_2(word_2))),
+            carea_2(par_3:P(line_3(word_3)),par_4:P(line_4(word_4)))
+        )"#));
 
         // Test 2 blocks across careas
         let mut page = parse(SAMPLE_COMPLEX).unwrap();
         page.merge_blocks(&mut vec![(0, 1), (1, 0)]).unwrap();
         assert_eq!(signature(&page), to_sig(r#"page_1(
-            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3))),
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2),line_3(word_3))),
             carea_2(par_4:P(line_4(word_4)))
         )"#));
 
@@ -1789,7 +1800,7 @@ mod tests {
         let mut page = parse(SAMPLE_COMPLEX).unwrap();
         page.merge_blocks(&mut vec![(0, 0), (0, 1), (1, 0)]).unwrap();
         assert_eq!(signature(&page), to_sig(r#"page_1(
-            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3))),
+            carea_1(par_1:P(line_1(word_1),line_2(word_2),line_3(word_3))),
             carea_2(par_4:P(line_4(word_4)))
         )"#));
     }
@@ -1814,7 +1825,7 @@ mod tests {
         
         // carea_2 should be removed because it's empty
         assert_eq!(signature(&page), to_sig(r#"page_1(
-            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3)),par_4:P(line_4(word_4)))
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2),line_3(word_3),line_4(word_4)))
         )"#));
         assert_eq!(page.careas.len(), 1);
     }
