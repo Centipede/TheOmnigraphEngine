@@ -63,30 +63,45 @@
         <sl-button @click="restoreFromOriginal(currentPage)" size="small" >Restore</sl-button>
 
         <sl-button-group>
-          <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
-          <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea</sl-button>
-          <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block</sl-button>
-          <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line</sl-button>
-          <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word</sl-button>
+          <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
+            <span class="master-key">Q</span> Flow
+          </sl-button>
+          <sl-button :variant="activeMasterTool === 'carea-layout' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-layout'">
+            <span class="master-key">W</span> Layout
+          </sl-button>
+          <sl-button :variant="activeMasterTool === 'edit' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'edit'">
+            <span class="master-key">E</span> Edit
+          </sl-button>
+          <sl-button :variant="activeMasterTool === 'block-type' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'block-type'">
+            <span class="master-key">R</span> Type
+          </sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="ocrTool === 'block'">
+        <sl-button-group v-if="activeMasterTool === 'edit'">
+          <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
+          <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea <span class="kind-key">1</span></sl-button>
+          <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block <span class="kind-key">2</span></sl-button>
+          <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line <span class="kind-key">3</span></sl-button>
+          <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word <span class="kind-key">4</span></sl-button>
+        </sl-button-group>
+
+        <sl-button-group v-if="activeMasterTool === 'block-type' && ocrTool === 'block'">
           <sl-button
               v-for="bk in BLOCK_KINDS"
               :key="bk.kind"
               size="small"
               :disabled="!selectedItemId"
               @click="changeBlockType(bk.kind)"
-          >{{ bk.label }}<template v-if="bk.key"> <span class="kind-key">{{ bk.key }}</span></template></sl-button>
+          >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="ocrTool!=='pick'">
-          <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto</sl-button>
-          <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add</sl-button>
-          <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Select</sl-button>
-          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join')">Join</sl-button>
-          <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split</sl-button>
-          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Remove</sl-button>
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool!=='pick'">
+          <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto <span class="kind-key">F</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Sel <span class="kind-key">S</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join')">Join <span class="kind-key">J</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split <span class="kind-key">H</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Rem <span class="kind-key">D</span></sl-button>
         </sl-button-group>
 
         <template v-if="showAddForm">
@@ -113,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject} from 'vue';
+import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject, watch} from 'vue';
 import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
@@ -165,9 +180,19 @@ const currentStem = computed(() => {
 
 type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
+type MasterTool = 'carea-flow' | 'carea-layout' | 'edit' | 'block-type';
 
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
+const activeMasterTool = ref<MasterTool>('edit');
+
+watch(activeMasterTool, (newVal) => {
+  if (newVal === 'carea-flow' || newVal === 'carea-layout') {
+    ocrTool.value = 'carea';
+  } else if (newVal === 'block-type') {
+    ocrTool.value = 'block';
+  }
+});
 
 
 // ── Select ───────────────────────────────────────────────────────────
@@ -217,6 +242,8 @@ const cmdDown = computed(() => isMac ? metaDown.value : ctrlDown.value);
 // ── Effective mode (modifier keys override manual ocrMode) ────────────
 
 const effectiveOcrOperation = computed<OcrOperation>(() => {
+  if (activeMasterTool.value !== 'edit') return 'select';
+
   if (ocrOperation.value !== 'context') return ocrOperation.value;
 
   if (ocrTool.value === 'pick') return 'select';
@@ -301,6 +328,15 @@ const pointerEnabled = computed(() => {
 
 function setOcrTool(tool: OcrTool) {
   ocrTool.value = tool;
+  if (tool !== 'pick') {
+    if (activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'carea-layout') {
+      if (tool !== 'carea') activeMasterTool.value = 'edit';
+    } else if (activeMasterTool.value === 'block-type') {
+      if (tool !== 'block') activeMasterTool.value = 'edit';
+    } else {
+      activeMasterTool.value = 'edit';
+    }
+  }
   if (ocrTool.value === 'pick') {
     if(['split', 'join', 'remove'].includes(ocrOperation.value)) {
       setOcrOperation('context');
@@ -349,6 +385,7 @@ const BLOCK_KINDS = [
 
 async function changeBlockType(kind: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrTool.value !== 'block') return;
+  activeMasterTool.value = 'block-type';
   const ids = Array.from(selectedItemIds.value);
   for (const id of ids) {
     await callHocrEndpoint(id, 'change-type', { kind });
@@ -435,45 +472,69 @@ function isTypingTarget(): boolean {
 }
 
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
+  if (isTypingTarget()) return;
 
-  // Q = multi-level select tool
-  // W = CAREA level tool
-  // E = BLOCK level tool
-  // R = LINE level tool
-  // T = WORD level tool
-
+  // Master tools (Row 2)
   if (e.key === 'q') {
-    setOcrTool('pick');
+    activeMasterTool.value = 'carea-flow';
     return;
   }
   if (e.key === 'w') {
-    setOcrTool('carea');
+    activeMasterTool.value = 'carea-layout';
     return;
   }
-  else if (e.key == 'e') {
-    setOcrTool('block');
+  if (e.key === 'e') {
+    activeMasterTool.value = 'edit';
     return;
   }
-  else if (e.key == 'r') {
-    setOcrTool('line');
-    return;
-  }
-  else if (e.key == 't') {
-    setOcrTool('word');
+  if (e.key === 'r') {
+    activeMasterTool.value = 'block-type';
     return;
   }
 
-  // Block type change: 0–6, only when block tool is active and blocks are selected.
-  if (ocrTool.value === 'block' && selectedItemIds.value.size > 0 && !isTypingTarget()) {
-    const kind = BLOCK_KIND_KEYS[e.key];
-    if (kind) {
-      e.preventDefault();
-      await changeBlockType(kind);
+  // Numeric keys (Row 1) - Context sensitive
+  if (/^[0-9]$/.test(e.key)) {
+    if (activeMasterTool.value === 'edit') {
+      const toolMap: Record<string, OcrTool> = {
+        '1': 'carea',
+        '2': 'block',
+        '3': 'line',
+        '4': 'word',
+      };
+      if (toolMap[e.key]) {
+        setOcrTool(toolMap[e.key]);
+        return;
+      }
+    } else if (activeMasterTool.value === 'block-type') {
+      const kind = BLOCK_KIND_KEYS[e.key];
+      if (kind && selectedItemIds.value.size > 0 && ocrTool.value === 'block') {
+        e.preventDefault();
+        await changeBlockType(kind);
+        return;
+      }
+    }
+    // Note: carea-flow and carea-layout numeric logic is reserved but not yet implemented.
+  }
+
+  // Operation keys (Row 3) - Only for Edit master tool
+  if (activeMasterTool.value === 'edit') {
+    const opMap: Record<string, OcrOperation> = {
+      'a': 'add',
+      's': 'select',
+      'd': 'remove',
+      'f': 'context',
+      'h': 'split',
+      'j': 'join',
+    };
+    if (opMap[e.key]) {
+      setOcrOperation(opMap[e.key]);
       return;
     }
   }
 
-  if (selectedItemIds.value.size === 0 || isTypingTarget()) return;
+  // Common shortcuts (Arrows, Delete) - Require selection
+  if (selectedItemIds.value.size === 0) return;
+
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     const ids = Array.from(selectedItemIds.value);
@@ -694,6 +755,18 @@ onUnmounted(() => {
 .kind-key {
   opacity: 0.55;
   font-size: 0.7em;
+}
+
+.master-key {
+  font-weight: 600;
+  color: var(--color-text-muted, #6c757d);
+  margin-right: 0.2rem;
+  font-size: 0.8em;
+}
+
+sl-button[variant="primary"] .master-key {
+  color: inherit;
+  opacity: 0.8;
 }
 
 .form-grid {
