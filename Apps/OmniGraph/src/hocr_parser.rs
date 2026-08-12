@@ -15,7 +15,7 @@ pub fn stem_from_id(id: &str) -> String {
         .rev()
         .collect::<String>();
 
-    if(stem.ends_with('_')) {
+    if stem.ends_with('_') {
         stem.chars()
             .rev()
             .skip_while(|c| *c == '_' )
@@ -742,45 +742,116 @@ impl HocrPage {
 
         self.rebuild_bbox();
     }
-    pub fn add_block(&mut self, carea: usize, bbox: HocrBbox, block_type: Option<AddBlockType>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
+    pub fn add_block(&mut self, carea: Option<usize>, bbox: HocrBbox, block_type: Option<AddBlockType>, shrink_wrap_carea: Option<bool>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
 
-        if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
-            let erase_block_ids: Vec<String> = self.careas[carea].blocks
-                .iter()
-                .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
-                .map(|carea| carea.id.clone())
-                .collect();
+        match carea {
 
-            self.careas[carea].blocks.retain(|block| !erase_block_ids.contains(&block.id));
-        }
+            None => {
+                if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
+                    let mut removals: HashMap<usize, Vec<String>> = HashMap::new();
+                    let overlap_threshold = erase_overlap.unwrap();
+                    for (c_idx, carea) in self.careas.iter().enumerate() {
+                        let erase_block_ids: Vec<String> = carea.blocks
+                            .iter()
+                            .filter(|block| bbox.overlap_percentage(block.bbox).overlapping_other_pct as u8 >= overlap_threshold)
+                            .map(|block| block.id.clone())
+                            .collect();
+                        if !erase_block_ids.is_empty() {
+                            removals.insert(c_idx, erase_block_ids);
+                        }
+                    }
 
-        // Nodes are not really meant to overlap. It is up to the user to handle this case.
-        // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
+                    // Sort carea indices descending to avoid shifting issues when calling cleanup_carea
+                    let mut affected_careas: Vec<usize> = removals.keys().cloned().collect();
+                    affected_careas.sort_by(|a, b| b.cmp(a));
 
-        let vmid = bbox.center().1;
+                    for c_idx in affected_careas {
+                        if let Some(block_ids) = removals.get(&c_idx) {
+                            self.careas[c_idx].blocks.retain(|block| !block_ids.contains(&block.id));
+                            self.cleanup_carea(c_idx);
+                        }
+                    }
+                }
 
-        let mut block_index = None;
+                // Addition:
+                // 1. Find the insertion index for a new carea based on the new block's vertical center.
+                let vmid = bbox.center().1;
+                let mut carea_index = None;
+                for (i, carea) in self.careas.iter().enumerate() {
+                    if carea.bbox.center().1 > vmid {
+                        carea_index = Some(i);
+                        break;
+                    }
+                }
+                let carea_index = carea_index.unwrap_or(self.careas.len());
 
-        for (i, block) in self.careas[carea].blocks.iter().enumerate() {
-            if block.bbox.center().1 > vmid {
-                block_index = Some(i);
-                break;
+                // 2. Create a new HocrCarea with a unique ID and the new block's bbox.
+                let new_carea_id = self.get_unique_id("carea");
+                let new_block_id = self.get_unique_id("par");
+                let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
+
+                // 3. Create a new HocrBlock (Paragraph or Image kind) inside the new carea.
+                let new_block = HocrBlock {
+                    id: new_block_id,
+                    level: "block".to_string(),
+                    kind: block_kind,
+                    lang: None,
+                    bbox,
+                    lines: vec![],
+                };
+
+                // 4. Insert the new carea into self.careas.
+                self.careas.insert(carea_index, HocrCarea {
+                    level: "carea".to_string(),
+                    id: new_carea_id,
+                    bbox,
+                    blocks: vec![new_block],
+                    unknowns: vec![],
+                });
+            }
+            Some(carea) => {
+                if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
+                    let erase_block_ids: Vec<String> = self.careas[carea].blocks
+                        .iter()
+                        .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
+                        .map(|carea| carea.id.clone())
+                        .collect();
+
+                    self.careas[carea].blocks.retain(|block| !erase_block_ids.contains(&block.id));
+                }
+
+                // Nodes are not really meant to overlap. It is up to the user to handle this case.
+                // We try to place it in a suitable place. Until we have layout information (columns etc.) we find the first vertical slot between two existing areas and place it there.
+
+                let vmid = bbox.center().1;
+
+                let mut block_index = None;
+
+                for (i, block) in self.careas[carea].blocks.iter().enumerate() {
+                    if block.bbox.center().1 > vmid {
+                        block_index = Some(i);
+                        break;
+                    }
+                }
+                let block_index = block_index.unwrap_or(self.careas[carea].blocks.len());
+                let new_id = self.get_unique_id("par");
+                let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
+
+                self.careas[carea].blocks.insert(block_index, HocrBlock {
+                    id: new_id,
+                    level: "block".to_string(),
+                    kind: block_kind,
+                    lang: None,
+                    bbox,
+                    lines: vec![],
+                });
+
+                if shrink_wrap_carea.unwrap_or(true) {
+                    self.cleanup_carea(carea);
+                }
             }
         }
-        let block_index = block_index.unwrap_or(self.careas[carea].blocks.len());
-        let new_id = self.get_unique_id("par");
-        let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
-
-        self.careas[carea].blocks.insert(block_index, HocrBlock {
-            id: new_id,
-            level: "block".to_string(),
-            kind: block_kind,
-            lang: None,
-            bbox,
-            lines: vec![],
-        });
-
-        self.cleanup_carea(carea);
+        self.rebuild_bbox();
     }
     pub fn add_line(&mut self, _carea: usize, _block: usize, _bbox: HocrBbox) {
         // Not implemented yet
@@ -1426,7 +1497,6 @@ mod tests {
         let mut page = parse(SAMPLE2).unwrap();
         let orig_sig = signature(&page);
         page.move_line_up(0,0,0);
-        let sig = signature(&page);
         assert_eq!(signature(&page), orig_sig);
 
         page.move_line_up(1,0,0);
@@ -1446,5 +1516,165 @@ mod tests {
             )
         )"#));
 
+    }
+
+    #[test]
+    fn move_line_down() {
+        let mut page = parse(SAMPLE2).unwrap();
+
+        // Move line_1_1 down within the same block
+        page.move_line_down(0, 0, 0);
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_2(word_1_5, word_1_6),
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4)
+                )
+            ),
+            block_1_2(
+                par_1_2:P(
+                    line_1_3(word_1_7, word_1_8, word_1_9),
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+
+        // Reset page
+        let mut page = parse(SAMPLE2).unwrap();
+
+        // Move line_1_2 down to next block
+        page.move_line_down(0, 0, 1);
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4)
+                )
+            ),
+            block_1_2(
+                par_1_2:P(
+                    line_1_2(word_1_5, word_1_6),
+                    line_1_3(word_1_7, word_1_8, word_1_9),
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+    }
+
+    #[test]
+    fn merge_carea() {
+        let mut page = parse(SAMPLE2).unwrap();
+
+        // Merge block_1_2 into block_1_1 (carea 1 into carea 0)
+        page.merge_carea(0, 1);
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4),
+                    line_1_2(word_1_5, word_1_6)
+                ),
+                par_1_2:P(
+                    line_1_3(word_1_7, word_1_8, word_1_9),
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+    }
+
+    #[test]
+    fn merge_block() {
+        let mut page = parse(SAMPLE2).unwrap();
+        // First merge careas so we have two blocks in one carea
+        page.merge_carea(0, 1);
+
+        // Now merge par_1_2 into par_1_1 (block 1 into block 0)
+        page.merge_block(0, 0, 1);
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            block_1_1(
+                par_1_1:P(
+                    line_1_1(word_1_1, word_1_2, word_1_3, word_1_4),
+                    line_1_2(word_1_5, word_1_6),
+                    line_1_3(word_1_7, word_1_8, word_1_9),
+                    line_1_4(word_1_10, word_1_11, word_1_12)
+                )
+            )
+        )"#));
+    }
+
+    #[test]
+    fn add_block_none_carea_no_erase() {
+        let mut page = parse(SAMPLE1).unwrap();
+        let bbox = HocrBbox([483, 500, 1645, 600]);
+        page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(false), None);
+
+        // Should have 2 careas now
+        assert_eq!(page.careas.len(), 2);
+        // The new carea should be at index 1 because its center Y (550) is greater than block_1_1 center Y (~354)
+        assert_eq!(page.careas[1].bbox, bbox);
+        assert_eq!(page.careas[1].blocks.len(), 1);
+        assert_eq!(page.careas[1].blocks[0].bbox, bbox);
+    }
+
+    #[test]
+    fn add_block_none_carea_with_erase() {
+        let mut page = parse(SAMPLE1).unwrap();
+        // This bbox overlaps with both lines of block_1_1
+        let bbox = HocrBbox([483, 280, 1645, 430]);
+        page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(true), Some(50));
+
+        // block_1_1 should have been erased because its blocks overlap with the new bbox
+        // Since all blocks in block_1_1 are erased, block_1_1 itself should be removed
+        assert_eq!(page.careas.len(), 1);
+        assert_eq!(page.careas[0].bbox, bbox);
+        assert_eq!(page.careas[0].blocks.len(), 1);
+        assert_eq!(page.careas[0].id.starts_with("carea"), true);
+    }
+
+    #[test]
+    fn add_block_none_carea_vertical_positioning() {
+        let mut page = parse(SAMPLE1).unwrap();
+        // Add one above
+        let bbox_above = HocrBbox([483, 100, 1645, 200]);
+        page.add_block(None, bbox_above, None, None, None, None);
+
+        // Add one below
+        let bbox_below = HocrBbox([483, 500, 1645, 600]);
+        page.add_block(None, bbox_below, None, None, None, None);
+
+        assert_eq!(page.careas.len(), 3);
+        assert_eq!(page.careas[0].bbox, bbox_above);
+        assert_eq!(page.careas[2].bbox, bbox_below);
+    }
+
+    #[test]
+    fn add_block_with_shrink_wrap_false() {
+        let mut page = parse(SAMPLE1).unwrap();
+        let original_carea_bbox = page.careas[0].bbox;
+
+        // Add a block that is outside the current carea bbox
+        let new_block_bbox = HocrBbox([original_carea_bbox.0[2] + 10, original_carea_bbox.0[1], original_carea_bbox.0[2] + 100, original_carea_bbox.0[3]]);
+
+        // Add to carea 0 with shrink_wrap_carea = false
+        page.add_block(Some(0), new_block_bbox, None, Some(false), None, None);
+
+        // Carea bbox should remain the same
+        assert_eq!(page.careas[0].bbox, original_carea_bbox);
+        // Block should be added
+        assert_eq!(page.careas[0].blocks.len(), 2);
+    }
+
+    #[test]
+    fn add_block_with_shrink_wrap_true() {
+        let mut page = parse(SAMPLE1).unwrap();
+        let original_carea_bbox = page.careas[0].bbox;
+
+        // Add a block that is outside the current carea bbox
+        let new_block_bbox = HocrBbox([original_carea_bbox.0[2] + 10, original_carea_bbox.0[1], original_carea_bbox.0[2] + 100, original_carea_bbox.0[3]]);
+
+        // Add to carea 0 with shrink_wrap_carea = true (default)
+        page.add_block(Some(0), new_block_bbox, None, Some(true), None, None);
+
+        // Carea bbox should have changed (it should now include the new block)
+        assert_ne!(page.careas[0].bbox, original_carea_bbox);
+        assert_eq!(page.careas[0].blocks.len(), 2);
     }
 }

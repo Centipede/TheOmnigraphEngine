@@ -309,14 +309,18 @@ pub async fn block_add(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let Some(to_carea) = payload.to_carea else {
-        return (StatusCode::BAD_REQUEST, "to_carea missing").into_response();
-    };
-    let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) else {
-        return (StatusCode::NOT_FOUND, "to_carea not found").into_response();
-    };
 
-    page.add_block(carea, payload.bbox, payload.block_type, payload.erase_underneath, payload.erase_overlap);
+    if let Some(to_carea) = payload.to_carea {
+        if let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) {
+            page.add_block(Some(carea), payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap);
+        }
+        else {
+            return (StatusCode::NOT_FOUND, "to_carea not found").into_response();
+        }
+    }
+    else {
+        page.add_block(None, payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap);
+    }
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }

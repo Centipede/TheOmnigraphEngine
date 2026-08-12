@@ -101,6 +101,7 @@
               <sl-radio-button value="text">Text</sl-radio-button>
               <sl-radio-button value="image">Image</sl-radio-button>
             </sl-radio-group>
+            <sl-checkbox :checked="addForm.shrinkWrapCarea" @sl-change="addForm.shrinkWrapCarea = ($event.target as HTMLInputElement).checked">Shrink wrap parent carea</sl-checkbox>
             <sl-checkbox :checked="addForm.eraseUnderneath" @sl-change="addForm.eraseUnderneath = ($event.target as HTMLInputElement).checked">Erase overlapping > N %</sl-checkbox>
             <sl-input :value="addForm.eraseOverlapPercentage" @sl-change="addForm.eraseOverlapPercentage = parseInt(($event.target as HTMLInputElement).value)" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
           </form>
@@ -129,6 +130,7 @@ interface AddRequest {
   bbox: [number, number, number, number];
   block_type: AddBlockType;
   text?: string;
+  shrink_wrap_carea: boolean;
   erase_underneath: boolean;
   erase_overlap: number;
 }
@@ -236,6 +238,7 @@ type AddBlockType = 'text' | 'image';
 type AddForm = {
   blockType: AddBlockType
   text?: string
+  shrinkWrapCarea: boolean
   eraseUnderneath: boolean
   eraseOverlapPercentage: number
 }
@@ -243,8 +246,9 @@ type AddForm = {
 const showAddForm = computed<boolean>( () => { return effectiveOcrOperation.value === 'add' });
 const addForm: Ref<AddForm> = ref({
   blockType: 'text',
-  eraseUnderneath: false,
-  eraseOverlapPercentage: 10,
+  shrinkWrapCarea: false,
+  eraseUnderneath: true,
+  eraseOverlapPercentage: 20,
 });
 
 // ── Custom pointer ───────────────────────────────────────────────────
@@ -540,6 +544,7 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     bbox,
     block_type: form.blockType,
     text: form.text,
+    shrink_wrap_carea: form.shrinkWrapCarea,
     erase_underneath: form.eraseUnderneath,
     erase_overlap: form.eraseOverlapPercentage,
   };

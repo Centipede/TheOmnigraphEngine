@@ -85,6 +85,7 @@ pub struct AddRequest {
     pub bbox: HocrBbox,
     pub block_type: Option<AddBlockType>,
     pub text: Option<String>,
+    pub shrink_wrap_carea: Option<bool>,
     pub erase_underneath: Option<bool>,
     pub erase_overlap: Option<u8>
 }
