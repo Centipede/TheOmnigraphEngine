@@ -178,13 +178,13 @@ const currentStem = computed(() => {
   return hocrPage.value.page_id.replace(/\.[^.]+$/, '');
 });
 
+type MasterTool = 'carea-flow' | 'carea-layout' | 'edit' | 'block-type';
 type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
-type MasterTool = 'carea-flow' | 'carea-layout' | 'edit' | 'block-type';
 
+const activeMasterTool = ref<MasterTool>('edit');
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
-const activeMasterTool = ref<MasterTool>('edit');
 
 watch(activeMasterTool, (newVal) => {
   if (newVal === 'carea-flow' || newVal === 'carea-layout') {

@@ -639,6 +639,30 @@ impl HocrPage {
             self.remove_carea(carea2);
         }
     }
+    pub fn merge_careas(&mut self, careas: &mut Vec<usize>) -> Result<(), String> {
+
+        if careas.len() < 2 {
+            return Err(format!("merge_careas: not enough careas: {:?}", careas));
+        }
+
+        careas.sort();
+        careas.dedup();
+
+        for i in 0..careas.len() - 1 {
+            if careas[i]+1 != careas[i+1] {
+                return Err(format!("merge_careas: careas not consecutive: {:?}", careas));
+            }
+            else {}
+        }
+
+        for i in (0..careas.len() - 1).rev() {
+            self.merge_carea(careas[i], careas[i+1]);
+        };
+
+        self.cleanup_carea(careas[0]);
+
+        Ok(())
+    }
     pub fn merge_block(&mut self, carea: usize, block1: usize, block2: usize) {
         // Thought: Optionally, we could complain if the blocks were not consecutive. But the algorithm is robust enough to handle that, so why?
         if block1 != block2 {
@@ -648,6 +672,58 @@ impl HocrPage {
             self.careas[carea].blocks[block1].rebuild_bbox();
             self.remove_block(carea, block2);
         }
+    }
+    pub fn merge_blocks(&mut self, blocks: &mut Vec<(usize, usize)>) -> Result<(), String> {
+        if blocks.len() < 2 {
+            return Err(format!("merge_blocks: not enough blocks: {:?}", blocks));
+        }
+
+        blocks.sort();
+        blocks.dedup();
+
+        let docorder = self.careas.iter()
+            .map(|c| c.blocks.iter()
+                .map(|b| b.id.clone())
+                .collect::<Vec<String>>())
+            .collect::<Vec<Vec<String>>>()
+            .into_iter()
+            .flatten()
+            .collect::<Vec<String>>();
+
+        let block_ids = blocks.iter()
+            .map(|(c, b)| self.careas[*c].blocks[*b].id.clone())
+            .collect::<Vec<String>>();
+
+        for i in 0..blocks.len() - 1 {
+            let pos1 = docorder.iter().position(|id| id == &block_ids[i]).unwrap();
+            let pos2 = docorder.iter().position(|id| id == &block_ids[i+1]).unwrap();
+            if pos1+1 != pos2 {
+                return Err(format!("merge_blocks: blocks not consecutive: {:?}", blocks));
+            }
+        }
+
+        // We simply take out all blocks from the old position and insert in one go right after the first block.
+
+        let mut moving_blocks = vec![];
+
+        for (c,b) in blocks.iter().skip(1).rev() {
+            moving_blocks.push(self.careas[*c].blocks.remove(*b));
+        }
+
+        moving_blocks.reverse();
+
+        let (carea, block) = blocks[0];
+        let insert_at = block + 1;
+
+        self.careas[carea].blocks.splice(insert_at..insert_at, moving_blocks);
+
+        let mut affected_careas: Vec<usize> = blocks.iter().map(|(c, _)| *c).collect();
+        affected_careas.dedup();
+        for c in affected_careas.into_iter().rev() {
+            self.cleanup_carea(c);
+        }
+
+        Ok(())
     }
     pub fn merge_line(&mut self, carea: usize, block: usize, line1: usize, line2: usize) {
         // Thought: Optionally, we could complain if the lines were not consecutive. But the algorithm is robust enough to handle that, so why?
@@ -1397,6 +1473,70 @@ mod tests {
                 </body>
             </html>
         "#;
+
+    const SAMPLE_3CAREAS: &str = r#"
+            <html>
+                <body>
+                    <div class='ocr_page' id='page_1' title='bbox 0 0 1000 1000'>
+                       <div class='ocr_carea' id='carea_1' title="bbox 10 10 100 100">
+                         <p class='ocr_par' id='par_1' title="bbox 10 10 100 100">
+                           <span class='ocr_line' id='line_1' title="bbox 10 10 100 50">
+                             <span class='ocrx_word' id='word_1' title='bbox 10 10 50 50'>Word1</span>
+                           </span>
+                         </p>
+                       </div>
+                       <div class='ocr_carea' id='carea_2' title="bbox 110 110 200 200">
+                         <p class='ocr_par' id='par_2' title="bbox 110 110 200 200">
+                           <span class='ocr_line' id='line_2' title="bbox 110 110 200 150">
+                             <span class='ocrx_word' id='word_2' title='bbox 110 110 150 150'>Word2</span>
+                           </span>
+                         </p>
+                       </div>
+                       <div class='ocr_carea' id='carea_3' title="bbox 210 210 300 300">
+                         <p class='ocr_par' id='par_3' title="bbox 210 210 300 300">
+                           <span class='ocr_line' id='line_3' title="bbox 210 210 300 250">
+                             <span class='ocrx_word' id='word_3' title='bbox 210 210 250 250'>Word3</span>
+                           </span>
+                         </p>
+                       </div>
+                    </div>
+                </body>
+            </html>
+    "#;
+
+    const SAMPLE_COMPLEX: &str = r#"
+            <html>
+                <body>
+                    <div class='ocr_page' id='page_1' title='bbox 0 0 1000 1000'>
+                       <div class='ocr_carea' id='carea_1' title="bbox 10 10 100 100">
+                         <p class='ocr_par' id='par_1' title="bbox 10 10 100 50">
+                           <span class='ocr_line' id='line_1' title="bbox 10 10 100 30">
+                             <span class='ocrx_word' id='word_1' title='bbox 10 10 50 30'>W1</span>
+                           </span>
+                         </p>
+                         <p class='ocr_par' id='par_2' title="bbox 10 60 100 100">
+                           <span class='ocr_line' id='line_2' title="bbox 10 60 100 80">
+                             <span class='ocrx_word' id='word_2' title='bbox 10 60 50 80'>W2</span>
+                           </span>
+                         </p>
+                       </div>
+                       <div class='ocr_carea' id='carea_2' title="bbox 110 110 200 200">
+                         <p class='ocr_par' id='par_3' title="bbox 110 110 200 150">
+                           <span class='ocr_line' id='line_3' title="bbox 110 110 200 130">
+                             <span class='ocrx_word' id='word_3' title='bbox 110 110 150 130'>W3</span>
+                           </span>
+                         </p>
+                         <p class='ocr_par' id='par_4' title="bbox 110 160 200 200">
+                           <span class='ocr_line' id='line_4' title="bbox 110 160 200 180">
+                             <span class='ocrx_word' id='word_4' title='bbox 110 160 150 180'>W4</span>
+                           </span>
+                         </p>
+                       </div>
+                    </div>
+                </body>
+            </html>
+    "#;
+
     fn signature_word(word: &HocrWord) -> String {
         word.id.clone()
     }
@@ -1598,6 +1738,85 @@ mod tests {
                 )
             )
         )"#));
+    }
+
+    #[test]
+    fn test_merge_careas_success() {
+        // Test 2 careas
+        let mut page = parse(SAMPLE_3CAREAS).unwrap();
+        page.merge_careas(&mut vec![0, 1]).unwrap();
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2))),
+            carea_3(par_3:P(line_3(word_3)))
+        )"#));
+
+        // Test 3 careas
+        let mut page = parse(SAMPLE_3CAREAS).unwrap();
+        page.merge_careas(&mut vec![0, 1, 2]).unwrap();
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3)))
+        )"#));
+    }
+
+    #[test]
+    fn test_merge_careas_failures() {
+        let mut page = parse(SAMPLE_3CAREAS).unwrap();
+        
+        // Less than 2
+        assert!(page.merge_careas(&mut vec![0]).is_err());
+        
+        // Non-consecutive
+        assert!(page.merge_careas(&mut vec![0, 2]).is_err());
+    }
+
+    #[test]
+    fn test_merge_blocks_success() {
+        // Test 2 blocks in same carea
+        let mut page = parse(SAMPLE_COMPLEX).unwrap();
+        let orig_sig = signature(&page);
+        page.merge_blocks(&mut vec![(0, 0), (0, 1)]).unwrap();
+        assert_eq!(signature(&page), orig_sig);
+
+        // Test 2 blocks across careas
+        let mut page = parse(SAMPLE_COMPLEX).unwrap();
+        page.merge_blocks(&mut vec![(0, 1), (1, 0)]).unwrap();
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3))),
+            carea_2(par_4:P(line_4(word_4)))
+        )"#));
+
+        // Test 3 blocks
+        let mut page = parse(SAMPLE_COMPLEX).unwrap();
+        page.merge_blocks(&mut vec![(0, 0), (0, 1), (1, 0)]).unwrap();
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3))),
+            carea_2(par_4:P(line_4(word_4)))
+        )"#));
+    }
+
+    #[test]
+    fn test_merge_blocks_failures() {
+        let mut page = parse(SAMPLE_COMPLEX).unwrap();
+        
+        // Less than 2
+        assert!(page.merge_blocks(&mut vec![(0, 0)]).is_err());
+        
+        // Non-consecutive
+        assert!(page.merge_blocks(&mut vec![(0, 0), (1, 0)]).is_err());
+    }
+
+    #[test]
+    fn test_merge_blocks_cleanup() {
+        let mut page = parse(SAMPLE_COMPLEX).unwrap();
+        
+        // Merge all blocks from carea_2 into carea_1
+        page.merge_blocks(&mut vec![(0, 1), (1, 0), (1, 1)]).unwrap();
+        
+        // carea_2 should be removed because it's empty
+        assert_eq!(signature(&page), to_sig(r#"page_1(
+            carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3)),par_4:P(line_4(word_4)))
+        )"#));
+        assert_eq!(page.careas.len(), 1);
     }
 
     #[test]

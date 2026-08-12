@@ -101,6 +101,11 @@ pub struct MergeRequest {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct MergeItemsRequest {
+    pub item_ids: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct SplitRequest {
     pub before_id: String,
     pub after_id: String,

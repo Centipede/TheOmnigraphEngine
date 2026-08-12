@@ -1,6 +1,6 @@
 use crate::hocr_parser;
 use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
-use crate::routes::projects::forms::{AddRequest, ChangeTypeRequest, MergeRequest, SplitRequest};
+use crate::routes::projects::forms::{AddRequest, ChangeTypeRequest, MergeItemsRequest, MergeRequest, SplitRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -49,6 +49,32 @@ pub async fn carea_merge(
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
+
+pub async fn careas_merge(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MergeItemsRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let paths = payload.item_ids.iter().map(|id| hocr_parser::find_node(&page, id)).collect::<Vec<_>>();
+
+    if paths.iter().any(|path| !matches!(path, Some(HocrPath::Carea { .. }))) {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut careas = paths.iter().map(|path| if let Some(HocrPath::Carea { carea }) = path { *carea } else { unreachable!() }).collect::<Vec<usize>>();
+
+    match page.merge_careas(&mut careas) {
+        Ok(()) => {}
+        Err(status_code) => return status_code.into_response(),
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
 
 pub async fn carea_split(
     State(state): State<AppState>,
@@ -205,6 +231,31 @@ pub async fn block_merge(
     }
 
     page.merge_block(carea1, block1, block2);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
+pub async fn blocks_merge(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MergeItemsRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let paths = payload.item_ids.iter().map(|id| hocr_parser::find_node(&page, id)).collect::<Vec<_>>();
+
+    if paths.iter().any(|path| !matches!(path, Some(HocrPath::Block { .. }))) {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut blocks = paths.iter().map(|path| if let Some(HocrPath::Block { carea,  block }) = path { (*carea, *block) } else { unreachable!() }).collect::<Vec<(usize, usize)>>();
+
+    match page.merge_blocks(&mut blocks) {
+        Ok(()) => {}
+        Err(status_code) => return status_code.into_response(),
+    }
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
@@ -537,7 +588,7 @@ pub async fn parse_page(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    let mut page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
         .await
         .unwrap_or(None);
 

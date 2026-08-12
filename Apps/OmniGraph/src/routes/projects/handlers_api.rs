@@ -247,7 +247,7 @@ pub async fn get_hocr_json(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    let mut page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
         .await
         .unwrap_or(None);
 
