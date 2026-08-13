@@ -3,9 +3,12 @@ import type { HocrPage } from '../types/hocr';
 
 export interface HocrContext {
   hocrPage: Ref<HocrPage | null>;
+  machineName: Ref<string | null>;
+  stem: Ref<string | null>;
   loading: Ref<boolean>;
   error: Ref<string | null>;
   loadHocr: (machineName: string, stem: string) => Promise<void>;
+  rescanCarea: (machineName: string, stem: string, careaId: string) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
 }
@@ -14,18 +17,24 @@ const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
 
 export function provideHocrContext() {
   const hocrPage = ref<HocrPage | null>(null);
+  const machineName = ref<string | null>(null);
+  const stem = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function loadHocr(machineName: string, stem: string) {
-    if (!machineName || !stem) {
+  async function loadHocr(mName: string, sName: string) {
+    if (!mName || !sName) {
       hocrPage.value = null;
+      machineName.value = null;
+      stem.value = null;
       return;
     }
     loading.value = true;
     error.value = null;
+    machineName.value = mName;
+    stem.value = sName;
     try {
-      const resp = await fetch(`/api/projects/${machineName}/pages/${stem}/hocr-json`);
+      const resp = await fetch(`/api/projects/${mName}/pages/${sName}/hocr-json`);
       if (resp.ok) {
         hocrPage.value = await resp.json() as HocrPage;
       } else {
@@ -40,20 +49,44 @@ export function provideHocrContext() {
     }
   }
 
+  async function rescanCarea(mName: string, sName: string, careaId: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${mName}/pages/${sName}/hocr/careas/${careaId}/rescan`, {
+        method: 'POST'
+      });
+      if (resp.ok) {
+        hocrPage.value = await resp.json() as HocrPage;
+      } else {
+        error.value = `Rescan failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function updateHocr(page: HocrPage | null) {
     hocrPage.value = page;
   }
 
   function clearHocr() {
     hocrPage.value = null;
+    machineName.value = null;
+    stem.value = null;
     error.value = null;
   }
 
   const context: HocrContext = {
     hocrPage,
+    machineName,
+    stem,
     loading,
     error,
     loadHocr,
+    rescanCarea,
     updateHocr,
     clearHocr
   };

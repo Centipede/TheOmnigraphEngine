@@ -247,6 +247,13 @@ impl HocrBbox {
         self.width() * self.height()
     }
 
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.0[0] += dx;
+        self.0[1] += dy;
+        self.0[2] += dx;
+        self.0[3] += dy;
+    }
+
     pub fn aspect_ratio(self) -> f32 {
         self.width() as f32 / self.height() as f32
     }
@@ -327,6 +334,23 @@ impl HocrPath {
 }
 
 impl HocrPage {
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+        for carea in &mut self.careas {
+            carea.shift(dx, dy);
+        }
+    }
+
+    pub fn insert_careas_after(&mut self, index: usize, new_careas: Vec<HocrCarea>) {
+        if index < self.careas.len() {
+            let mut tail = self.careas.split_off(index + 1);
+            self.careas.extend(new_careas);
+            self.careas.append(&mut tail);
+        } else {
+            self.careas.extend(new_careas);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let mut html = String::new();
 
@@ -997,6 +1021,13 @@ impl HocrPage {
 }
 
 impl HocrCarea {
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+        for block in &mut self.blocks {
+            block.shift(dx, dy);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let mut html = format!(
             "<div class=\"ocr_carea\" id=\"{}\" title=\"bbox {} {} {} {}\">",
@@ -1099,6 +1130,13 @@ impl HocrBlockKind {
 }
 
 impl HocrBlock {
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+        for line in &mut self.lines {
+            line.shift(dx, dy);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let tag = self.kind.tag_name();
         let class = self.kind.class_name();
@@ -1136,6 +1174,13 @@ impl HocrBlock {
 }
 
 impl HocrLine {
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+        for word in &mut self.words {
+            word.shift(dx, dy);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let mut html = format!(
             "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}; baseline {} {}; x_size {}; x_descenders {}; x_ascenders {}\">",
@@ -1168,6 +1213,10 @@ impl HocrLine {
 }
 
 impl HocrWord {
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+    }
+
     pub fn to_hocr_html(&self) -> String {
         format!(
             "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\">{}</span>",
@@ -1906,5 +1955,41 @@ mod tests {
         // Carea bbox should have changed (it should now include the new block)
         assert_ne!(page.careas[0].bbox, original_carea_bbox);
         assert_eq!(page.careas[0].blocks.len(), 2);
+    }
+
+    #[test]
+    fn test_coordinate_shifting() {
+        let mut page = parse(SAMPLE1).unwrap();
+        let dx = 100;
+        let dy = 200;
+
+        let original_page_bbox = page.bbox;
+        let original_carea_bbox = page.careas[0].bbox;
+        let original_block_bbox = page.careas[0].blocks[0].bbox;
+        let original_line_bbox = page.careas[0].blocks[0].lines[0].bbox;
+        let original_word_bbox = page.careas[0].blocks[0].lines[0].words[0].bbox;
+
+        page.shift(dx, dy);
+
+        assert_eq!(page.bbox.0, [original_page_bbox.0[0] + dx, original_page_bbox.0[1] + dy, original_page_bbox.0[2] + dx, original_page_bbox.0[3] + dy]);
+        assert_eq!(page.careas[0].bbox.0, [original_carea_bbox.0[0] + dx, original_carea_bbox.0[1] + dy, original_carea_bbox.0[2] + dx, original_carea_bbox.0[3] + dy]);
+        assert_eq!(page.careas[0].blocks[0].bbox.0, [original_block_bbox.0[0] + dx, original_block_bbox.0[1] + dy, original_block_bbox.0[2] + dx, original_block_bbox.0[3] + dy]);
+        assert_eq!(page.careas[0].blocks[0].lines[0].bbox.0, [original_line_bbox.0[0] + dx, original_line_bbox.0[1] + dy, original_line_bbox.0[2] + dx, original_line_bbox.0[3] + dy]);
+        assert_eq!(page.careas[0].blocks[0].lines[0].words[0].bbox.0, [original_word_bbox.0[0] + dx, original_word_bbox.0[1] + dy, original_word_bbox.0[2] + dx, original_word_bbox.0[3] + dy]);
+    }
+
+    #[test]
+    fn test_insert_careas_after() {
+        let mut page = parse(SAMPLE_3CAREAS).unwrap();
+        let new_carea = page.careas[0].clone();
+        let mut new_careas = vec![new_carea];
+        new_careas[0].id = "new_carea".to_string();
+
+        page.insert_careas_after(0, new_careas);
+
+        assert_eq!(page.careas.len(), 4);
+        assert_eq!(page.careas[1].id, "new_carea");
+        assert_eq!(page.careas[0].id, "carea_1");
+        assert_eq!(page.careas[2].id, "carea_2");
     }
 }

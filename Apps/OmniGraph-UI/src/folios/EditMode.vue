@@ -113,6 +113,12 @@
           <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Rem <span class="kind-key">D</span></sl-button>
         </sl-button-group>
 
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='carea'">
+           <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
+             <sl-icon name="arrow-repeat" slot="prefix"></sl-icon> Rescan
+           </sl-button>
+        </sl-button-group>
+
         <template v-if="showAddForm">
           <form
               class="form-grid"
@@ -178,7 +184,8 @@ const panels = usePersistentPanels('panels.edit', {
 const { setActivePanels } = usePanelVisibilityContext();
 const showError = inject<(msg: string) => void>('showError');
 
-const { hocrPage, updateHocr } = provideHocrContext();
+const hocrContext = provideHocrContext();
+const { hocrPage, rescanCarea, updateHocr } = hocrContext;
 const route = useRoute();
 
 const currentStem = computed(() => {
@@ -735,6 +742,12 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
     }
     showError?.(errorMsg || `Failed to restore from original: ${resp.statusText}`);
   }
+}
+
+async function rescan(careaId: string | null) {
+  if (!careaId || !hocrContext.machineName.value || !hocrContext.stem.value) return;
+  if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
+  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId);
 }
 
 onMounted(() => {
