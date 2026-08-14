@@ -384,7 +384,7 @@ pub async fn scan_pages_post(
     }
 
     // Call OCR service
-    let ocr_results = match crate::ocr_client::call_ocr_service(&server, scan_files).await {
+    let ocr_results = match crate::ocr_client::call_ocr_service(&server, scan_files, &payload.language).await {
         Ok(r) => r,
         Err(e) => {
             return (

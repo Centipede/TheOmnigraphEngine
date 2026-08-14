@@ -108,15 +108,22 @@
           <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto <span class="kind-key">F</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Sel <span class="kind-key">S</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join')">Join <span class="kind-key">J</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join', $event)">Join <span class="kind-key">J</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split <span class="kind-key">H</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Rem <span class="kind-key">D</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove', $event)">Rem <span class="kind-key">D</span></sl-button>
         </sl-button-group>
 
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='carea'">
            <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
              <sl-icon name="arrow-repeat" slot="prefix"></sl-icon> Rescan
            </sl-button>
+           <sl-input
+               size="small"
+               :value="ocrLanguage"
+               @sl-change="ocrLanguage = ($event.target as HTMLInputElement).value"
+               placeholder="lang"
+               style="width: 80px;"
+           ></sl-input>
         </sl-button-group>
 
         <template v-if="showAddForm">
@@ -147,7 +154,7 @@ import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject, watch}
 import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
-  type Page, type OverlayItem, type HocrNode,
+  type Page, type Project, type OverlayItem, type HocrNode,
   findItem, findMultiLevelItemByPoint, type MultiSelect,
   sortIdsByDocumentOrder,
 } from '../types';
@@ -202,6 +209,21 @@ type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | '
 const activeMasterTool = ref<MasterTool>('edit');
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
+const ocrLanguage = ref('eng');
+
+async function fetchProjectMetadata(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      const data = await resp.json() as Project;
+      if (data.ocr_language) {
+        ocrLanguage.value = data.ocr_language;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch project metadata:', e);
+  }
+}
 
 const mergeItems = ref<Record<MasterTool, boolean>>({
   'carea-flow': false,
@@ -373,8 +395,30 @@ function setOcrTool(tool: OcrTool) {
   }
 }
 
-function setOcrOperation(mode: OcrOperation) {
+function setOcrOperation(mode: OcrOperation, event?: MouseEvent | KeyboardEvent) {
   ocrOperation.value = mode;
+  if (event?.shiftKey && selectedItemIds.value.size > 0) {
+    if (mode === 'join') {
+      void bulkJoin();
+    } else if (mode === 'remove') {
+      void bulkRemove();
+    }
+  }
+}
+
+async function bulkJoin() {
+  if (selectedItemIds.value.size < 2 || ocrTool.value === 'pick') return;
+  const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value));
+  await callBulkHocrEndpoint('merge', { item_ids: ids });
+}
+
+async function bulkRemove() {
+  if (selectedItemIds.value.size === 0 || ocrTool.value === 'pick') return;
+  const ids = Array.from(selectedItemIds.value);
+  for (const id of ids) {
+    await callHocrEndpoint(id, 'remove');
+  }
+  selectedItemIds.value.clear();
 }
 
 // ── Change block type ────────────────────────────────────────────────
@@ -505,10 +549,21 @@ function pageInteractionUpdate(
   }
 }
 
+function isTypingElement(el: Element | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
+      || ['SL-INPUT', 'SL-TEXTAREA', 'SL-SELECT'].includes(el.tagName)
+      || el.isContentEditable;
+}
+
 function isTypingTarget(): boolean {
-  const el = document.activeElement as HTMLElement | null;
-  if (!el) return false;
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable;
+  const el = document.activeElement;
+
+  if (isTypingElement(el)) return true;
+
+  const shadowActiveElement = el?.shadowRoot?.activeElement;
+  return isTypingElement(shadowActiveElement || null);
 }
 
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
@@ -578,8 +633,9 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
       'h': 'split',
       'j': 'join',
     };
-    if (opMap[e.key]) {
-      setOcrOperation(opMap[e.key]);
+    const key = e.key.toLowerCase();
+    if (opMap[key]) {
+      setOcrOperation(opMap[key], e);
       return;
     }
   }
@@ -717,11 +773,12 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
 async function rescan(careaId: string | null) {
   if (!careaId || !hocrContext.machineName.value || !hocrContext.stem.value) return;
   if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
-  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId);
+  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId, ocrLanguage.value);
 }
 
 onMounted(() => {
   setActivePanels(panels);
+  void fetchProjectMetadata();
   window.addEventListener('keydown', updateModifiers);
   window.addEventListener('keyup',   updateModifiers);
   window.addEventListener('keydown', handleKeyboardAction);

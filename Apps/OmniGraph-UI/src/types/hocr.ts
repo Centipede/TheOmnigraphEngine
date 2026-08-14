@@ -9,6 +9,7 @@ export interface HocrWord {
     level: HocrLevel;
     id: string;
     bbox: HocrBbox;
+    lang?: string;
     text: string;
     wconf: number;
 }

@@ -8,7 +8,7 @@ export interface HocrContext {
   loading: Ref<boolean>;
   error: Ref<string | null>;
   loadHocr: (machineName: string, stem: string) => Promise<void>;
-  rescanCarea: (machineName: string, stem: string, careaId: string) => Promise<void>;
+  rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
 }
@@ -49,12 +49,16 @@ export function provideHocrContext() {
     }
   }
 
-  async function rescanCarea(mName: string, sName: string, careaId: string) {
+  async function rescanCarea(mName: string, sName: string, careaId: string, language = 'eng') {
     loading.value = true;
     error.value = null;
     try {
       const resp = await fetch(`/api/projects/${mName}/pages/${sName}/hocr/careas/${careaId}/rescan`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ language })
       });
       if (resp.ok) {
         const data = await resp.json();

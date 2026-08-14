@@ -40,11 +40,23 @@ pub struct SettingsResponse {
 }
 
 
+fn default_language() -> String {
+    "eng".to_string()
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct ScanRequest {
     pub indices: Vec<usize>,
     #[serde(default)]
     pub force: bool,
+    #[serde(default = "default_language")]
+    pub language: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct RescanRequest {
+    #[serde(default = "default_language")]
+    pub language: String,
 }
 
 #[derive(Deserialize, Serialize)]

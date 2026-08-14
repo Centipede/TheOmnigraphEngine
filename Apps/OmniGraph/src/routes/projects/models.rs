@@ -16,6 +16,7 @@ pub struct Project {
     pub authors: Vec<Author>,
     #[serde(default, with = "optional_date")]
     pub published: Option<time::Date>,
+    pub ocr_language: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]

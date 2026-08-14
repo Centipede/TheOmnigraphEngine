@@ -25,6 +25,7 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
         description: None,
         authors: vec![],
         published: None,
+        ocr_language: None,
     };
 
     let toml_str = toml::to_string(&project)

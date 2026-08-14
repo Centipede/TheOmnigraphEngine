@@ -10,6 +10,7 @@ export interface Project {
     description: string | null;
     authors: Author[];
     published: string | null;
+    ocr_language: string | null;
 }
 
 export interface ProjectCreateForm {

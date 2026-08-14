@@ -109,6 +109,8 @@ pub struct HocrWord {
     pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
     pub text: String,
     pub wconf: i32,
 }
@@ -785,7 +787,6 @@ impl HocrPage {
         Ok(())
     }
     pub fn merge_line(&mut self, carea: usize, block: usize, line1: usize, line2: usize) {
-        // Thought: Optionally, we could complain if the lines were not consecutive. But the algorithm is robust enough to handle that, so why?
         if line1 != line2 {
             let mut words =
                 std::mem::take(&mut self.careas[carea].blocks[block].lines[line2].words);
@@ -796,6 +797,152 @@ impl HocrPage {
             self.careas[carea].blocks[block].lines[line1].rebuild_bbox();
             self.remove_line(carea, block, line2);
         }
+    }
+
+    pub fn merge_lines(&mut self, lines: &mut Vec<(usize, usize, usize)>) -> Result<(), String> {
+        if lines.len() < 2 {
+            return Err(format!("merge_lines: not enough lines: {:?}", lines));
+        }
+
+        lines.sort();
+        lines.dedup();
+
+        let docorder = self
+            .careas
+            .iter()
+            .flat_map(|c| c.blocks.iter().flat_map(|b| b.lines.iter().map(|l| l.id.clone())))
+            .collect::<Vec<String>>();
+
+        let line_ids = lines
+            .iter()
+            .map(|(c, b, l)| self.careas[*c].blocks[*b].lines[*l].id.clone())
+            .collect::<Vec<String>>();
+
+        for i in 0..lines.len() - 1 {
+            let pos1 = docorder.iter().position(|id| id == &line_ids[i]).unwrap();
+            let pos2 = docorder.iter().position(|id| id == &line_ids[i + 1]).unwrap();
+            if pos1 + 1 != pos2 {
+                return Err(format!("merge_lines: lines not consecutive: {:?}", lines));
+            }
+        }
+
+        let mut moving_lines = vec![];
+
+        for (c, b, l) in lines.iter().skip(1).rev() {
+            moving_lines.push(self.careas[*c].blocks[*b].lines.remove(*l));
+        }
+
+        moving_lines.reverse();
+
+        let (carea, block, line) = lines[0];
+        let insert_at = line + 1;
+
+        self.careas[carea].blocks[block]
+            .lines
+            .splice(insert_at..insert_at, moving_lines);
+
+        for i in (0..lines.len() - 1).rev() {
+            self.merge_line(carea, block, line + i, line + i + 1);
+        }
+
+        let mut affected_blocks: Vec<(usize, usize)> =
+            lines.iter().map(|(c, b, _)| (*c, *b)).collect();
+        affected_blocks.dedup();
+        for (c, b) in affected_blocks.into_iter().rev() {
+            self.cleanup_block(c, b);
+        }
+
+        Ok(())
+    }
+
+    pub fn merge_word(
+        &mut self,
+        carea: usize,
+        block: usize,
+        line: usize,
+        word1: usize,
+        word2: usize,
+    ) {
+        if word1 != word2 {
+            let w2 = self.careas[carea].blocks[block].lines[line]
+                .words
+                .remove(word2);
+            let w1 = &mut self.careas[carea].blocks[block].lines[line].words[word1];
+
+            w1.text = format!("{} {}", w1.text, w2.text);
+            w1.bbox = w1.bbox.union(w2.bbox);
+            w1.wconf = std::cmp::min(w1.wconf, w2.wconf);
+            self.careas[carea].blocks[block].lines[line].rebuild_bbox();
+        }
+    }
+
+    pub fn merge_words(
+        &mut self,
+        words: &mut Vec<(usize, usize, usize, usize)>,
+    ) -> Result<(), String> {
+        if words.len() < 2 {
+            return Err(format!("merge_words: not enough words: {:?}", words));
+        }
+
+        words.sort();
+        words.dedup();
+
+        let docorder = self
+            .careas
+            .iter()
+            .flat_map(|c| {
+                c.blocks.iter().flat_map(|b| {
+                    b.lines
+                        .iter()
+                        .flat_map(|l| l.words.iter().map(|w| w.id.clone()))
+                })
+            })
+            .collect::<Vec<String>>();
+
+        let word_ids = words
+            .iter()
+            .map(|(c, b, l, w)| {
+                self.careas[*c].blocks[*b].lines[*l].words[*w]
+                    .id
+                    .clone()
+            })
+            .collect::<Vec<String>>();
+
+        for i in 0..words.len() - 1 {
+            let pos1 = docorder.iter().position(|id| id == &word_ids[i]).unwrap();
+            let pos2 = docorder.iter().position(|id| id == &word_ids[i + 1]).unwrap();
+            if pos1 + 1 != pos2 {
+                return Err(format!("merge_words: words not consecutive: {:?}", words));
+            }
+        }
+
+        let mut moving_words = vec![];
+
+        for (c, b, l, w) in words.iter().skip(1).rev() {
+            moving_words.push(self.careas[*c].blocks[*b].lines[*l].words.remove(*w));
+        }
+
+        moving_words.reverse();
+
+        let (carea, block, line, word) = words[0];
+        let insert_at = word + 1;
+
+        self.careas[carea].blocks[block].lines[line]
+            .words
+            .splice(insert_at..insert_at, moving_words);
+
+        for i in (0..words.len() - 1).rev() {
+            self.merge_word(carea, block, line, word + i, word + i + 1);
+        }
+
+        let mut affected_lines: Vec<(usize, usize, usize)> =
+            words.iter().map(|(c, b, l, _)| (*c, *b, *l)).collect();
+        affected_lines.dedup();
+        for (c, b, l) in affected_lines.into_iter().rev() {
+            self.cleanup_line(c, b, l);
+        }
+
+        Ok(())
     }
 
     pub fn split_carea(&mut self, carea: usize, block_before: usize, block_after: usize) {
@@ -1226,14 +1373,19 @@ impl HocrWord {
     }
 
     pub fn to_hocr_html(&self) -> String {
+        let lang_attr = match &self.lang {
+            Some(l) => format!(" lang=\"{}\"", escape_attr(l)),
+            None => "".to_string(),
+        };
         format!(
-            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\">{}</span>",
+            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}</span>",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
             self.bbox.right(),
             self.bbox.bottom(),
             self.wconf,
+            lang_attr,
             escape_text(&self.text),
         )
     }
@@ -1299,6 +1451,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                         level: "word".to_string(),
                                         id: word_el.attr("id").unwrap_or("").to_string(),
                                         bbox: word_bbox,
+                                        lang: word_el.attr("lang").map(str::to_string),
                                         text: word_el.text().collect::<String>().trim().to_string(),
                                         wconf: wconf(title),
                                     })
@@ -1999,5 +2152,70 @@ mod tests {
         assert_eq!(page.careas[1].id, "new_carea");
         assert_eq!(page.careas[0].id, "carea_1");
         assert_eq!(page.careas[2].id, "carea_2");
+    }
+
+    #[test]
+    fn test_merge_lines_success() {
+        let mut page = parse(SAMPLE2).unwrap();
+        // par_1_1 has line_1_1 and line_1_2.
+        // indices for par_1_1: carea 0, block 0.
+        // lines: (0, 0, 0) and (0, 0, 1).
+
+        let mut lines = vec![(0, 0, 0), (0, 0, 1)];
+        page.merge_lines(&mut lines).unwrap();
+
+        assert_eq!(page.careas[0].blocks[0].lines.len(), 1);
+        // line_1_1 had 4 words, line_1_2 had 2 words. Total 6.
+        assert_eq!(page.careas[0].blocks[0].lines[0].words.len(), 6);
+    }
+
+    #[test]
+    fn test_merge_words_success() {
+        let mut page = parse(SAMPLE2).unwrap();
+        // line_1_1 has words 1, 2, 3, 4.
+        // indices: (0, 0, 0, 0), (0, 0, 0, 1).
+
+        let mut words = vec![(0, 0, 0, 0), (0, 0, 0, 1)];
+        page.merge_words(&mut words).unwrap();
+
+        assert_eq!(page.careas[0].blocks[0].lines[0].words.len(), 3);
+        assert_eq!(
+            page.careas[0].blocks[0].lines[0].words[0].text,
+            "Line1-Word1 Line1-Word2"
+        );
+    }
+
+    #[test]
+    fn test_merge_words_across_lines() {
+        let mut page = parse(SAMPLE2).unwrap();
+        // word_1_4 (last of line 1) and word_1_5 (first of line 2) are consecutive.
+        // word_1_4: (0, 0, 0, 3)
+        // word_1_5: (0, 0, 1, 0)
+
+        let mut words = vec![(0, 0, 0, 3), (0, 0, 1, 0)];
+        page.merge_words(&mut words).unwrap();
+
+        assert_eq!(page.careas[0].blocks[0].lines[0].words.len(), 4);
+        assert_eq!(
+            page.careas[0].blocks[0].lines[0].words[3].text,
+            "Line1-Word4 Line2-Word1"
+        );
+        // Line 2 should now have only 1 word remaining (word_1_6)
+        assert_eq!(page.careas[0].blocks[0].lines[1].words.len(), 1);
+    }
+
+    #[test]
+    fn test_merge_words_cleanup_line() {
+        let mut page = parse(SAMPLE2).unwrap();
+        // Merge all words of line_1_2 into line_1_1
+        // line_1_2 words: word_1_5 (0,0,1,0), word_1_6 (0,0,1,1)
+        // line_1_1 words: word_1_1 (0,0,0,0) to word_1_4 (0,0,0,3)
+
+        let mut words = vec![(0, 0, 0, 3), (0, 0, 1, 0), (0, 0, 1, 1)];
+        page.merge_words(&mut words).unwrap();
+
+        assert_eq!(page.careas[0].blocks[0].lines[0].words.len(), 4);
+        // line_1_2 should have been removed because all its words were moved
+        assert_eq!(page.careas[0].blocks[0].lines.len(), 1);
     }
 }

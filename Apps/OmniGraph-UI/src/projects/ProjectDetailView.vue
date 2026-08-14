@@ -37,6 +37,11 @@
             <dd>{{ formatDate(project.published) }}</dd>
           </template>
 
+          <template v-if="project.ocr_language">
+            <dt>OCR Language</dt>
+            <dd>{{ project.ocr_language }}</dd>
+          </template>
+
           <template v-if="project.authors.length > 0">
             <dt>Authors</dt>
             <dd>
@@ -94,6 +99,15 @@
               v-model="draft.published"
               type="date"
               name="published"
+          >
+
+          <label for="ocr_language">OCR Language</label>
+          <input
+              id="ocr_language"
+              v-model="draft.ocr_language"
+              type="text"
+              name="ocr_language"
+              placeholder="e.g. eng, fra, deu"
           >
 
           <label>Authors</label>
