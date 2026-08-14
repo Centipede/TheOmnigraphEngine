@@ -9,6 +9,9 @@
         <span class="hocr-count">({{ carea.blocks.length }})</span>
         <span class="hocr-id" :title="carea.id">{{ carea.id }}</span>
         <span class="hocr-preview">{{ careaPreview(carea) }}</span>
+        <sl-button variant="text" size="small" class="hocr-rescan-btn" @click.stop="rescan(carea.id)" title="Rescan OCR for this carea">
+          <sl-icon name="arrow-repeat"></sl-icon>
+        </sl-button>
         <span class="hocr-toggle">{{ collapsedCareas.has(carea.id) ? '▸' : '▾' }}</span>
       </div>
 
@@ -81,7 +84,7 @@ import {
   findMultilevelById
 } from '../types/hocr';
 
-const { hocrPage } = useHocrContext();
+const { hocrPage, machineName, stem, rescanCarea } = useHocrContext();
 const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
 const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => void>('selectNode', () => {});
@@ -125,6 +128,12 @@ function toggleLine(id: string) {
 // ── Selection ────────────────────────────────────────────────────────
 function selectNode(level: HocrLevel, id: string, e?: MouseEvent) {
   selectNodeCb(level, id, e);
+}
+
+function rescan(careaId: string) {
+  if (!machineName.value || !stem.value) return;
+  if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
+  rescanCarea(machineName.value, stem.value, careaId);
 }
 
 // ── Display helpers ──────────────────────────────────────────────────
@@ -268,6 +277,18 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hocr-rescan-btn {
+  padding: 0;
+  margin: 0;
+  height: auto;
+  --sl-input-height-small: 1.2rem;
+  --sl-button-font-size-small: 0.8rem;
+}
+
+.hocr-rescan-btn::part(base) {
+  padding: 0 0.2rem;
 }
 
 .hocr-toggle {

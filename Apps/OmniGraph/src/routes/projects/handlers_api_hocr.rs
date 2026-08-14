@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde_json::json;
 use std::path::PathBuf;
-
+use crate::ocr_poll::ServerStatus;
 // ── HELPERS ──────────────────────────────────────────────────────────
 
 fn save_and_report(
@@ -196,6 +196,114 @@ pub async fn carea_remove(
 
     page.remove_carea(carea);
 
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+}
+
+pub async fn carea_rescan(
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+) -> impl IntoResponse {
+    // 1. Parse current page hOCR
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    // 2. Find the selected carea by ID
+    let carea_index = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Carea { carea }) => carea,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+    let dx = page.careas[carea_index].bbox.left();
+    let dy = page.careas[carea_index].bbox.top();
+    let carea_bbox = page.careas[carea_index].bbox;
+
+    // 3. Identify child image blocks within that carea
+    let image_blocks: Vec<hocr_parser::HocrBbox> = page.careas[carea_index].blocks.iter()
+        .filter(|b| b.kind == HocrBlockKind::Image)
+        .map(|b| b.bbox)
+        .collect();
+
+    // 4. Load the page image from disk
+    let pages_db_path = state.projects_dir.join(&machine_name).join("pages").join("pagedata.json");
+    let pages_db = storage::load_page_db(&pages_db_path);
+    let page_meta = match pages_db.pages.iter().find(|p| {
+        println!("{:?}", std::path::Path::new(&p.scan).file_stem());
+        std::path::Path::new(&p.scan).file_stem().and_then(|s| s.to_str()) == Some(&stem)
+    }) {
+        Some(p) => p,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let scan_path = state.projects_dir.join(&machine_name).join("pages").join("scans").join(&page_meta.scan);
+    let img_bytes = match tokio::fs::read(&scan_path).await {
+        Ok(b) => b,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    // 5. Get page CropEdges
+    let crop_edges = page_meta.crop_edges;
+
+    // 6. Call image_utils::extract_and_process_carea_image
+    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(&img_bytes, carea_bbox, crop_edges, &image_blocks) {
+        Ok(b) => b,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+
+    // 7. Send the resulting image bytes to ocr_client::ocr_image_hocr
+    // Pick the first online OCR server (priority 1 → 2)
+    let server = {
+        let settings = state.settings.read().unwrap();
+        let ocr_status = state.ocr_status.read().unwrap();
+        if matches!(ocr_status.server_1, ServerStatus::Online) {
+            settings.ocr_server_1.clone()
+        } else if matches!(ocr_status.server_2, ServerStatus::Online) {
+            settings.ocr_server_2.clone()
+        } else {
+            None
+        }
+    };
+    let Some(server_config) = server else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "OCR server not configured").into_response();
+    };
+
+    let ocr_results = match crate::ocr_client::call_ocr_service(&server_config, vec![("rescan.png".to_string(), processed_bytes)]).await {
+        Ok(r) => r,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+
+    let hocr_text = match ocr_results.into_iter().next() {
+        Some(r) => match r.hocr {
+            Some(h) => h,
+            None => return (StatusCode::INTERNAL_SERVER_ERROR, r.error.unwrap_or("OCR failed".to_string())).into_response(),
+        },
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "OCR failed").into_response(),
+    };
+
+    // 8. Parse the returned hOCR as a HocrPage
+    let new_page = match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text)).await.unwrap_or(None) {
+        Some(p) => p,
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse OCR result").into_response(),
+    };
+
+    // 9. Shift the coordinates of the new OCR results by (+dx, +dy)
+    let mut new_careas = new_page.careas;
+    for nc in &mut new_careas {
+        nc.shift(dx, dy);
+    }
+
+    // 10. Merge the results back into the original page
+    if new_careas.len() == 1 {
+        // append its blocks to the original carea
+        let new_carea = new_careas.pop().unwrap();
+        page.careas[carea_index].blocks.extend(new_carea.blocks);
+        page.careas[carea_index].rebuild_bbox();
+    } else if new_careas.len() > 1 {
+        // insert them after the original carea
+        page.insert_careas_after(carea_index, new_careas);
+    }
+
+    // 11. Save the updated hOCR and return the page JSON
     save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
 }
 
