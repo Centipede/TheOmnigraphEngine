@@ -68,7 +68,7 @@
 import PageWorkspace from "../components/PageWorkspace.vue";
 
 import {onMounted, onUnmounted, ref, inject} from 'vue';
-import type {Page} from '../types';
+import type {Page, Project} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
@@ -133,6 +133,20 @@ const ocrLanguage = ref('eng');
 const scanResults = ref<ScanPageResult[]>([]);
 const scanError = ref('');
 
+async function fetchProjectMetadata(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      const data = await resp.json() as Project;
+      if (data.ocr_language) {
+        ocrLanguage.value = data.ocr_language;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch project metadata:', e);
+  }
+}
+
 
 // ── Scan ─────────────────────────────────────────────────────────────
 async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
@@ -190,6 +204,7 @@ let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   setActivePanels(panels);
+  void fetchProjectMetadata();
   await fetchHocrStatus();
   hocrStatusInterval = setInterval(() => {
     void fetchHocrStatus();

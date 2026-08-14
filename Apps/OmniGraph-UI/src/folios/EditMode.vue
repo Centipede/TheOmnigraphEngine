@@ -154,7 +154,7 @@ import {computed, onMounted, onUnmounted, provide, type Ref, ref, inject, watch}
 import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
-  type Page, type OverlayItem, type HocrNode,
+  type Page, type Project, type OverlayItem, type HocrNode,
   findItem, findMultiLevelItemByPoint, type MultiSelect,
   sortIdsByDocumentOrder,
 } from '../types';
@@ -210,6 +210,20 @@ const activeMasterTool = ref<MasterTool>('edit');
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');
+
+async function fetchProjectMetadata(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      const data = await resp.json() as Project;
+      if (data.ocr_language) {
+        ocrLanguage.value = data.ocr_language;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch project metadata:', e);
+  }
+}
 
 const mergeItems = ref<Record<MasterTool, boolean>>({
   'carea-flow': false,
@@ -741,6 +755,7 @@ async function rescan(careaId: string | null) {
 
 onMounted(() => {
   setActivePanels(panels);
+  void fetchProjectMetadata();
   window.addEventListener('keydown', updateModifiers);
   window.addEventListener('keyup',   updateModifiers);
   window.addEventListener('keydown', handleKeyboardAction);
