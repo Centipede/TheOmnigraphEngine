@@ -7,8 +7,6 @@
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
                  :show-crop-overlay="true"
-                 crop-color="rgba(0, 180, 0, 0.12)"
-                 discard-color="rgba(220, 0, 0, 0.35)"
   >
 
     <template #tools="{ selectionInfo, filteredPages, currentPage }">
