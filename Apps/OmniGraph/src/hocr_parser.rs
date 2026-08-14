@@ -109,6 +109,8 @@ pub struct HocrWord {
     pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
     pub text: String,
     pub wconf: i32,
 }
@@ -1226,14 +1228,19 @@ impl HocrWord {
     }
 
     pub fn to_hocr_html(&self) -> String {
+        let lang_attr = match &self.lang {
+            Some(l) => format!(" lang=\"{}\"", escape_attr(l)),
+            None => "".to_string(),
+        };
         format!(
-            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\">{}</span>",
+            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}</span>",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
             self.bbox.right(),
             self.bbox.bottom(),
             self.wconf,
+            lang_attr,
             escape_text(&self.text),
         )
     }
@@ -1299,6 +1306,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                         level: "word".to_string(),
                                         id: word_el.attr("id").unwrap_or("").to_string(),
                                         bbox: word_bbox,
+                                        lang: word_el.attr("lang").map(str::to_string),
                                         text: word_el.text().collect::<String>().trim().to_string(),
                                         wconf: wconf(title),
                                     })

@@ -28,6 +28,13 @@
           <span class="info-value">{{ currentPage.crop_edges.bottom }}</span>
         </div>
       </div>
+      <sl-input
+          label="OCR Language"
+          size="small"
+          :value="ocrLanguage"
+          @sl-change="ocrLanguage = ($event.target as HTMLInputElement).value"
+          style="margin-bottom: 0.5rem;"
+      ></sl-input>
       <sl-button
           size="small"
           variant="primary"
@@ -122,6 +129,7 @@ interface ScanConflict {
 }
 
 const isScanning = ref(false);
+const ocrLanguage = ref('eng');
 const scanResults = ref<ScanPageResult[]>([]);
 const scanError = ref('');
 
@@ -131,6 +139,8 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
   const indices = pagesToScan.map(p => p.index);
   if (!indices.length) return;
 
+  const language = ocrLanguage.value;
+
   isScanning.value = true;
   scanError.value = '';
   if (!force) scanResults.value = [];
@@ -139,7 +149,7 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
     const resp = await fetch(`/api/projects/${props.machineName}/pages/scan`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({indices, force}),
+      body: JSON.stringify({indices, force, language}),
     });
 
     if (resp.status === 409) {

@@ -117,6 +117,13 @@
            <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
              <sl-icon name="arrow-repeat" slot="prefix"></sl-icon> Rescan
            </sl-button>
+           <sl-input
+               size="small"
+               :value="ocrLanguage"
+               @sl-change="ocrLanguage = ($event.target as HTMLInputElement).value"
+               placeholder="lang"
+               style="width: 80px;"
+           ></sl-input>
         </sl-button-group>
 
         <template v-if="showAddForm">
@@ -202,6 +209,7 @@ type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | '
 const activeMasterTool = ref<MasterTool>('edit');
 const ocrTool:Ref<OcrTool> = ref('pick');
 const ocrOperation:Ref<OcrOperation> = ref('context');
+const ocrLanguage = ref('eng');
 
 const mergeItems = ref<Record<MasterTool, boolean>>({
   'carea-flow': false,
@@ -505,10 +513,21 @@ function pageInteractionUpdate(
   }
 }
 
+function isTypingElement(el: Element | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
+      || ['SL-INPUT', 'SL-TEXTAREA', 'SL-SELECT'].includes(el.tagName)
+      || el.isContentEditable;
+}
+
 function isTypingTarget(): boolean {
-  const el = document.activeElement as HTMLElement | null;
-  if (!el) return false;
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable;
+  const el = document.activeElement;
+
+  if (isTypingElement(el)) return true;
+
+  const shadowActiveElement = el?.shadowRoot?.activeElement;
+  return isTypingElement(shadowActiveElement || null);
 }
 
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
@@ -717,7 +736,7 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
 async function rescan(careaId: string | null) {
   if (!careaId || !hocrContext.machineName.value || !hocrContext.stem.value) return;
   if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
-  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId);
+  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId, ocrLanguage.value);
 }
 
 onMounted(() => {

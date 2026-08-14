@@ -1,6 +1,6 @@
 use crate::hocr_parser;
 use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
-use crate::routes::projects::forms::{AddRequest, ChangeTypeBulkRequest, ChangeTypeRequest, MergeItemsRequest, MergeRequest, SplitRequest};
+use crate::routes::projects::forms::{AddRequest, ChangeTypeBulkRequest, ChangeTypeRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -213,6 +213,7 @@ pub async fn carea_remove(
 pub async fn carea_rescan(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<RescanRequest>,
 ) -> impl IntoResponse {
     // 1. Parse current page hOCR
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
@@ -278,7 +279,7 @@ pub async fn carea_rescan(
         return (StatusCode::SERVICE_UNAVAILABLE, "OCR server not configured").into_response();
     };
 
-    let ocr_results = match crate::ocr_client::call_ocr_service(&server_config, vec![("rescan.png".to_string(), processed_bytes)]).await {
+    let ocr_results = match crate::ocr_client::call_ocr_service(&server_config, vec![("rescan.png".to_string(), processed_bytes)], &payload.language).await {
         Ok(r) => r,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     };

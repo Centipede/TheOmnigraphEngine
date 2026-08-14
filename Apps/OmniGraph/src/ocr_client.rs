@@ -26,6 +26,7 @@ pub struct OcrPageResult {
 pub async fn call_ocr_service(
     server: &OcrServerConfig,
     pages: Vec<(String, Vec<u8>)>,
+    language: &str,
 ) -> Result<Vec<OcrPageResult>, String> {
     let mut batches: Vec<Vec<(String, Vec<u8>)>> = Vec::new();
     let mut current_batch: Vec<(String, Vec<u8>)> = Vec::new();
@@ -60,7 +61,7 @@ pub async fn call_ocr_service(
     let mut all_results = Vec::new();
 
     for batch in batches {
-        let mut batch_results = call_ocr_service_batch(server, batch).await?;
+        let mut batch_results = call_ocr_service_batch(server, batch, language).await?;
         all_results.append(&mut batch_results);
     }
 
@@ -70,12 +71,13 @@ pub async fn call_ocr_service(
 async fn call_ocr_service_batch(
     server: &OcrServerConfig,
     pages: Vec<(String, Vec<u8>)>,
+    language: &str,
 ) -> Result<Vec<OcrPageResult>, String> {
     let url = format!("http://{}:{}/ocr/tesseract", server.host, server.port);
     let client = reqwest::Client::new();
 
     let mut form = reqwest::multipart::Form::new()
-        .text("language", "eng")
+        .text("language", language.to_string())
         .text("config", "hocr");
 
     for (filename, bytes) in pages {
