@@ -618,11 +618,85 @@ pub async fn block_change_type_bulk(
 // ── LINE ─────────────────────────────────────────────────────────────
 
 pub async fn line_merge(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
-    Json(_payload): Json<MergeRequest>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MergeRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path1 = hocr_parser::find_node(&page, &id).unwrap();
+    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let HocrPath::Line {
+        carea: carea1,
+        block: block1,
+        line: line1,
+    } = path1
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let HocrPath::Line {
+        carea: carea2,
+        block: block2,
+        line: line2,
+    } = path2
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    if carea1 != carea2 || block1 != block2 {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    page.merge_line(carea1, block1, line1, line2);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
+pub async fn lines_merge(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MergeItemsRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let paths = payload
+        .item_ids
+        .iter()
+        .map(|id| hocr_parser::find_node(&page, id))
+        .collect::<Vec<_>>();
+
+    if paths
+        .iter()
+        .any(|path| !matches!(path, Some(HocrPath::Line { .. })))
+    {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut lines = paths
+        .iter()
+        .map(|path| {
+            if let Some(HocrPath::Line {
+                carea,
+                block,
+                line,
+            }) = path
+            {
+                (*carea, *block, *line)
+            } else {
+                unreachable!()
+            }
+        })
+        .collect::<Vec<(usize, usize, usize)>>();
+
+    match page.merge_lines(&mut lines) {
+        Ok(()) => {}
+        Err(err) => return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response(),
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn line_move_up(
@@ -703,11 +777,88 @@ pub async fn line_remove(
 // ── WORD ─────────────────────────────────────────────────────────────
 
 pub async fn word_merge(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
-    Json(_payload): Json<MergeRequest>,
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MergeRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let path1 = hocr_parser::find_node(&page, &id).unwrap();
+    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let HocrPath::Word {
+        carea: carea1,
+        block: block1,
+        line: line1,
+        word: word1,
+    } = path1
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let HocrPath::Word {
+        carea: carea2,
+        block: block2,
+        line: line2,
+        word: word2,
+    } = path2
+    else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    if carea1 != carea2 || block1 != block2 || line1 != line2 {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    page.merge_word(carea1, block1, line1, word1, word2);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
+pub async fn words_merge(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MergeItemsRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+    let paths = payload
+        .item_ids
+        .iter()
+        .map(|id| hocr_parser::find_node(&page, id))
+        .collect::<Vec<_>>();
+
+    if paths
+        .iter()
+        .any(|path| !matches!(path, Some(HocrPath::Word { .. })))
+    {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let mut words = paths
+        .iter()
+        .map(|path| {
+            if let Some(HocrPath::Word {
+                carea,
+                block,
+                line,
+                word,
+            }) = path
+            {
+                (*carea, *block, *line, *word)
+            } else {
+                unreachable!()
+            }
+        })
+        .collect::<Vec<(usize, usize, usize, usize)>>();
+
+    match page.merge_words(&mut words) {
+        Ok(()) => {}
+        Err(err) => return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response(),
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn word_move_up(

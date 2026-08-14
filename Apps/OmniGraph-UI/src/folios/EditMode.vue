@@ -108,9 +108,9 @@
           <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto <span class="kind-key">F</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Sel <span class="kind-key">S</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join')">Join <span class="kind-key">J</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join', $event)">Join <span class="kind-key">J</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split <span class="kind-key">H</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove')">Rem <span class="kind-key">D</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove', $event)">Rem <span class="kind-key">D</span></sl-button>
         </sl-button-group>
 
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='carea'">
@@ -395,8 +395,30 @@ function setOcrTool(tool: OcrTool) {
   }
 }
 
-function setOcrOperation(mode: OcrOperation) {
+function setOcrOperation(mode: OcrOperation, event?: MouseEvent | KeyboardEvent) {
   ocrOperation.value = mode;
+  if (event?.shiftKey && selectedItemIds.value.size > 0) {
+    if (mode === 'join') {
+      void bulkJoin();
+    } else if (mode === 'remove') {
+      void bulkRemove();
+    }
+  }
+}
+
+async function bulkJoin() {
+  if (selectedItemIds.value.size < 2 || ocrTool.value === 'pick') return;
+  const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value));
+  await callBulkHocrEndpoint('merge', { item_ids: ids });
+}
+
+async function bulkRemove() {
+  if (selectedItemIds.value.size === 0 || ocrTool.value === 'pick') return;
+  const ids = Array.from(selectedItemIds.value);
+  for (const id of ids) {
+    await callHocrEndpoint(id, 'remove');
+  }
+  selectedItemIds.value.clear();
 }
 
 // ── Change block type ────────────────────────────────────────────────
@@ -611,8 +633,9 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
       'h': 'split',
       'j': 'join',
     };
-    if (opMap[e.key]) {
-      setOcrOperation(opMap[e.key]);
+    const key = e.key.toLowerCase();
+    if (opMap[key]) {
+      setOcrOperation(opMap[key], e);
       return;
     }
   }
