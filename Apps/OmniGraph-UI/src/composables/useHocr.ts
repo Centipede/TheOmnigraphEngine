@@ -57,7 +57,12 @@ export function provideHocrContext() {
         method: 'POST'
       });
       if (resp.ok) {
-        hocrPage.value = await resp.json() as HocrPage;
+        const data = await resp.json();
+        if (data && typeof data === 'object' && 'page' in data) {
+          hocrPage.value = data.page as HocrPage;
+        } else {
+          hocrPage.value = data as HocrPage;
+        }
       } else {
         error.value = `Rescan failed: ${await resp.text()}`;
       }

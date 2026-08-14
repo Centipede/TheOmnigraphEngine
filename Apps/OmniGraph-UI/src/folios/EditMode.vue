@@ -620,6 +620,32 @@ function updateModifiers(e: KeyboardEvent) {
 
 // ── API endpoints ────────────────────────────────────────────────────
 
+async function handleHocrResponse(resp: Response, source: string): Promise<void> {
+  if (resp.ok) {
+    const data = await resp.json();
+    if (data && typeof data === 'object' && 'page' in data) {
+      updateHocr(data.page as HocrPage);
+      if (data.new_id) {
+        selectedItemId.value = data.new_id;
+      }
+    } else {
+      updateHocr(data as HocrPage);
+    }
+  } else {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `${source} error: ${resp.statusText}`;
+    console.error(`${source} error:`, resp.status, resp.statusText, text);
+    showError?.(finalMsg);
+  }
+}
+
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
   const tool = ocrTool.value;
@@ -629,22 +655,7 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       : { method: 'POST' });
 
-  if (resp.ok) {
-    updateHocr(await resp.json() as HocrPage);
-  }
-  else {
-    const text = await resp.text();
-    let errorMsg = text;
-    try {
-      const json = JSON.parse(text);
-      if (json.error) errorMsg = json.error;
-    } catch (e) {
-      // Not JSON
-    }
-    const finalMsg = errorMsg || `callHocrEndpoint error: ${resp.statusText}`;
-    console.error('callHocrEndpoint error:', resp.status, resp.statusText, text);
-    showError?.(finalMsg);
-  }
+  await handleHocrResponse(resp, 'callHocrEndpoint');
 }
 
 async function callBulkHocrEndpoint(action: string, body: object): Promise<void> {
@@ -658,21 +669,7 @@ async function callBulkHocrEndpoint(action: string, body: object): Promise<void>
     body: JSON.stringify(body),
   });
 
-  if (resp.ok) {
-    updateHocr(await resp.json() as HocrPage);
-  } else {
-    const text = await resp.text();
-    let errorMsg = text;
-    try {
-      const json = JSON.parse(text);
-      if (json.error) errorMsg = json.error;
-    } catch (e) {
-      // Not JSON
-    }
-    const finalMsg = errorMsg || `callBulkHocrEndpoint error: ${resp.statusText}`;
-    console.error('callBulkHocrEndpoint error:', resp.status, resp.statusText, text);
-    showError?.(finalMsg);
-  }
+  await handleHocrResponse(resp, 'callBulkHocrEndpoint');
 }
 
 async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
@@ -702,23 +699,8 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (resp.ok) {
-    updateHocr(await resp.json() as HocrPage);
-  }
-  else {
-    const text = await resp.text();
-    let errorMsg = text;
-    try {
-      const json = JSON.parse(text);
-      if (json.error) errorMsg = json.error;
-    } catch (e) {
-      // Not JSON
-    }
-    const finalMsg = errorMsg || `callAddEndpoint error: ${resp.statusText}`;
-    console.error('callAddEndpoint error:', resp.status, resp.statusText, text);
-    showError?.(finalMsg);
-    console.log(showError);
-  }
+
+  await handleHocrResponse(resp, 'callAddEndpoint');
 }
 
 async function restoreFromOriginal(page: Page | null): Promise<void> {
@@ -728,19 +710,8 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
   const resp = await fetch(`/api/projects/${props.machineName}/pages/${page.scan}/restore-original`, {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page}),
   });
-  if (resp.ok) {
-    updateHocr(await resp.json() as HocrPage);
-  } else {
-    const text = await resp.text();
-    let errorMsg = text;
-    try {
-      const json = JSON.parse(text);
-      if (json.error) errorMsg = json.error;
-    } catch (e) {
-      // Not JSON
-    }
-    showError?.(errorMsg || `Failed to restore from original: ${resp.statusText}`);
-  }
+
+  await handleHocrResponse(resp, 'restoreFromOriginal');
 }
 
 async function rescan(careaId: string | null) {

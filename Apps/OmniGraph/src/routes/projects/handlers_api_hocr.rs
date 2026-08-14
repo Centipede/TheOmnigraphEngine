@@ -11,19 +11,27 @@ use axum::response::IntoResponse;
 use serde_json::json;
 use std::path::PathBuf;
 use crate::ocr_poll::ServerStatus;
+use serde::Serialize;
 // ── HELPERS ──────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+struct HocrUpdateResponse<'a> {
+    page: &'a HocrPage,
+    new_id: Option<String>,
+}
 
 fn save_and_report(
     page: &HocrPage,
     projects_dir: &PathBuf,
     machine_name: &str,
     stem: &str,
+    new_id: Option<String>,
 ) -> impl IntoResponse {
     let html = page.to_hocr_html();
     if let Err(_e) = storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &html) {
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
-    return Json(page).into_response();
+    return Json(HocrUpdateResponse { page, new_id }).into_response();
 }
 
 // ── CAREA ────────────────────────────────────────────────────────────
@@ -48,7 +56,7 @@ pub async fn carea_merge(
 
     page.merge_carea(carea1, carea2);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn careas_merge(
@@ -73,7 +81,7 @@ pub async fn careas_merge(
         Err(err) => return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response(),
     }
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_split(
@@ -127,7 +135,7 @@ pub async fn carea_split(
 
     page.split_carea(carea, block1, block2);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_move_up(
@@ -145,7 +153,7 @@ pub async fn carea_move_up(
 
     page.move_carea_up(carea);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_move_down(
@@ -163,7 +171,7 @@ pub async fn carea_move_down(
 
     page.move_carea_down(carea);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_add(
@@ -176,9 +184,12 @@ pub async fn carea_add(
         Err(status_code) => return status_code.into_response(),
     };
 
-    page.add_carea(payload.bbox, payload.erase_underneath, payload.erase_overlap);
+    let new_id = match page.add_carea(payload.bbox, payload.erase_underneath, payload.erase_overlap) {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, new_id).into_response()
 }
 
 pub async fn carea_remove(
@@ -196,7 +207,7 @@ pub async fn carea_remove(
 
     page.remove_carea(carea);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_rescan(
@@ -304,7 +315,7 @@ pub async fn carea_rescan(
     }
 
     // 11. Save the updated hOCR and return the page JSON
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_change_flow_bulk(
@@ -356,7 +367,7 @@ pub async fn block_merge(
 
     page.merge_block(carea1, block1, block2);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn blocks_merge(
@@ -381,7 +392,7 @@ pub async fn blocks_merge(
         Err(err) => return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response(),
     }
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_split(
@@ -436,7 +447,7 @@ pub async fn block_split(
 
     page.split_block(carea1, block1, line1, line2);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_move_up(
@@ -454,7 +465,7 @@ pub async fn block_move_up(
 
     page.move_block_up(carea, block);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_move_down(
@@ -472,7 +483,7 @@ pub async fn block_move_down(
 
     page.move_block_down(carea, block);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_add(
@@ -485,19 +496,24 @@ pub async fn block_add(
         Err(status_code) => return status_code.into_response(),
     };
 
-    if let Some(to_carea) = payload.to_carea {
+    let result = if let Some(to_carea) = payload.to_carea {
         if let Some(HocrPath::Carea { carea }) = hocr_parser::find_node(&page, &to_carea) {
-            page.add_block(Some(carea), payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap);
+            page.add_block(Some(carea), payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap)
         }
         else {
             return (StatusCode::NOT_FOUND, "to_carea not found").into_response();
         }
     }
     else {
-        page.add_block(None, payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap);
-    }
+        page.add_block(None, payload.bbox, payload.block_type, payload.shrink_wrap_carea, payload.erase_underneath, payload.erase_overlap)
+    };
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    let new_id = match result {
+        Ok(id) => Some(id),
+        Err(_) => None,
+    };
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, new_id).into_response()
 }
 
 pub async fn block_remove(
@@ -515,7 +531,7 @@ pub async fn block_remove(
 
     page.remove_block(carea, block);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_change_type(
@@ -538,7 +554,7 @@ pub async fn block_change_type(
 
     page.change_block_kind(carea, block, kind);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn block_change_type_bulk(
@@ -595,7 +611,7 @@ pub async fn block_change_type_bulk(
     let (carea, block) = blocks[0];
     page.change_block_kind(carea, block, kind.clone());
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 // ── LINE ─────────────────────────────────────────────────────────────
@@ -623,7 +639,7 @@ pub async fn line_move_up(
 
     page.move_line_up(carea, block, line);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn line_move_down(
@@ -641,7 +657,7 @@ pub async fn line_move_down(
 
     page.move_line_down(carea, block, line);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn line_add(
@@ -662,7 +678,7 @@ pub async fn line_add(
 
     page.add_line(carea, block, payload.bbox);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn line_remove(
@@ -680,7 +696,7 @@ pub async fn line_remove(
 
     page.remove_line(carea, block, line);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 // ── WORD ─────────────────────────────────────────────────────────────
@@ -726,7 +742,7 @@ pub async fn word_add(
 
     page.add_word(carea, block, line, payload.bbox, payload.text);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn word_remove(
@@ -750,7 +766,7 @@ pub async fn word_remove(
 
     page.remove_word(carea, block, line, word);
 
-    save_and_report(&page, &state.projects_dir, &machine_name, &stem).into_response()
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 // ── TOOLS ────────────────────────────────────────────────────────────

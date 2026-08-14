@@ -840,7 +840,7 @@ impl HocrPage {
         carea.blocks[block + 1].rebuild_bbox();
     }
 
-    pub fn add_carea(&mut self, bbox: HocrBbox, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
+    pub fn add_carea(&mut self, bbox: HocrBbox, erase_underneath: Option<bool>, erase_overlap: Option<u8>) -> Result<String, String> {
 
         if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
             let erase_carea_ids: Vec<String> = self.careas
@@ -869,17 +869,19 @@ impl HocrPage {
         let new_id = self.get_unique_id("carea");
         self.careas.insert(carea_index, HocrCarea {
             level: "carea".to_string(),
-            id: new_id,
+            id: new_id.clone(),
             bbox,
             blocks: vec![],
             unknowns: vec![],
         });
 
         self.rebuild_bbox();
-    }
-    pub fn add_block(&mut self, carea: Option<usize>, bbox: HocrBbox, block_type: Option<AddBlockType>, shrink_wrap_carea: Option<bool>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) {
 
-        match carea {
+        Ok(new_id)
+    }
+    pub fn add_block(&mut self, carea: Option<usize>, bbox: HocrBbox, block_type: Option<AddBlockType>, shrink_wrap_carea: Option<bool>, erase_underneath: Option<bool>, erase_overlap: Option<u8>) -> Result<String, String> {
+
+        let new_id = match carea {
 
             None => {
                 if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
@@ -927,7 +929,7 @@ impl HocrPage {
 
                 // 3. Create a new HocrBlock (Paragraph or Image kind) inside the new carea.
                 let new_block = HocrBlock {
-                    id: new_block_id,
+                    id: new_block_id.clone(),
                     level: "block".to_string(),
                     kind: block_kind,
                     lang: None,
@@ -943,6 +945,8 @@ impl HocrPage {
                     blocks: vec![new_block],
                     unknowns: vec![],
                 });
+
+                Ok(new_block_id)
             }
             Some(carea) => {
                 if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
@@ -973,7 +977,7 @@ impl HocrPage {
                 let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
 
                 self.careas[carea].blocks.insert(block_index, HocrBlock {
-                    id: new_id,
+                    id: new_id.clone(),
                     level: "block".to_string(),
                     kind: block_kind,
                     lang: None,
@@ -983,10 +987,14 @@ impl HocrPage {
 
                 if shrink_wrap_carea.unwrap_or(true) {
                     self.cleanup_carea(carea);
-                }
+                };
+                Ok(new_id)
             }
-        }
+        };
+
         self.rebuild_bbox();
+
+        new_id
     }
     pub fn add_line(&mut self, _carea: usize, _block: usize, _bbox: HocrBbox) {
         // Not implemented yet
