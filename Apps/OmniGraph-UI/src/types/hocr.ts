@@ -210,3 +210,27 @@ export function findSiblingsAroundCursor(
 
     return [above, below];
 }
+
+export function sortIdsByDocumentOrder(page: HocrPage, ids: string[]): string[] {
+    const indexMap = new Map<string, number>();
+    let currentIndex = 0;
+
+    for (const carea of page.careas) {
+        indexMap.set(carea.id, currentIndex++);
+        for (const block of carea.blocks) {
+            indexMap.set(block.id, currentIndex++);
+            for (const line of block.lines) {
+                indexMap.set(line.id, currentIndex++);
+                for (const word of line.words) {
+                    indexMap.set(word.id, currentIndex++);
+                }
+            }
+        }
+    }
+
+    return [...ids].sort((a, b) => {
+        const indexA = indexMap.get(a) ?? Infinity;
+        const indexB = indexMap.get(b) ?? Infinity;
+        return indexA - indexB;
+    });
+}

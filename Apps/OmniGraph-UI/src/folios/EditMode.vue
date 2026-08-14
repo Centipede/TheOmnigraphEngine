@@ -149,6 +149,7 @@ import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type OverlayItem, type HocrNode,
   findItem, findMultiLevelItemByPoint, type MultiSelect,
+  sortIdsByDocumentOrder,
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
@@ -446,7 +447,6 @@ async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: numbe
 async function pageInteractionClick(): Promise<void> {
   const mode = effectiveOcrOperation.value;
   if (mode === 'none') return;
-
   if (ocrTool.value === 'pick') {
     multiSelect.value = multiHover.value;
     return;
@@ -466,8 +466,7 @@ async function pageInteractionClick(): Promise<void> {
     }
     return;
   }
-
-  if (mode === 'remove') {
+  else if (mode === 'remove') {
     if (overItemId.value) {
       await callHocrEndpoint(overItemId.value, 'remove');
       selectedItemIds.value.delete(overItemId.value);
@@ -590,14 +589,14 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
 
   if (e.key === 'ArrowUp') {
     e.preventDefault();
-    const ids = Array.from(selectedItemIds.value);
+    const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value));
     for (const id of ids) {
       await callHocrEndpoint(id, 'move-up');
     }
   }
   else if (e.key === 'ArrowDown') {
     e.preventDefault();
-    const ids = Array.from(selectedItemIds.value);
+    const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value)).reverse();
     for (const id of ids) {
       await callHocrEndpoint(id, 'move-down');
     }
