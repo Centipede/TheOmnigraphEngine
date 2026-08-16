@@ -63,6 +63,51 @@ pub struct PageDb {
 
 pub const IMPORT_ORDER_GAP: u32 = 1000;
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Headline {
+    pub page: String,
+    pub block_id: String,
+    pub is_linked: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SectionHeadline {
+    pub page: String,
+    pub block_id: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SubsectionType {
+    Sections,
+    Flows,
+}
+
+impl Default for SubsectionType {
+    fn default() -> Self {
+        Self::Sections
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Section {
+    pub path_id: String,
+    pub level: String,
+    pub title: String,
+    pub is_linked: bool,
+    pub is_orphaned: bool,
+    pub is_suggested: bool,
+    pub headline: Option<SectionHeadline>,
+    pub subsection_type: SubsectionType,
+    pub subsections: Vec<Section>,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct StructureDb {
+    pub sections: Vec<Section>,
+    pub headlines: Vec<Headline>,
+}
+
 
 mod optional_date {
     use serde::{Deserialize, Deserializer, Serializer};
