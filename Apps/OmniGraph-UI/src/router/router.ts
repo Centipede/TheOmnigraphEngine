@@ -3,7 +3,7 @@ import Projects from '../projects/Projects.vue';
 import ProjectDetailView from '../projects/ProjectDetailView.vue';
 import IngestorView from '../ingestor/IngestorView.vue';
 import FoliosView from '../folios/FoliosView.vue';
-import InspectMode from '../folios/InspectMode.vue';
+import AssistMode from '../folios/AssistMode.vue';
 import CropMode from '../folios/CropMode.vue';
 import EditMode from '../folios/EditMode.vue';
 import Settings from '../settings/Settings.vue';
@@ -54,12 +54,12 @@ export const router = createRouter({
             children: [
                 {
                     path: '',
-                    redirect: { name: 'folios-inspect' },
+                    redirect: { name: 'folios-assist' },
                 },
                 {
-                    path: 'inspect/:page?',
-                    name: 'folios-inspect',
-                    component: InspectMode,
+                    path: 'assist/:page?',
+                    name: 'folios-assist',
+                    component: AssistMode,
                     props: folioProps,
                 },
                 {
