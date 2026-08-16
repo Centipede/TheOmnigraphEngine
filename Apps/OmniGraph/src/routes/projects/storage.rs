@@ -31,7 +31,9 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
 
     let toml_str = toml::to_string(&project)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    fs::write(project_dir.join("metadata").join("project.toml"), toml_str)
+    fs::write(project_dir.join("metadata").join("project.toml"), toml_str)?;
+
+    save_structure_db(&state.project_structuredb_path(machine_name), &StructureDb::default())
 }
 
 pub fn load_page_db(path: &std::path::Path) -> PageDb {
