@@ -167,6 +167,10 @@ pub struct HocrCarea {
     pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
+    #[serde(default)]
+    pub flow: String,
+    #[serde(default)]
+    pub layout: String,
     pub blocks: Vec<HocrBlock>,
     pub unknowns: Vec<HocrUnknown>,
 }
@@ -957,6 +961,8 @@ impl HocrPage {
             level: "carea".to_string(),
             id: new_id,
             bbox: HocrBbox::empty(),
+            flow: old_carea.flow.clone(),
+            layout: old_carea.layout.clone(),
             blocks: right.to_vec(),
             unknowns: vec![],
         };
@@ -1018,6 +1024,8 @@ impl HocrPage {
             level: "carea".to_string(),
             id: new_id.clone(),
             bbox,
+            flow: "".to_string(),
+            layout: "".to_string(),
             blocks: vec![],
             unknowns: vec![],
         });
@@ -1089,6 +1097,8 @@ impl HocrPage {
                     level: "carea".to_string(),
                     id: new_carea_id,
                     bbox,
+                    flow: "".to_string(),
+                    layout: "".to_string(),
                     blocks: vec![new_block],
                     unknowns: vec![],
                 });
@@ -1184,13 +1194,32 @@ impl HocrCarea {
     }
 
     pub fn to_hocr_html(&self) -> String {
-        let mut html = format!(
-            "<div class=\"ocr_carea\" id=\"{}\" title=\"bbox {} {} {} {}\">",
-            escape_attr(&self.id),
+        let mut title = format!(
+            "bbox {} {} {} {}",
             self.bbox.left(),
             self.bbox.top(),
             self.bbox.right(),
             self.bbox.bottom(),
+        );
+
+        let flow_val = escape_attr(&self.flow);
+        if flow_val.is_empty() {
+            title.push_str("; flow");
+        } else {
+            title.push_str(&format!("; flow {}", flow_val));
+        }
+
+        let layout_val = escape_attr(&self.layout);
+        if layout_val.is_empty() {
+            title.push_str("; layout");
+        } else {
+            title.push_str(&format!("; layout {}", layout_val));
+        }
+
+        let mut html = format!(
+            "<div class=\"ocr_carea\" id=\"{}\" title=\"{}\">",
+            escape_attr(&self.id),
+            title
         );
 
         for block in &self.blocks {
@@ -1421,8 +1450,13 @@ pub fn parse(html: &str) -> Option<HocrPage> {
     let careas = page_el
         .select(&sel_carea)
         .filter_map(|carea_el| {
-            let carea_bbox = bbox(carea_el.attr("title").unwrap_or(""))?;
+            let title_str = carea_el.attr("title").unwrap_or("");
+            let carea_bbox = bbox(title_str)?;
             let carea_id = carea_el.attr("id").unwrap_or("").to_string();
+
+            let title_keyvals = split_title(title_str);
+            let flow = title_keyvals.get("flow").cloned().unwrap_or_default();
+            let layout = title_keyvals.get("layout").cloned().unwrap_or_default();
 
             let blocks = carea_el
                 .select(&sel_block)
@@ -1499,6 +1533,8 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                 level: "carea".to_string(),
                 id: carea_id,
                 bbox: carea_bbox,
+                flow,
+                layout,
                 blocks,
                 unknowns
             })
@@ -2217,5 +2253,139 @@ mod tests {
         assert_eq!(page.careas[0].blocks[0].lines[0].words.len(), 4);
         // line_1_2 should have been removed because all its words were moved
         assert_eq!(page.careas[0].blocks[0].lines.len(), 1);
+    }
+
+    #[test]
+    fn test_carea_metadata_parsing() {
+        let html = r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+                <div class="ocr_carea" id="carea_1" title="bbox 10 10 100 100; flow footnotes; layout center">
+                </div>
+                <div class="ocr_carea" id="carea_2" title="bbox 110 110 200 200; flow; layout">
+                </div>
+            </div>
+        "#;
+        let page = parse(html).unwrap();
+        assert_eq!(page.careas[0].flow, "footnotes");
+        assert_eq!(page.careas[0].layout, "center");
+        assert_eq!(page.careas[1].flow, "");
+        assert_eq!(page.careas[1].layout, "");
+    }
+
+    #[test]
+    fn test_carea_metadata_serialization() {
+        let carea = HocrCarea {
+            level: "carea".to_string(),
+            id: "carea_1".to_string(),
+            bbox: HocrBbox::new(10, 10, 100, 100),
+            flow: "main".to_string(),
+            layout: "left".to_string(),
+            blocks: vec![],
+            unknowns: vec![],
+        };
+        let html = carea.to_hocr_html();
+        assert!(html.contains("flow main"));
+        assert!(html.contains("layout left"));
+
+        let carea_empty = HocrCarea {
+            level: "carea".to_string(),
+            id: "carea_2".to_string(),
+            bbox: HocrBbox::new(10, 10, 100, 100),
+            flow: "".to_string(),
+            layout: "".to_string(),
+            blocks: vec![],
+            unknowns: vec![],
+        };
+        let html_empty = carea_empty.to_hocr_html();
+        assert!(html_empty.contains("; flow"));
+        assert!(!html_empty.contains("flow "));
+        assert!(html_empty.contains("; layout"));
+        assert!(!html_empty.contains("layout "));
+    }
+
+    #[test]
+    fn test_carea_metadata_defaulting() {
+        let html = r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+                <div class="ocr_carea" id="carea_1" title="bbox 10 10 100 100">
+                </div>
+            </div>
+        "#;
+        let page = parse(html).unwrap();
+        assert_eq!(page.careas[0].flow, "");
+        assert_eq!(page.careas[0].layout, "");
+    }
+
+    #[test]
+    fn test_split_carea_metadata_preservation() {
+        let carea = HocrCarea {
+            level: "carea".to_string(),
+            id: "carea_1".to_string(),
+            bbox: HocrBbox::new(0, 0, 100, 200),
+            flow: "special".to_string(),
+            layout: "right".to_string(),
+            blocks: vec![
+                HocrBlock {
+                    level: "block".to_string(),
+                    id: "b1".to_string(),
+                    bbox: HocrBbox::new(0, 0, 100, 100),
+                    kind: HocrBlockKind::Paragraph,
+                    lang: None,
+                    lines: vec![],
+                },
+                HocrBlock {
+                    level: "block".to_string(),
+                    id: "b2".to_string(),
+                    bbox: HocrBbox::new(0, 101, 100, 200),
+                    kind: HocrBlockKind::Paragraph,
+                    lang: None,
+                    lines: vec![],
+                },
+            ],
+            unknowns: vec![],
+        };
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 1000, 1000),
+            careas: vec![carea],
+            unknowns: vec![],
+        };
+
+        page.split_carea(0, 0, 1);
+
+        assert_eq!(page.careas.len(), 2);
+        assert_eq!(page.careas[0].flow, "special");
+        assert_eq!(page.careas[0].layout, "right");
+        assert_eq!(page.careas[1].flow, "special");
+        assert_eq!(page.careas[1].layout, "right");
+    }
+
+    #[test]
+    fn test_add_carea_metadata_initialization() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 1000, 1000),
+            careas: vec![],
+            unknowns: vec![],
+        };
+        page.add_carea(HocrBbox::new(10, 10, 100, 100), None, None).unwrap();
+        assert_eq!(page.careas[0].flow, "");
+        assert_eq!(page.careas[0].layout, "");
+    }
+
+    #[test]
+    fn test_add_block_new_carea_metadata_initialization() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 1000, 1000),
+            careas: vec![],
+            unknowns: vec![],
+        };
+        page.add_block(None, HocrBbox::new(10, 10, 100, 100), None, None, None, None).unwrap();
+        assert_eq!(page.careas[0].flow, "");
+        assert_eq!(page.careas[0].layout, "");
     }
 }
