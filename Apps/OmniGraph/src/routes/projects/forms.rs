@@ -133,3 +133,8 @@ pub struct ChangeTypeBulkRequest {
     pub item_ids: Vec<String>,
     pub kind: String,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct AutoAssistRequest {
+    pub stems: Vec<String>,
+}

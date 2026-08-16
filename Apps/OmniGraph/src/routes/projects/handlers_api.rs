@@ -1,7 +1,7 @@
 use crate::ocr_poll::ServerStatus;
 use crate::routes::projects::forms::{
     CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest,
-    ScanResponse, SettingsUpdate,
+    ScanResponse, SettingsUpdate, AutoAssistRequest,
 };
 use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureDb};
 use crate::routes::projects::storage::hocr_edited_path;
@@ -485,4 +485,22 @@ pub async fn put_project_structure(
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
+}
+
+pub async fn auto_layout(
+    State(_state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AutoAssistRequest>,
+) -> impl IntoResponse {
+    println!("Auto layout for project {}, page {}, selection: {:?}", machine_name, stem, payload.stems);
+    StatusCode::OK
+}
+
+pub async fn auto_flow(
+    State(_state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<AutoAssistRequest>,
+) -> impl IntoResponse {
+    println!("Auto flow for project {}, page {}, selection: {:?}", machine_name, stem, payload.stems);
+    StatusCode::OK
 }

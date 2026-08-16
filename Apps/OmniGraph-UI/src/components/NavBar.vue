@@ -93,7 +93,7 @@
 
         <RouterLink
             v-if="hasProject"
-            :to="{ name: 'folios-inspect', params: { machineName, page: currentPageParam } }"
+            :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
             custom
             v-slot="{ navigate }"
         >
@@ -108,12 +108,12 @@
             <!-- Mode selector -->
             <sl-button-group>
               <RouterLink
-                  :to="{ name: 'folios-inspect', params: { machineName, page: currentPageParam } }"
+                  :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"
               >
                 <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Inspect
+                  Assist
                 </sl-button>
               </RouterLink>
 
