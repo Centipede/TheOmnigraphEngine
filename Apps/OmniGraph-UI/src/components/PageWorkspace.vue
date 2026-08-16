@@ -27,7 +27,7 @@
           :class="{ 'workspace-pane-hidden': !(panels ? panels['section-structure'] : false) }"
       >
         <div class="sidebar-lead">Sections</div>
-        <SectionOutline/>
+        <SectionOutline :structure="structure"/>
       </div>
     </div>
 
@@ -206,7 +206,7 @@ import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import { useHocrContext } from '../composables/useHocr';
-import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings} from '../types';
+import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings, StructureDb} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -270,21 +270,18 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   pagesLoaded: [data: PageDb];
+  structureLoaded: [data: StructureDb];
   currentPageChange: [page: Page | null];
 }>();
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
-
-
 const isPanelVisible = (panelId: keyof PanelVisibility) => {
   return props.panels ? props.panels[panelId] : false;
 };
-
 const isLeftSidebarVisible = computed(() => {
   return isPanelVisible('page-list') || isPanelVisible('section-structure');
 });
-
 const isRightSidebarVisible = computed(() => {
   return isPanelVisible('tools') || isPanelVisible('ocr-structure');
 });
@@ -296,6 +293,7 @@ const effectiveFilterMode = computed(() => canPagesBeFiltered.value ? filterMode
 // ── Pages & crop data ────────────────────────────────────────────────
 const pages = ref<Page[]>([]);
 let pageDbNextBatch = 0;
+const structure = ref<StructureDb>({ sections: [], headlines: [] });
 
 const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
 const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
@@ -540,6 +538,11 @@ function setPageDb(data: PageDb) {
   }
 }
 
+function setStructureDb(data: StructureDb) {
+  structure.value = data;
+  emit('structureLoaded', data);
+}
+
 async function loadPageDb(data?: PageDb) {
   if (data) {
 
@@ -589,6 +592,45 @@ async function savePageDb(): Promise<void> {
   }
 }
 
+async function loadStructureDb() {
+  try {
+    const res = await fetch(`/api/projects/${props.machineName}/structure`);
+    if (!res.ok) {
+      const text = await res.text();
+      showError(text || `Failed to load structure: ${res.statusText}`);
+      return;
+    }
+    const data = (await res.json()) as StructureDb;
+    setStructureDb(data);
+  } catch (e) {
+    console.error('Failed to load structure:', e);
+    showError(e instanceof Error ? e.message : String(e));
+  }
+}
+
+async function saveStructureDb(): Promise<void> {
+  const resp = await fetch(`/api/projects/${props.machineName}/structure`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(structure.value),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    let errorMsg = text;
+    try {
+      const json = JSON.parse(text);
+      if (json.error) errorMsg = json.error;
+    } catch (e) {
+      // Not JSON
+    }
+    const finalMsg = errorMsg || `Failed to save structure: ${resp.statusText}`;
+    showError(finalMsg);
+    throw new Error(finalMsg);
+  }
+}
 
 const router = useRouter();
 const route = useRoute();
@@ -636,7 +678,10 @@ watch(() => route.params.page, (newStem) => {
 
 onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
-  await loadPageDb();
+  await Promise.all([
+    loadPageDb(),
+    loadStructureDb()
+  ]);
 });
 
 onUnmounted(() => {
@@ -646,6 +691,8 @@ onUnmounted(() => {
 defineExpose({
   setPageDb,
   savePageDb,
+  setStructureDb,
+  saveStructureDb,
   showError
 });
 

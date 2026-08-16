@@ -8,6 +8,9 @@ import CropMode from '../folios/CropMode.vue';
 import EditMode from '../folios/EditMode.vue';
 import Settings from '../settings/Settings.vue';
 import RecogniseMode from "../folios/RecogniseMode.vue";
+import CodexView from '../codex/CodexView.vue';
+import CodexEditMode from '../codex/EditMode.vue';
+import CodexScriptMode from '../codex/ScriptMode.vue';
 
 const projectProps = (route: { params: Record<string, unknown> }) => ({
     machineName: String(route.params.machineName),
@@ -75,6 +78,29 @@ export const router = createRouter({
                     path: 'edit/:page?',
                     name: 'folios-edit',
                     component: EditMode,
+                    props: folioProps,
+                },
+            ],
+        },
+        {
+            path: '/projects/:machineName/codex',
+            component: CodexView,
+            props: projectProps,
+            children: [
+                {
+                    path: '',
+                    redirect: { name: 'codex-edit' },
+                },
+                {
+                    path: 'edit/:page?',
+                    name: 'codex-edit',
+                    component: CodexEditMode,
+                    props: folioProps,
+                },
+                {
+                    path: 'script/:page?',
+                    name: 'codex-script',
+                    component: CodexScriptMode,
                     props: folioProps,
                 },
             ],

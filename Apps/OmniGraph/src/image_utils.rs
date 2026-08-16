@@ -68,7 +68,7 @@ pub fn extract_and_process_carea_image(
     image_blocks: &[HocrBbox],
 ) -> Result<Vec<u8>, String> {
     let format = image::guess_format(page_img_bytes).map_err(|e| e.to_string())?;
-    let mut img = image::load_from_memory(page_img_bytes).map_err(|e| e.to_string())?;
+    let img = image::load_from_memory(page_img_bytes).map_err(|e| e.to_string())?;
 
     let (pw, ph) = (img.width() as i32, img.height() as i32);
     let white = image::Rgba([255u8, 255, 255, 255]);

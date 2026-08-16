@@ -23,7 +23,7 @@ Two apps under `Apps/`:
 - `src/routes/projects/` — project handlers, models, storage, forms, images
 - `static/` — Vue production build output goes here (gitignored); embedded into binary via `rust-embed` at compile time
 
-**`Apps/Folios-CropEditor/`** — Vue 3 + TypeScript + Vite (dev port 5173)
+**`Apps/OmniGraph-UI/`** — Vue 3 + TypeScript + Vite (dev port 5173)
 - `vite.config.ts` — `build.outDir` points to `../OmniGraph/static`; `/api` proxied to `http://127.0.0.1:8080` in dev
 
 The Ingestor handles scanned image/PDF ingestion, page naming, and section structure creation. See [Documentation/Planning/Ingestor.md](Documentation/Planning/Ingestor.md) for full spec.
@@ -39,7 +39,7 @@ cargo run             # run on http://127.0.0.1:8080
 cargo watch -x run    # auto-restart on file changes (install: cargo install cargo-watch)
 ```
 
-**Vue frontend** (from `Apps/Folios-CropEditor/`):
+**Vue frontend** (from `Apps/OmniGraph-UI/`):
 ```bash
 npm run dev     # dev server with HMR on http://localhost:5173
 npm run build   # compile into Apps/OmniGraph/static/ (do before cargo build for production)
