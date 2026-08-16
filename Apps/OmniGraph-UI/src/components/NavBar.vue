@@ -153,6 +153,49 @@
         <sl-button v-else variant="text" disabled>
           Folios
         </sl-button>
+
+        <RouterLink
+            v-if="hasProject"
+            :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
+            custom
+            v-slot="{ navigate }"
+        >
+          <sl-button
+              :variant="isCodexRoute ? 'primary' : 'text'"
+              @click="navigate"
+          >
+            Codex
+          </sl-button>
+          <template v-if="isCodexRoute">
+
+            <!-- Mode selector -->
+            <sl-button-group>
+              <RouterLink
+                  :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Edit
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
+                  :to="{ name: 'codex-script', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Script
+                </sl-button>
+              </RouterLink>
+            </sl-button-group>
+
+          </template>
+        </RouterLink>
+        <sl-button v-else variant="text" disabled>
+          Codex
+        </sl-button>
       </div>
 
       <div class="nav-end">
@@ -207,6 +250,9 @@ const hasProject = computed(() => props.machineName.length > 0);
 const currentPageParam = computed(() => route.params.page ? String(route.params.page) : undefined);
 const isFoliosRoute = computed(() => {
   return typeof route.name === 'string' && route.name.startsWith('folios-');
+});
+const isCodexRoute = computed(() => {
+  return typeof route.name === 'string' && route.name.startsWith('codex-');
 });
 
 const ICONS: Record<string, string> = {light: 'sun', system: 'circle-half', dark: 'moon'};
