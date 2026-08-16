@@ -89,10 +89,22 @@ impl Default for SubsectionType {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SectionKind {
+    Part,
+    Chapter,
+    Section,
+    Subsection,
+    Subsubsection,
+    Subsubsubsection,
+    Subsubsubsubsection,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Section {
     pub path_id: String,
-    pub level: String,
+    pub kind: SectionKind,
     pub title: String,
     pub is_linked: bool,
     pub is_orphaned: bool,
