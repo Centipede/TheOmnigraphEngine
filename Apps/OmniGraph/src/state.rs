@@ -42,6 +42,13 @@ impl AppState {
             .join("pages")
             .join("pagedata.json")
     }
+
+    pub fn project_structuredb_path(&self, machine_name: &str) -> PathBuf {
+        self.projects_dir
+            .join(machine_name)
+            .join("sections")
+            .join("sectiondata.json")
+    }
 }
 
 fn date_filter(value: Value, format: &str) -> Result<String, minijinja::Error> {

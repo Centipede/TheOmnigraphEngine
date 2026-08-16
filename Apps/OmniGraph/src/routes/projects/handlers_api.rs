@@ -3,7 +3,7 @@ use crate::routes::projects::forms::{
     CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest,
     ScanResponse, SettingsUpdate,
 };
-use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb};
+use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureDb};
 use crate::routes::projects::storage::hocr_edited_path;
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
@@ -461,6 +461,27 @@ pub async fn put_project_pagesdb(
         return StatusCode::NOT_FOUND.into_response();
     }
     match storage::save_page_db(&pagedb_path, &pagedb) {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn get_project_structure(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let path = state.project_structuredb_path(&machine_name);
+    let db = storage::load_structure_db(&path);
+    Json(db).into_response()
+}
+
+pub async fn put_project_structure(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+    Json(db): Json<StructureDb>,
+) -> impl IntoResponse {
+    let path = state.project_structuredb_path(&machine_name);
+    match storage::save_structure_db(&path, &db) {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

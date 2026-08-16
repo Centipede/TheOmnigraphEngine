@@ -6,7 +6,7 @@ use secrecy::Secret;
 use crate::app_settings::OcrServerConfig;
 use crate::ocr_poll::OcrServerStatus;
 use crate::routes::projects::forms::{OcrServerData, SettingsResponse, SettingsUpdate};
-use crate::routes::projects::models::{Page, PageDb, Project};
+use crate::routes::projects::models::{Page, PageDb, Project, StructureDb};
 use crate::state::AppState;
 
 pub fn is_valid_machine_name(s: &str) -> bool {
@@ -17,6 +17,7 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
     let project_dir = state.projects_dir.join(machine_name);
     fs::create_dir_all(project_dir.join("metadata"))?;
     fs::create_dir_all(project_dir.join("pages"))?;
+    fs::create_dir_all(project_dir.join("sections"))?;
 
     let project = Project {
         name: name.to_string(),
@@ -30,7 +31,9 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
 
     let toml_str = toml::to_string(&project)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    fs::write(project_dir.join("metadata").join("project.toml"), toml_str)
+    fs::write(project_dir.join("metadata").join("project.toml"), toml_str)?;
+
+    save_structure_db(&state.project_structuredb_path(machine_name), &StructureDb::default())
 }
 
 pub fn load_page_db(path: &std::path::Path) -> PageDb {
@@ -41,6 +44,22 @@ pub fn load_page_db(path: &std::path::Path) -> PageDb {
 }
 
 pub fn save_page_db(path: &std::path::Path, db: &PageDb) -> std::io::Result<()> {
+    let json = serde_json::to_string_pretty(db)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    fs::write(path, json)
+}
+
+pub fn load_structure_db(path: &std::path::Path) -> StructureDb {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_structure_db(path: &std::path::Path, db: &StructureDb) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     let json = serde_json::to_string_pretty(db)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     fs::write(path, json)
