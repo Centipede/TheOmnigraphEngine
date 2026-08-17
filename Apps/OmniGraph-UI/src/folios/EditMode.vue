@@ -60,8 +60,6 @@
       </div>
 
       <div class="tool-palette">
-        <sl-button @click="restoreFromOriginal(currentPage)" size="small" >Restore</sl-button>
-
         <sl-button-group>
           <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
             <span class="master-key">Q</span> Flow
@@ -88,6 +86,7 @@
 
         <sl-button-group v-if="activeMasterTool === 'edit'">
           <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
+          <sl-button :variant="ocrTool==='page' ? 'primary' : 'default'" size="small"  @click="setOcrTool('page')">Page <span class="kind-key">0</span></sl-button>
           <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea <span class="kind-key">1</span></sl-button>
           <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block <span class="kind-key">2</span></sl-button>
           <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line <span class="kind-key">3</span></sl-button>
@@ -105,42 +104,50 @@
         </sl-button-group>
 
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool!=='pick'">
-          <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto <span class="kind-key">F</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Sel <span class="kind-key">S</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join', $event)">Join <span class="kind-key">J</span></sl-button>
-          <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split <span class="kind-key">H</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove', $event)">Rem <span class="kind-key">D</span></sl-button>
+          <sl-button :variant="ocrOperation==='context' ? 'primary' : 'default'" size="small" @click="setOcrOperation('context')">Auto <span class="kind-key">F</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='split' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('split')">Split <span class="kind-key">H</span></sl-button>
+          <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join', $event)">Join <span class="kind-key">J</span></sl-button>
+        </sl-button-group>
+
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='page'">
+          <sl-button @click="restoreFromOriginal(currentPage)" size="small">Restore</sl-button>
         </sl-button-group>
 
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='carea'">
-           <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
-             <sl-icon name="arrow-repeat" slot="prefix"></sl-icon> Rescan
-           </sl-button>
-           <sl-input
-               size="small"
-               :value="ocrLanguage"
-               @sl-change="ocrLanguage = ($event.target as HTMLInputElement).value"
-               placeholder="lang"
-               style="width: 80px;"
-           ></sl-input>
+          <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
+            <sl-icon name="arrow-repeat" slot="prefix"></sl-icon>
+            Rescan
+          </sl-button>
+          <sl-input
+              size="small"
+              :value="ocrLanguage"
+              @sl-change="ocrLanguage = ($event.target as HTMLInputElement).value"
+              placeholder="OCR Language"
+              style="width: 80px;"
+          ></sl-input>
         </sl-button-group>
 
         <template v-if="showAddForm">
           <form
               class="form-grid"
           >
-            <sl-radio-group
-                v-if="ocrTool === 'block'"
-                label="Block type"
-                :value="addForm.blockType"
-                @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as AddBlockType">
-              <sl-radio-button value="text">Text</sl-radio-button>
-              <sl-radio-button value="image">Image</sl-radio-button>
-            </sl-radio-group>
-            <sl-checkbox :checked="addForm.shrinkWrapCarea" @sl-change="addForm.shrinkWrapCarea = ($event.target as HTMLInputElement).checked">Shrink wrap parent carea</sl-checkbox>
-            <sl-checkbox :checked="addForm.eraseUnderneath" @sl-change="addForm.eraseUnderneath = ($event.target as HTMLInputElement).checked">Erase overlapping > N %</sl-checkbox>
-            <sl-input :value="addForm.eraseOverlapPercentage" @sl-change="addForm.eraseOverlapPercentage = parseInt(($event.target as HTMLInputElement).value)" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>
+            <template v-if="ocrTool === 'block'">
+              <sl-radio-group
+                  size="small"
+                  :value="addForm.blockType"
+                  @sl-change="addForm.blockType = ($event.target as HTMLInputElement).value as AddBlockType">
+                <sl-radio-button value="text">Text</sl-radio-button>
+                <sl-radio-button value="image">Image</sl-radio-button>
+              </sl-radio-group>
+              <sl-checkbox :checked="addForm.shrinkWrapCarea" @sl-change="addForm.shrinkWrapCarea = ($event.target as HTMLInputElement).checked">Shrink wrap parent carea</sl-checkbox>
+            </template>
+            <div style="display: flex; flex-direction: row; align-items: center;">
+            <sl-checkbox size="small" :checked="addForm.eraseUnderneath" @sl-change="addForm.eraseUnderneath = ($event.target as HTMLInputElement).checked">Erase overlapping ></sl-checkbox>
+            <sl-input size="small" :value="addForm.eraseOverlapPercentage" @sl-change="addForm.eraseOverlapPercentage = parseInt(($event.target as HTMLInputElement).value)" type="number" min="0" max="100" step="1" placeholder="Overlap percentage"/>%
+            </div>
           </form>
         </template>
       </div>
@@ -203,7 +210,7 @@ const currentStem = computed(() => {
 });
 
 type MasterTool = 'carea-flow' | 'carea-layout' | 'edit' | 'block-type';
-type OcrTool = 'pick' | 'carea' | 'block' | 'line' | 'word';
+type OcrTool = 'pick' | 'page' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
 
 const activeMasterTool = ref<MasterTool>('edit');
@@ -372,6 +379,7 @@ const pointerEnabled = computed(() => {
   }
 });
 
+// TODO: REVIEW 17/8/2026: Is this logic sound? Document it.
 function setOcrTool(tool: OcrTool) {
   ocrTool.value = tool;
   if (tool !== 'pick') {
@@ -407,13 +415,13 @@ function setOcrOperation(mode: OcrOperation, event?: MouseEvent | KeyboardEvent)
 }
 
 async function bulkJoin() {
-  if (selectedItemIds.value.size < 2 || ocrTool.value === 'pick') return;
+  if (selectedItemIds.value.size < 2 || ocrTool.value === 'pick' || ocrTool.value === 'page') return;
   const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value));
   await callBulkHocrEndpoint('merge', { item_ids: ids });
 }
 
 async function bulkRemove() {
-  if (selectedItemIds.value.size === 0 || ocrTool.value === 'pick') return;
+  if (selectedItemIds.value.size === 0 || ocrTool.value === 'pick' || ocrTool.value === 'page') return;
   const ids = Array.from(selectedItemIds.value);
   for (const id of ids) {
     await callHocrEndpoint(id, 'remove');
@@ -591,6 +599,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   if (/^[0-9]$/.test(e.key)) {
     if (activeMasterTool.value === 'edit') {
       const toolMap: Record<string, OcrTool> = {
+        '0': 'page',
         '1': 'carea',
         '2': 'block',
         '3': 'line',
@@ -705,7 +714,7 @@ async function handleHocrResponse(resp: Response, source: string): Promise<void>
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
   const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
+  if (!stem || tool === 'pick' || tool === 'page') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
   const resp = await fetch(url, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
@@ -717,7 +726,7 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
 async function callBulkHocrEndpoint(action: string, body: object): Promise<void> {
   const stem = currentStem.value;
   const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
+  if (!stem || tool === 'pick' || tool === 'page') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${action}`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -731,7 +740,7 @@ async function callBulkHocrEndpoint(action: string, body: object): Promise<void>
 async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
   const stem = currentStem.value;
   const tool = ocrTool.value;
-  if (!stem || tool === 'pick') return;
+  if (!stem || tool === 'pick' || tool === 'page') return;
 
   const form = addForm.value;
   const body: AddRequest = {
