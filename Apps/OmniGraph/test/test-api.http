@@ -25,3 +25,118 @@ GET http://localhost:8080/api/projects
 Accept: application/json
 
 ###
+
+PUT http://localhost:8080/api/projects/no-test/structure
+Content-Type: application/json
+Accept: application/json
+
+{
+  "sections": [
+    {
+      "path_id": "part-1",
+      "kind": "part",
+      "title": "Part One",
+      "is_linked": true,
+      "is_orphaned": false,
+      "is_suggested": false,
+      "headline": {
+        "page": "page-1",
+        "block_id": "headline-part-1"
+      },
+      "subsection_type": "sections",
+      "subsections": [
+        {
+          "path_id": "part-1/chapter-1",
+          "kind": "chapter",
+          "title": "Chapter One",
+          "is_linked": true,
+          "is_orphaned": false,
+          "is_suggested": false,
+          "headline": {
+            "page": "page-2",
+            "block_id": "headline-chapter-1"
+          },
+          "subsection_type": "sections",
+          "subsections": [
+            {
+              "path_id": "part-1/chapter-1/section-1",
+              "kind": "section",
+              "title": "A Small Section",
+              "is_linked": false,
+              "is_orphaned": false,
+              "is_suggested": true,
+              "headline": null,
+              "subsection_type": "sections",
+              "subsections": []
+            }
+          ]
+        },
+        {
+          "path_id": "part-1/chapter-2",
+          "kind": "chapter",
+          "title": "Chapter Two",
+          "is_linked": false,
+          "is_orphaned": false,
+          "is_suggested": false,
+          "headline": null,
+          "subsection_type": "sections",
+          "subsections": []
+        }
+      ]
+    },
+    {
+      "path_id": "part-2",
+      "kind": "part",
+      "title": "Part Two",
+      "is_linked": true,
+      "is_orphaned": false,
+      "is_suggested": false,
+      "headline": {
+        "page": "page-3",
+        "block_id": "headline-part-2"
+      },
+      "subsection_type": "sections",
+      "subsections": [
+        {
+          "path_id": "part-2/chapter-1",
+          "kind": "chapter",
+          "title": "Another Chapter",
+          "is_linked": true,
+          "is_orphaned": false,
+          "is_suggested": false,
+          "headline": null,
+          "subsection_type": "sections",
+          "subsections": []
+        },
+        {
+          "path_id": "part-2/chapter-2",
+          "kind": "chapter",
+          "title": "Final Chapter",
+          "is_linked": true,
+          "is_orphaned": false,
+          "is_suggested": false,
+          "headline": null,
+          "subsection_type": "sections",
+          "subsections": []
+        }
+      ]
+    }
+  ],
+  "headlines": [
+    {
+      "page": "page-1",
+      "block_id": "headline-part-1",
+      "is_linked": true
+    },
+    {
+      "page": "page-2",
+      "block_id": "headline-chapter-1",
+      "is_linked": true
+    },
+    {
+      "page": "page-x",
+      "block_id": "unlinked-headline",
+      "is_linked": false
+    }
+  ]
+}
