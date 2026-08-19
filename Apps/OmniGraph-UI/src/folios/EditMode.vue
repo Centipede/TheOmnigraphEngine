@@ -5,7 +5,7 @@
       :initial-page-stem="initialPageStem"
       :panels="panels"
       :show-crop-overlay="false"
-      :hocr-level="ocrTool=='pick' ? null : ocrTool"
+      :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
       carea-overlay-color="rgba(249, 115, 22)"
       block-overlay-color="rgba(168, 85, 247)"
       line-overlay-color="rgba(59, 130, 246)"
@@ -19,14 +19,14 @@
 
       <div class="ocr-info-panel">
         <div class="ocr-info-row">
-          <span class="ocr-info-label">Tool</span>
-          <span class="ocr-info-value">{{ ocrTool }}</span>
+          <span class="ocr-info-label">Level</span>
+          <span class="ocr-info-value">{{ ocrLevel }}</span>
         </div>
         <div class="ocr-info-row">
           <span class="ocr-info-label">Mode</span>
           <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
         </div>
-        <template v-if="ocrTool === 'pick'">
+        <template v-if="ocrLevel === 'multi'">
           <div class="ocr-info-row">
             <span class="ocr-info-label">Carea</span>
             <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
@@ -85,15 +85,15 @@
         </sl-checkbox>
 
         <sl-button-group v-if="activeMasterTool === 'edit'">
-          <sl-button :variant="ocrTool==='pick' ? 'primary' : 'default'" size="small"  @click="setOcrTool('pick')"><sl-icon name="eyedropper"></sl-icon></sl-button>
-          <sl-button :variant="ocrTool==='page' ? 'primary' : 'default'" size="small"  @click="setOcrTool('page')">Page <span class="kind-key">0</span></sl-button>
-          <sl-button :variant="ocrTool==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrTool('carea')">Carea <span class="kind-key">1</span></sl-button>
-          <sl-button :variant="ocrTool==='block' ? 'primary' : 'default'" size="small"  @click="setOcrTool('block')">Block <span class="kind-key">2</span></sl-button>
-          <sl-button :variant="ocrTool==='line' ? 'primary' : 'default'"  size="small" @click="setOcrTool('line')">Line <span class="kind-key">3</span></sl-button>
-          <sl-button :variant="ocrTool==='word' ? 'primary' : 'default'" size="small"  @click="setOcrTool('word')">Word <span class="kind-key">4</span></sl-button>
+          <sl-button :variant="ocrLevel==='multi' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('multi')"><sl-icon name="eyedropper"></sl-icon></sl-button>
+          <sl-button :variant="ocrLevel==='page' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('page')">Page <span class="kind-key">0</span></sl-button>
+          <sl-button :variant="ocrLevel==='carea' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('carea')">Carea <span class="kind-key">1</span></sl-button>
+          <sl-button :variant="ocrLevel==='block' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('block')">Block <span class="kind-key">2</span></sl-button>
+          <sl-button :variant="ocrLevel==='line' ? 'primary' : 'default'"  size="small" @click="setOcrLevel('line')">Line <span class="kind-key">3</span></sl-button>
+          <sl-button :variant="ocrLevel==='word' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('word')">Word <span class="kind-key">4</span></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'block-type' && ocrTool === 'block'">
+        <sl-button-group v-if="activeMasterTool === 'block-type' && ocrLevel === 'block'">
           <sl-button
               v-for="bk in BLOCK_KINDS"
               :key="bk.kind"
@@ -103,7 +103,7 @@
           >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool!=='pick'">
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel!=='multi'">
           <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='select' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('select')">Sel <span class="kind-key">S</span></sl-button>
           <sl-button :variant="effectiveOcrOperation==='remove' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('remove', $event)">Rem <span class="kind-key">D</span></sl-button>
@@ -112,11 +112,11 @@
           <sl-button :variant="effectiveOcrOperation==='join' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('join', $event)">Join <span class="kind-key">J</span></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='page'">
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='page'">
           <sl-button @click="restoreFromOriginal(currentPage)" size="small">Restore</sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'edit' && ocrTool==='carea'">
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='carea'">
           <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
             <sl-icon name="arrow-repeat" slot="prefix"></sl-icon>
             Rescan
@@ -134,7 +134,7 @@
           <form
               class="form-grid"
           >
-            <template v-if="ocrTool === 'block'">
+            <template v-if="ocrLevel === 'block'">
               <sl-radio-group
                   size="small"
                   :value="addForm.blockType"
@@ -210,11 +210,11 @@ const currentStem = computed(() => {
 });
 
 type MasterTool = 'carea-flow' | 'carea-layout' | 'edit' | 'block-type';
-type OcrTool = 'pick' | 'page' | 'carea' | 'block' | 'line' | 'word';
+type OcrLevel = 'multi' | 'page' | 'carea' | 'block' | 'line' | 'word';
 type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | 'remove';
 
 const activeMasterTool = ref<MasterTool>('edit');
-const ocrTool:Ref<OcrTool> = ref('pick');
+const ocrLevel:Ref<OcrLevel> = ref('multi');
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');
 
@@ -241,9 +241,9 @@ const mergeItems = ref<Record<MasterTool, boolean>>({
 
 watch(activeMasterTool, (newVal) => {
   if (newVal === 'carea-flow' || newVal === 'carea-layout') {
-    ocrTool.value = 'carea';
+    ocrLevel.value = 'carea';
   } else if (newVal === 'block-type') {
-    ocrTool.value = 'block';
+    ocrLevel.value = 'block';
   }
 });
 
@@ -263,7 +263,7 @@ const indicatedItemId  = ref<string | null>(null);
 provide('selectedItemIds', selectedItemIds);
 provide('selectedItemId',  selectedItemId);
 provide('indicatedItemId', indicatedItemId);
-provide('selectNode', (level: OcrTool, id: string, e?: MouseEvent) => {
+provide('selectNode', (level: OcrLevel, id: string, e?: MouseEvent) => {
   if (e?.shiftKey) {
     if (selectedItemIds.value.has(id)) {
       selectedItemIds.value.delete(id);
@@ -273,7 +273,7 @@ provide('selectNode', (level: OcrTool, id: string, e?: MouseEvent) => {
   } else {
     selectedItemId.value = id;
   }
-  setOcrTool(level);
+  setOcrLevel(level);
 });
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
@@ -299,7 +299,7 @@ const effectiveOcrOperation = computed<OcrOperation>(() => {
 
   if (ocrOperation.value !== 'context') return ocrOperation.value;
 
-  if (ocrTool.value === 'pick') return 'select';
+  if (ocrLevel.value === 'multi') return 'select';
 
   if (cmdDown.value) {
     if (altDown.value && shiftDown.value) return 'remove';
@@ -379,19 +379,22 @@ const pointerEnabled = computed(() => {
   }
 });
 
-// TODO: REVIEW 17/8/2026: Is this logic sound? Document it.
-function setOcrTool(tool: OcrTool) {
-  ocrTool.value = tool;
-  if (tool !== 'pick') {
+// Can we called from UI with the intent of setting both level, master tool (and operation, depending on leftover setup).
+function setOcrLevel(level: OcrLevel) {
+  ocrLevel.value = level;
+  if (level !== 'multi') {
+
+    // Precaution: If we force the level to something that these master tools cannot handle: Change master tool.
+
     if (activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'carea-layout') {
-      if (tool !== 'carea') activeMasterTool.value = 'edit';
+      if (level !== 'carea') activeMasterTool.value = 'edit';
     } else if (activeMasterTool.value === 'block-type') {
-      if (tool !== 'block') activeMasterTool.value = 'edit';
+      if (level !== 'block') activeMasterTool.value = 'edit';
     } else {
       activeMasterTool.value = 'edit';
     }
   }
-  if (ocrTool.value === 'pick') {
+  if (ocrLevel.value === 'multi') {
     if(['split', 'join', 'remove'].includes(ocrOperation.value)) {
       setOcrOperation('context');
     }
@@ -415,13 +418,13 @@ function setOcrOperation(mode: OcrOperation, event?: MouseEvent | KeyboardEvent)
 }
 
 async function bulkJoin() {
-  if (selectedItemIds.value.size < 2 || ocrTool.value === 'pick' || ocrTool.value === 'page') return;
+  if (selectedItemIds.value.size < 2 || ocrLevel.value === 'multi' || ocrLevel.value === 'page') return;
   const ids = sortIdsByDocumentOrder(hocrPage.value!, Array.from(selectedItemIds.value));
   await callBulkHocrEndpoint('merge', { item_ids: ids });
 }
 
 async function bulkRemove() {
-  if (selectedItemIds.value.size === 0 || ocrTool.value === 'pick' || ocrTool.value === 'page') return;
+  if (selectedItemIds.value.size === 0 || ocrLevel.value === 'multi' || ocrLevel.value === 'page') return;
   const ids = Array.from(selectedItemIds.value);
   for (const id of ids) {
     await callHocrEndpoint(id, 'remove');
@@ -460,7 +463,7 @@ const BLOCK_KINDS = [
 ] as const;
 
 async function changeBlockType(kind: string): Promise<void> {
-  if (selectedItemIds.value.size === 0 || ocrTool.value !== 'block') return;
+  if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'block') return;
   activeMasterTool.value = 'block-type';
   const ids = Array.from(selectedItemIds.value);
 
@@ -474,7 +477,7 @@ async function changeBlockType(kind: string): Promise<void> {
 }
 
 async function changeCareaOperation(action: 'change-flow' | 'change-layout', kind: string): Promise<void> {
-  if (selectedItemIds.value.size === 0 || ocrTool.value !== 'carea') return;
+  if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'carea') return;
   const ids = Array.from(selectedItemIds.value);
 
   if (mergeItems.value[activeMasterTool.value as MasterTool] && ids.length > 1) {
@@ -499,7 +502,7 @@ async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: numbe
 async function pageInteractionClick(): Promise<void> {
   const mode = effectiveOcrOperation.value;
   if (mode === 'none') return;
-  if (ocrTool.value === 'pick') {
+  if (ocrLevel.value === 'multi') {
     multiSelect.value = multiHover.value;
     return;
   }
@@ -545,12 +548,12 @@ function pageInteractionUpdate(
   betweenTargets.value = betweenOverlayItems;
   betweenSubTargets.value = betweenOverlaySubItems;
 
-  if (ocrTool.value === 'pick') {
+  if (ocrLevel.value === 'multi') {
     multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
   }
   else {
     for (const item of overlappingOverlayItems) {
-      if (item.level === ocrTool.value) {
+      if (item.level === ocrLevel.value) {
         overItemId.value = item.id;
       }
     }
@@ -598,7 +601,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   // Numeric keys (Row 1) - Context sensitive
   if (/^[0-9]$/.test(e.key)) {
     if (activeMasterTool.value === 'edit') {
-      const toolMap: Record<string, OcrTool> = {
+      const toolMap: Record<string, OcrLevel> = {
         '0': 'page',
         '1': 'carea',
         '2': 'block',
@@ -606,24 +609,24 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
         '4': 'word',
       };
       if (toolMap[e.key]) {
-        setOcrTool(toolMap[e.key]);
+        setOcrLevel(toolMap[e.key]);
         return;
       }
     } else if (activeMasterTool.value === 'block-type') {
       const kind = BLOCK_KIND_KEYS[e.key];
-      if (kind && selectedItemIds.value.size > 0 && ocrTool.value === 'block') {
+      if (kind && selectedItemIds.value.size > 0 && ocrLevel.value === 'block') {
         e.preventDefault();
         await changeBlockType(kind);
         return;
       }
     } else if (activeMasterTool.value === 'carea-flow') {
-      if (selectedItemIds.value.size > 0 && ocrTool.value === 'carea') {
+      if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
         e.preventDefault();
         await changeCareaOperation('change-flow', e.key);
         return;
       }
     } else if (activeMasterTool.value === 'carea-layout') {
-      if (selectedItemIds.value.size > 0 && ocrTool.value === 'carea') {
+      if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
         e.preventDefault();
         await changeCareaOperation('change-layout', e.key);
         return;
@@ -713,8 +716,8 @@ async function handleHocrResponse(resp: Response, source: string): Promise<void>
 
 async function callHocrEndpoint(id: string, action: string, body?: object): Promise<void> {
   const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick' || tool === 'page') return;
+  const tool = ocrLevel.value;
+  if (!stem || tool === 'multi' || tool === 'page') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${id}/${action}`;
   const resp = await fetch(url, body
       ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
@@ -725,8 +728,8 @@ async function callHocrEndpoint(id: string, action: string, body?: object): Prom
 
 async function callBulkHocrEndpoint(action: string, body: object): Promise<void> {
   const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick' || tool === 'page') return;
+  const tool = ocrLevel.value;
+  if (!stem || tool === 'multi' || tool === 'page') return;
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/${action}`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -739,8 +742,8 @@ async function callBulkHocrEndpoint(action: string, body: object): Promise<void>
 
 async function callAddEndpoint(bbox: [number, number, number, number]): Promise<void> {
   const stem = currentStem.value;
-  const tool = ocrTool.value;
-  if (!stem || tool === 'pick' || tool === 'page') return;
+  const tool = ocrLevel.value;
+  if (!stem || tool === 'multi' || tool === 'page') return;
 
   const form = addForm.value;
   const body: AddRequest = {
