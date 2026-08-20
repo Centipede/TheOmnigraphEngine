@@ -168,7 +168,7 @@ import {
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
-import {type HocrPage} from '../types/hocr';
+import {type HocrPage} from '../types';
 
 interface AddRequest {
   to_carea?: string | null; to_block?: string | null; to_line?: string | null;
