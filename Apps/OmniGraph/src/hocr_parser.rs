@@ -162,15 +162,25 @@ pub enum AddBlockType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlowSchema {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LayoutSchema {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrCarea {
     #[serde(default = "carea_level", skip_deserializing)]
     pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
     #[serde(default)]
-    pub flow: String,
+    pub flow: Option<String>,
     #[serde(default)]
-    pub layout: String,
+    pub layout: Option<String>,
     pub blocks: Vec<HocrBlock>,
     pub unknowns: Vec<HocrUnknown>,
 }
@@ -391,6 +401,77 @@ impl HocrPage {
         match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
             None => self.bbox = HocrBbox::empty(),
+        }
+    }
+
+    pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool) {
+        if flows.is_empty() {
+            return;
+        }
+
+        let default_flow = flows[0].name.clone();
+
+        // 1. Assign default flow to careas with no current assignment.
+        for carea in &mut self.careas {
+            if carea.flow.as_ref().map_or(true, |f| f.is_empty()) {
+                carea.flow = Some(default_flow.clone());
+            }
+        }
+
+        if self.careas.is_empty() {
+            return;
+        }
+
+        // 2. Group consecutive careas by layout.
+        let mut new_careas: Vec<HocrCarea> = Vec::new();
+        let old_careas = std::mem::take(&mut self.careas);
+
+        let mut current_layout_group: Vec<HocrCarea> = Vec::new();
+        let mut current_layout = old_careas[0].layout.clone();
+
+        for carea in old_careas {
+            if carea.layout != current_layout {
+                // Process previous layout group
+                Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge);
+                current_layout_group = Vec::new();
+                current_layout = carea.layout.clone();
+            }
+            current_layout_group.push(carea);
+        }
+        // Process last group
+        if !current_layout_group.is_empty() {
+            Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge);
+        }
+
+        self.careas = new_careas;
+        self.rebuild_bbox();
+    }
+
+    fn auto_flow_for_layout(target: &mut Vec<HocrCarea>, group: Vec<HocrCarea>, merge: bool) {
+        if !merge {
+            target.extend(group);
+            return;
+        }
+
+        let mut flow_order: Vec<String> = Vec::new();
+        let mut merged_careas: HashMap<String, HocrCarea> = HashMap::new();
+
+        for mut carea in group {
+            let flow = carea.flow.clone().unwrap_or_default();
+            if !merged_careas.contains_key(&flow) {
+                flow_order.push(flow.clone());
+                merged_careas.insert(flow, carea);
+            } else {
+                let existing = merged_careas.get_mut(&flow).unwrap();
+                existing.blocks.append(&mut carea.blocks);
+                existing.unknowns.append(&mut carea.unknowns);
+            }
+        }
+
+        for flow in flow_order {
+            let mut merged = merged_careas.remove(&flow).unwrap();
+            merged.rebuild_bbox();
+            target.push(merged);
         }
     }
 
@@ -955,14 +1036,18 @@ impl HocrPage {
         }
 
         let new_id = self.get_unique_id(self.careas[carea].id.as_str());
+        let (flow, layout) = {
+            let old_carea = &self.careas[carea];
+            (old_carea.flow.clone(), old_carea.layout.clone())
+        };
         let old_carea = &mut self.careas[carea];
         let (_, right) = old_carea.blocks.split_at_mut(block_after);
         let new_carea = HocrCarea {
             level: "carea".to_string(),
             id: new_id,
             bbox: HocrBbox::empty(),
-            flow: old_carea.flow.clone(),
-            layout: old_carea.layout.clone(),
+            flow,
+            layout,
             blocks: right.to_vec(),
             unknowns: vec![],
         };
@@ -1024,8 +1109,8 @@ impl HocrPage {
             level: "carea".to_string(),
             id: new_id.clone(),
             bbox,
-            flow: "".to_string(),
-            layout: "".to_string(),
+            flow: None,
+            layout: None,
             blocks: vec![],
             unknowns: vec![],
         });
@@ -1097,8 +1182,8 @@ impl HocrPage {
                     level: "carea".to_string(),
                     id: new_carea_id,
                     bbox,
-                    flow: "".to_string(),
-                    layout: "".to_string(),
+                    flow: None,
+                    layout: None,
                     blocks: vec![new_block],
                     unknowns: vec![],
                 });
@@ -1202,18 +1287,22 @@ impl HocrCarea {
             self.bbox.bottom(),
         );
 
-        let flow_val = escape_attr(&self.flow);
-        if flow_val.is_empty() {
-            title.push_str("; flow");
-        } else {
-            title.push_str(&format!("; flow {}", flow_val));
+        if let Some(flow) = &self.flow {
+            let flow_val = escape_attr(flow);
+            if flow_val.is_empty() {
+                title.push_str("; flow");
+            } else {
+                title.push_str(&format!("; flow {}", flow_val));
+            }
         }
 
-        let layout_val = escape_attr(&self.layout);
-        if layout_val.is_empty() {
-            title.push_str("; layout");
-        } else {
-            title.push_str(&format!("; layout {}", layout_val));
+        if let Some(layout) = &self.layout {
+            let layout_val = escape_attr(layout);
+            if layout_val.is_empty() {
+                title.push_str("; layout");
+            } else {
+                title.push_str(&format!("; layout {}", layout_val));
+            }
         }
 
         let mut html = format!(
@@ -1455,8 +1544,8 @@ pub fn parse(html: &str) -> Option<HocrPage> {
             let carea_id = carea_el.attr("id").unwrap_or("").to_string();
 
             let title_keyvals = split_title(title_str);
-            let flow = title_keyvals.get("flow").cloned().unwrap_or_default();
-            let layout = title_keyvals.get("layout").cloned().unwrap_or_default();
+            let flow = title_keyvals.get("flow").cloned();
+            let layout = title_keyvals.get("layout").cloned();
 
             let blocks = carea_el
                 .select(&sel_block)
@@ -2266,10 +2355,10 @@ mod tests {
             </div>
         "#;
         let page = parse(html).unwrap();
-        assert_eq!(page.careas[0].flow, "footnotes");
-        assert_eq!(page.careas[0].layout, "center");
-        assert_eq!(page.careas[1].flow, "");
-        assert_eq!(page.careas[1].layout, "");
+        assert_eq!(page.careas[0].flow, Some("footnotes".to_string()));
+        assert_eq!(page.careas[0].layout, Some("center".to_string()));
+        assert_eq!(page.careas[1].flow, Some("".to_string()));
+        assert_eq!(page.careas[1].layout, Some("".to_string()));
     }
 
     #[test]
@@ -2278,8 +2367,8 @@ mod tests {
             level: "carea".to_string(),
             id: "carea_1".to_string(),
             bbox: HocrBbox::new(10, 10, 100, 100),
-            flow: "main".to_string(),
-            layout: "left".to_string(),
+            flow: Some("main".to_string()),
+            layout: Some("left".to_string()),
             blocks: vec![],
             unknowns: vec![],
         };
@@ -2291,8 +2380,8 @@ mod tests {
             level: "carea".to_string(),
             id: "carea_2".to_string(),
             bbox: HocrBbox::new(10, 10, 100, 100),
-            flow: "".to_string(),
-            layout: "".to_string(),
+            flow: Some("".to_string()),
+            layout: Some("".to_string()),
             blocks: vec![],
             unknowns: vec![],
         };
@@ -2312,8 +2401,8 @@ mod tests {
             </div>
         "#;
         let page = parse(html).unwrap();
-        assert_eq!(page.careas[0].flow, "");
-        assert_eq!(page.careas[0].layout, "");
+        assert_eq!(page.careas[0].flow, None);
+        assert_eq!(page.careas[0].layout, None);
     }
 
     #[test]
@@ -2322,8 +2411,8 @@ mod tests {
             level: "carea".to_string(),
             id: "carea_1".to_string(),
             bbox: HocrBbox::new(0, 0, 100, 200),
-            flow: "special".to_string(),
-            layout: "right".to_string(),
+            flow: Some("special".to_string()),
+            layout: Some("right".to_string()),
             blocks: vec![
                 HocrBlock {
                     level: "block".to_string(),
@@ -2355,10 +2444,10 @@ mod tests {
         page.split_carea(0, 0, 1);
 
         assert_eq!(page.careas.len(), 2);
-        assert_eq!(page.careas[0].flow, "special");
-        assert_eq!(page.careas[0].layout, "right");
-        assert_eq!(page.careas[1].flow, "special");
-        assert_eq!(page.careas[1].layout, "right");
+        assert_eq!(page.careas[0].flow, Some("special".to_string()));
+        assert_eq!(page.careas[0].layout, Some("right".to_string()));
+        assert_eq!(page.careas[1].flow, Some("special".to_string()));
+        assert_eq!(page.careas[1].layout, Some("right".to_string()));
     }
 
     #[test]
@@ -2371,8 +2460,8 @@ mod tests {
             unknowns: vec![],
         };
         page.add_carea(HocrBbox::new(10, 10, 100, 100), None, None).unwrap();
-        assert_eq!(page.careas[0].flow, "");
-        assert_eq!(page.careas[0].layout, "");
+        assert_eq!(page.careas[0].flow, None);
+        assert_eq!(page.careas[0].layout, None);
     }
 
     #[test]
@@ -2385,7 +2474,171 @@ mod tests {
             unknowns: vec![],
         };
         page.add_block(None, HocrBbox::new(10, 10, 100, 100), None, None, None, None).unwrap();
-        assert_eq!(page.careas[0].flow, "");
-        assert_eq!(page.careas[0].layout, "");
+        assert_eq!(page.careas[0].flow, None);
+        assert_eq!(page.careas[0].layout, None);
+    }
+
+    #[test]
+    fn test_auto_layout_default_flow() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 100, 100),
+            careas: vec![
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c1".to_string(),
+                    bbox: HocrBbox::new(0, 0, 10, 10),
+                    flow: None,
+                    layout: None,
+                    blocks: vec![],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c2".to_string(),
+                    bbox: HocrBbox::new(10, 10, 20, 20),
+                    flow: Some("existing".to_string()),
+                    layout: None,
+                    blocks: vec![],
+                    unknowns: vec![],
+                },
+            ],
+            unknowns: vec![],
+        };
+
+        let flows = vec![FlowSchema { name: "default".to_string() }];
+        page.auto_flow(flows, vec![], true);
+
+        assert_eq!(page.careas[0].flow, Some("default".to_string()));
+        assert_eq!(page.careas[1].flow, Some("existing".to_string()));
+    }
+
+    #[test]
+    fn test_auto_layout_merging() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 100, 100),
+            careas: vec![
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c1".to_string(),
+                    bbox: HocrBbox::new(0, 0, 10, 10),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock {
+                        level: "block".to_string(),
+                        id: "b1".to_string(),
+                        bbox: HocrBbox::new(0, 0, 10, 10),
+                        kind: HocrBlockKind::Paragraph,
+                        lang: None,
+                        lines: vec![],
+                    }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c2".to_string(),
+                    bbox: HocrBbox::new(20, 20, 30, 30),
+                    flow: Some("F2".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock {
+                        level: "block".to_string(),
+                        id: "b2".to_string(),
+                        bbox: HocrBbox::new(20, 20, 30, 30),
+                        kind: HocrBlockKind::Paragraph,
+                        lang: None,
+                        lines: vec![],
+                    }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c3".to_string(),
+                    bbox: HocrBbox::new(40, 40, 50, 50),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock {
+                        level: "block".to_string(),
+                        id: "b3".to_string(),
+                        bbox: HocrBbox::new(40, 40, 50, 50),
+                        kind: HocrBlockKind::Paragraph,
+                        lang: None,
+                        lines: vec![],
+                    }],
+                    unknowns: vec![],
+                },
+            ],
+            unknowns: vec![],
+        };
+
+        let flows = vec![
+            FlowSchema { name: "F1".to_string() },
+            FlowSchema { name: "F2".to_string() },
+        ];
+        page.auto_flow(flows, vec![], true);
+
+        // Result should be 2 careas in Group L1
+        assert_eq!(page.careas.len(), 2);
+        
+        // First carea should be F1 (c1 + c3)
+        assert_eq!(page.careas[0].flow, Some("F1".to_string()));
+        assert_eq!(page.careas[0].blocks.len(), 2);
+        assert_eq!(page.careas[0].blocks[0].id, "b1");
+        assert_eq!(page.careas[0].blocks[1].id, "b3");
+        
+        // Second carea should be F2 (c2)
+        assert_eq!(page.careas[1].flow, Some("F2".to_string()));
+        assert_eq!(page.careas[1].blocks.len(), 1);
+        assert_eq!(page.careas[1].blocks[0].id, "b2");
+    }
+
+    #[test]
+    fn test_auto_layout_consecutive_layout_grouping() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 100, 100),
+            careas: vec![
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c1".to_string(),
+                    bbox: HocrBbox::new(0, 0, 10, 10),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c2".to_string(),
+                    bbox: HocrBbox::new(20, 20, 30, 30),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L2".to_string()),
+                    blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c3".to_string(),
+                    bbox: HocrBbox::new(40, 40, 50, 50),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+            ],
+            unknowns: vec![],
+        };
+
+        let flows = vec![FlowSchema { name: "F1".to_string() }];
+        page.auto_flow(flows, vec![], true);
+
+        // Result should be 3 careas because L1 is interrupted by L2
+        assert_eq!(page.careas.len(), 3);
+        assert_eq!(page.careas[0].layout, Some("L1".to_string()));
+        assert_eq!(page.careas[1].layout, Some("L2".to_string()));
+        assert_eq!(page.careas[2].layout, Some("L1".to_string()));
     }
 }

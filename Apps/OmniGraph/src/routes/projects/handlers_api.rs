@@ -492,15 +492,64 @@ pub async fn auto_layout(
     Path((machine_name, stem)): Path<(String, String)>,
     Json(payload): Json<AutoAssistRequest>,
 ) -> impl IntoResponse {
+
     println!("Auto layout for project {}, page {}, selection: {:?}", machine_name, stem, payload.stems);
     StatusCode::OK
 }
 
 pub async fn auto_flow(
-    State(_state): State<AppState>,
-    Path((machine_name, stem)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((machine_name, _stem)): Path<(String, String)>,
     Json(payload): Json<AutoAssistRequest>,
 ) -> impl IntoResponse {
-    println!("Auto flow for project {}, page {}, selection: {:?}", machine_name, stem, payload.stems);
-    StatusCode::OK
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(p) => p,
+        Err(status) => return status.into_response(),
+    };
+
+    let flows = project.flows.clone();
+    let layouts = project.layouts.clone();
+
+    for target_stem in payload.stems {
+        let hocr_path = match storage::hocr_active_path(&state.projects_dir, &machine_name, &target_stem) {
+            Some(path) => path,
+            None => {
+                println!("auto_flow: active HOCR path not found for stem {}", target_stem);
+                continue;
+            }
+        };
+
+        let html = match fs::read_to_string(&hocr_path).await {
+            Ok(s) => s,
+            Err(e) => {
+                println!("auto_flow: failed to read HOCR for stem {}: {}", target_stem, e);
+                continue;
+            }
+        };
+
+        let flows = flows.clone();
+        let layouts = layouts.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let mut page = crate::hocr_parser::parse(&html)?;
+            page.auto_flow(flows, layouts, true);
+            Some(page.to_hocr_html())
+        })
+        .await;
+
+        match result {
+            Ok(Some(new_html)) => {
+                if let Err(e) = storage::save_hocr_edited(&state.projects_dir, &machine_name, &target_stem, &new_html) {
+                    println!("auto_flow: failed to save edited HOCR for stem {}: {}", target_stem, e);
+                }
+            }
+            Ok(None) => {
+                println!("auto_flow: failed to parse HOCR for stem {}", target_stem);
+            }
+            Err(e) => {
+                println!("auto_flow: task panicked for stem {}: {}", target_stem, e);
+            }
+        }
+    }
+
+    StatusCode::OK.into_response()
 }

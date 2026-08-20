@@ -17,6 +17,10 @@ pub struct Project {
     #[serde(default, with = "optional_date")]
     pub published: Option<time::Date>,
     pub ocr_language: Option<String>,
+    #[serde(default)]
+    pub flows: Vec<crate::hocr_parser::FlowSchema>,
+    #[serde(default)]
+    pub layouts: Vec<crate::hocr_parser::LayoutSchema>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
