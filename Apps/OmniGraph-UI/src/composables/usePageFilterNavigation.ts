@@ -38,9 +38,9 @@ export function usePageFilterNavigation(options: {
     currentPageIndex: Ref<number | null>;
     setAnchor: (pageIndex: number) => void;
 }) {
-    async function onFilterChange(event: Event) {
-        const group = event.currentTarget as HTMLInputElement;
-        const newFilterMode = group.value;
+    async function onFilterChange(newFilterMode: string) {
+        // const group = event.currentTarget as HTMLInputElement;
+        // const newFilterMode = group.value;
 
         const anchor = options.selectionAnchor.value ?? options.currentPageIndex.value;
         options.filterMode.value = newFilterMode;

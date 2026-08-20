@@ -7,6 +7,29 @@
 
       <div class="sidebar-lead">
         <div class="sidebar-lead-label" @click="togglePanel('page-list')">Pages ({{ pages.length }})</div>
+
+        <!-- Selection info -->
+        <template v-if="selectionInfo">
+          <div class="sidebar-lead-info">{{ selectionInfo.firstName }}-{{ selectionInfo.lastName }}</div>
+        </template>
+        <div style="flex: 0"></div>
+
+        <sl-icon-button
+            name="book-half"
+            label="Show even pages"
+            @click="onFilterChange(filterMode === 'even' ? 'all' : 'even')"
+            :disabled="!canPagesBeFiltered"
+            :class="{ 'filter-button-active': effectiveFilterMode === 'even' }"
+        ></sl-icon-button>
+
+        <sl-icon-button
+            name="book-half"
+            label="Show odd pages"
+            @click="onFilterChange(filterMode === 'odd' ? 'all' : 'odd')"
+            :disabled="!canPagesBeFiltered"
+            class="icon-flipped"
+            :class="{ 'filter-button-active': effectiveFilterMode === 'odd' }"
+        ></sl-icon-button>
       </div>
 
       <div
@@ -132,18 +155,6 @@
 
       <div class="sidebar-lead">
         <div class="sidebar-lead-label" @click="togglePanel('tools')">Tools</div>
-        <sl-icon-button name="book-half"></sl-icon-button>
-        <sl-icon-button name="book-half" class="icon-flipped"></sl-icon-button>
-        <sl-radio-group
-            size="small"
-            :value="effectiveFilterMode"
-            @sl-input="onFilterChange"
-        >
-          <sl-radio-button value="all" :disabled="!canPagesBeFiltered">All</sl-radio-button>
-          <sl-radio-button value="even" :disabled="!canPagesBeFiltered">Even</sl-radio-button>
-          <sl-radio-button value="odd" :disabled="!canPagesBeFiltered">Odd</sl-radio-button>
-        </sl-radio-group>
-
       </div>
 
       <div class="workspace-tools"
@@ -152,27 +163,27 @@
         <div class="sidebar-content">
 
           <!-- Selection info -->
-          <template v-if="selectionInfo">
-            <br>
-            <div class="info-panel">
-              <div class="info-row">
-                <span class="info-label">Range</span>
-                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
-                <span class="info-count">({{ selectionInfo.count }})</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Center</span>
-                <span class="info-value">{{ selectionInfo.centerName }}</span>
-              </div>
-              <sl-button-group>
-                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
-              </sl-button-group>
-            </div>
-          </template>
+<!--          <template v-if="selectionInfo">-->
+<!--            <br>-->
+<!--            <div class="info-panel">-->
+<!--              <div class="info-row">-->
+<!--                <span class="info-label">Range</span>-->
+<!--                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>-->
+<!--                <span class="info-count">({{ selectionInfo.count }})</span>-->
+<!--              </div>-->
+<!--              <div class="info-row">-->
+<!--                <span class="info-label">Center</span>-->
+<!--                <span class="info-value">{{ selectionInfo.centerName }}</span>-->
+<!--              </div>-->
+<!--              <sl-button-group>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>-->
+<!--              </sl-button-group>-->
+<!--            </div>-->
+<!--          </template>-->
 
-          <br>
+<!--          <br>-->
 
           <!-- Tools -->
 
@@ -182,7 +193,7 @@
               :filtered-pages="filteredPages"
               :visible-pages="visiblePages"
               :selected-pages="selectedPages"
-              :selection-info="selectionInfo"
+              :sidebar-lead-info="selectionInfo"
               :current-page-index="currentPageIndex"
               :current-page="currentPage"
               :focus-page="focusPage"
@@ -197,6 +208,7 @@
 
       <div class="sidebar-lead">
         <div class="sidebar-lead-label" @click="togglePanel('ocr-structure')">hOCR</div>
+        <div style="flex: 1"></div>
         <sl-icon-button name="chevron-expand"   @click="hocrOutlineRef?.expandAll()"/>
         <sl-icon-button name="chevron-contract" @click="hocrOutlineRef?.collapseAll()"/>
       </div>
@@ -793,7 +805,7 @@ defineExpose({
   color: var(--color-text-muted, #6c757d);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.6rem 0.75rem 0.4rem;
+  padding: 0.3rem 0.75rem 0.3rem;
   border-bottom: 1px solid var(--color-border, #dee2e6);
   position: sticky;
   top: 0;
@@ -837,6 +849,20 @@ defineExpose({
 .sidebar-collapsed .sidebar-lead-label {
   writing-mode: vertical-lr;
   transform: rotate(180deg);
+}
+
+.sidebar-lead sl-icon-button::part(base) {
+  font-size: 0.9rem;
+  padding: 0.1rem;
+}
+
+sl-icon-button.filter-button-active::part(base) {
+  background: var(--sl-color-primary-200);
+  color: var(--sl-color-primary-700);
+}
+
+sl-icon-button.filter-button-active:hover::part(base) {
+  background: var(--sl-color-primary-300);
 }
 
 /* Workarea */
@@ -947,6 +973,12 @@ defineExpose({
 .info-count {
   color: var(--color-text-muted, #6c757d);
   flex-shrink: 0;
+}
+
+.sidebar-lead-info {
+  font-weight: 300;
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #6c757d);
 }
 
 .icon-flipped::part(base) {
