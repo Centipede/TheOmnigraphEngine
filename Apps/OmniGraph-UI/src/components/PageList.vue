@@ -1,6 +1,5 @@
 <template>
   <div class="page-list-panel">
-    <div class="sidebar-lead">Pages ({{ pages.length }})</div>
 
     <sl-button-group>
       <sl-button size="small" title="Back (,)" @click="$emit('navigate', -1)">

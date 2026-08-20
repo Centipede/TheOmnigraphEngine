@@ -3,10 +3,38 @@
 
     <!-- Left sidebar -->
     <div class="workspace-left-sidebar"
-         :class="{ 'workspace-sidebar-hidden': !isLeftSidebarVisible }">
+         :class="{ 'sidebar-collapsed': !isLeftSidebarVisible }">
+
+      <div class="sidebar-lead">
+        <div class="sidebar-lead-label" @click="togglePanel('page-list')">Pages ({{ pages.length }})</div>
+
+        <!-- Selection info -->
+        <template v-if="selectionInfo">
+          <div class="sidebar-lead-info">{{ selectionInfo.firstName }}-{{ selectionInfo.lastName }}</div>
+        </template>
+        <div style="flex: 0"></div>
+
+        <sl-icon-button
+            name="book-half"
+            label="Show even pages"
+            @click="onFilterChange(filterMode === 'even' ? 'all' : 'even')"
+            :disabled="!canPagesBeFiltered"
+            :class="{ 'filter-button-active': effectiveFilterMode === 'even' }"
+        ></sl-icon-button>
+
+        <sl-icon-button
+            name="book-half"
+            label="Show odd pages"
+            @click="onFilterChange(filterMode === 'odd' ? 'all' : 'odd')"
+            :disabled="!canPagesBeFiltered"
+            class="icon-flipped"
+            :class="{ 'filter-button-active': effectiveFilterMode === 'odd' }"
+        ></sl-icon-button>
+      </div>
+
       <div
           class="workspace-page-list-pane"
-          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-list'] : false) }"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('page-list') }"
       >
         <PageList
             ref="pageListComponentRef"
@@ -22,11 +50,13 @@
             @select-none="selectNone"
         />
       </div>
+      <div class="sidebar-lead">
+        <div class="sidebar-lead-label" @click="togglePanel('section-structure')">Sections</div>
+      </div>
       <div
           class="workspace-section-outline-pane"
-          :class="{ 'workspace-pane-hidden': !(panels ? panels['section-structure'] : false) }"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('section-structure') }"
       >
-        <div class="sidebar-lead">Sections</div>
         <SectionOutline :structure="structure"/>
       </div>
     </div>
@@ -35,7 +65,7 @@
     <div class="workspace-workarea">
       <div
           class="workspace-page-strips-pane"
-          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-strips'] : false) }"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('page-strips') }"
           :ref="setStripWorkareaRef"
       >
         <slot
@@ -52,8 +82,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!(panels ? panels['page-strips'] : false)"
-            :show-page-preview="!(panels ? panels['page-preview'] : false)"
+            :show-page-strips="!isPanelVisible('page-strips')"
+            :show-page-preview="!isPanelVisible('page-preview')"
         >
           <div class="strip-grid">
             <PageStrip
@@ -77,7 +107,7 @@
 
       <div
           class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !(panels ? panels['page-preview'] : false) }"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('page-preview') }"
       >
         <slot
             name="page-preview"
@@ -93,8 +123,8 @@
             :extend-selection="extendSelection"
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
-            :show-page-strips="!(panels ? panels['page-strips'] : false)"
-            :show-page-preview="!(panels ? panels['page-preview'] : false)"
+            :show-page-strips="!isPanelVisible('page-strips')"
+            :show-page-preview="!isPanelVisible('page-preview')"
             :pointer-settings="pointerSettings"
         >
           <PagePreview
@@ -121,47 +151,39 @@
 
     <!-- Right sidebar -->
     <div class="workspace-right-sidebar"
-         :class="{ 'workspace-sidebar-hidden': !isRightSidebarVisible }">
+         :class="{ 'sidebar-collapsed': !isRightSidebarVisible }">
+
+      <div class="sidebar-lead">
+        <div class="sidebar-lead-label" @click="togglePanel('tools')">Tools</div>
+      </div>
+
       <div class="workspace-tools"
-           :class="{ 'workspace-pane-hidden': !(panels ? panels['tools'] : false) }">
-        <div class="sidebar-lead">Tools</div>
+           :class="{ 'workspace-pane-hidden': !isPanelVisible('tools') }">
+
         <div class="sidebar-content">
 
-          <br>
-          <sl-radio-group
-              label="Even/Odd pages"
-              size="small"
-              :value="effectiveFilterMode"
-              @sl-input="onFilterChange"
-          >
-            <sl-radio-button value="all" :disabled="!canPagesBeFiltered">All</sl-radio-button>
-            <sl-radio-button value="even" :disabled="!canPagesBeFiltered">Even</sl-radio-button>
-            <sl-radio-button value="odd" :disabled="!canPagesBeFiltered">Odd</sl-radio-button>
-          </sl-radio-group>
-
-
           <!-- Selection info -->
-          <template v-if="selectionInfo">
-            <br>
-            <div class="info-panel">
-              <div class="info-row">
-                <span class="info-label">Range</span>
-                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>
-                <span class="info-count">({{ selectionInfo.count }})</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Center</span>
-                <span class="info-value">{{ selectionInfo.centerName }}</span>
-              </div>
-              <sl-button-group>
-                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>
-                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>
-              </sl-button-group>
-            </div>
-          </template>
+<!--          <template v-if="selectionInfo">-->
+<!--            <br>-->
+<!--            <div class="info-panel">-->
+<!--              <div class="info-row">-->
+<!--                <span class="info-label">Range</span>-->
+<!--                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>-->
+<!--                <span class="info-count">({{ selectionInfo.count }})</span>-->
+<!--              </div>-->
+<!--              <div class="info-row">-->
+<!--                <span class="info-label">Center</span>-->
+<!--                <span class="info-value">{{ selectionInfo.centerName }}</span>-->
+<!--              </div>-->
+<!--              <sl-button-group>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>-->
+<!--                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>-->
+<!--              </sl-button-group>-->
+<!--            </div>-->
+<!--          </template>-->
 
-          <br>
+<!--          <br>-->
 
           <!-- Tools -->
 
@@ -175,23 +197,24 @@
               :current-page-index="currentPageIndex"
               :current-page="currentPage"
               :focus-page="focusPage"
-              :filter-mode="filterMode"
-              :on-filter-change="onFilterChange"
               :page-db-next-batch="pageDbNextBatch"
               :has-changes="hasChanges"
           />
 
         </div>
       </div>
+
+      <div class="sidebar-lead">
+        <div class="sidebar-lead-label" @click="togglePanel('ocr-structure')">hOCR</div>
+        <div style="flex: 1"></div>
+        <sl-icon-button name="chevron-expand"   @click="hocrOutlineRef?.expandAll()"/>
+        <sl-icon-button name="chevron-contract" @click="hocrOutlineRef?.collapseAll()"/>
+      </div>
+
       <div
           class="workspace-hocr-outline-pane"
-          :class="{ 'workspace-pane-hidden': !(panels ? panels['ocr-structure'] : false) }"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('ocr-structure') }"
       >
-        <div class="sidebar-lead">
-          hOCR
-          <sl-icon-button name="chevron-expand"   @click="hocrOutlineRef?.expandAll()"/>
-          <sl-icon-button name="chevron-contract" @click="hocrOutlineRef?.collapseAll()"/>
-        </div>
         <HocrOutline ref="hocrOutlineRef"/>
       </div>
     </div><!-- end workspace-right-sidebar -->
@@ -206,7 +229,7 @@ import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import { useHocrContext } from '../composables/useHocr';
-import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PointerSettings, StructureDb} from '../types';
+import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -276,8 +299,13 @@ const emit = defineEmits<{
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
-const isPanelVisible = (panelId: keyof PanelVisibility) => {
+const isPanelVisible = (panelId: PanelId) => {
   return props.panels ? props.panels[panelId] : false;
+};
+const togglePanel = (panelId: PanelId) => {
+  if (props.panels) {
+    props.panels[panelId] = !props.panels[panelId];
+  }
 };
 const isLeftSidebarVisible = computed(() => {
   return isPanelVisible('page-list') || isPanelVisible('section-structure');
@@ -775,12 +803,22 @@ defineExpose({
   color: var(--color-text-muted, #6c757d);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0.6rem 0.75rem 0.4rem;
+  padding: 0.3rem 0.75rem 0.3rem;
   border-bottom: 1px solid var(--color-border, #dee2e6);
   position: sticky;
   top: 0;
   background: var(--color-surface, #fff);
   z-index: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sidebar-lead-label {
+  writing-mode: horizontal-tb;
+  cursor: pointer;
+  user-select: none;
 }
 
 .sidebar-content {
@@ -788,6 +826,48 @@ defineExpose({
   font-size: 0.875rem;
   color: var(--color-text-muted, #6c757d);
 }
+
+.sidebar-collapsed {
+  flex: 0 0 2.4rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-collapsed .sidebar-lead {
+  position: static;
+  min-height: 0;
+  min-width: 2.4rem;
+  padding: 0.75rem 0;
+  align-items: center;
+  justify-content: flex-start;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-collapsed .sidebar-lead-label {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+}
+
+.sidebar-collapsed .sidebar-lead-info {
+  display: none;
+}
+
+.sidebar-lead sl-icon-button::part(base) {
+  font-size: 0.9rem;
+  padding: 0.1rem;
+}
+
+sl-icon-button.filter-button-active::part(base) {
+  background: var(--sl-color-primary-200);
+  color: var(--sl-color-primary-700);
+}
+
+sl-icon-button.filter-button-active:hover::part(base) {
+  background: var(--sl-color-primary-300);
+}
+
+/* Workarea */
 
 .workspace-workarea {
   min-width: 0;
@@ -821,8 +901,7 @@ defineExpose({
   min-height: 0;;
 }
 
-.workspace-pane-hidden,
-.workspace-sidebar-hidden {
+.workspace-pane-hidden {
   flex: 0 0 0;
   width: 0;
   min-width: 0;
@@ -896,6 +975,16 @@ defineExpose({
 .info-count {
   color: var(--color-text-muted, #6c757d);
   flex-shrink: 0;
+}
+
+.sidebar-lead-info {
+  font-weight: 300;
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #6c757d);
+}
+
+.icon-flipped::part(base) {
+  transform: scaleX(-1);
 }
 
 </style>

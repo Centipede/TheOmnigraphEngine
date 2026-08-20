@@ -17,48 +17,6 @@
   >
     <template #tools="{ currentPage }">
 
-      <div class="ocr-info-panel">
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Level</span>
-          <span class="ocr-info-value">{{ ocrLevel }}</span>
-        </div>
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Mode</span>
-          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
-        </div>
-        <template v-if="ocrLevel === 'multi'">
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Carea</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Block</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Line</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Word</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
-          </div>
-        </template>
-        <template v-else>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Selected</span>
-            <span class="ocr-info-value ocr-info-id">
-              <template v-if="selectedTarget">{{ selectedTarget.id }} ({{ selectedTarget.level }})</template>
-              <template v-else>—</template>
-            </span>
-          </div>
-        </template>
-      </div>
-
       <div class="tool-palette">
         <sl-button-group>
           <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
@@ -152,6 +110,48 @@
         </template>
       </div>
 
+      <div class="ocr-info-panel">
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Level</span>
+          <span class="ocr-info-value">{{ ocrLevel }}</span>
+        </div>
+        <div class="ocr-info-row">
+          <span class="ocr-info-label">Mode</span>
+          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
+        </div>
+        <template v-if="ocrLevel === 'multi'">
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Carea</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Block</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Line</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
+          </div>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Word</span>
+            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
+            <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="ocr-info-row">
+            <span class="ocr-info-label">Selected</span>
+            <span class="ocr-info-value ocr-info-id">
+              <template v-if="selectedTarget">{{ selectedTarget.id }} ({{ selectedTarget.level }})</template>
+              <template v-else>—</template>
+            </span>
+          </div>
+        </template>
+      </div>
+
     </template>
   </PageWorkspace>
 </template>
@@ -168,7 +168,7 @@ import {
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
-import {type HocrPage} from '../types/hocr';
+import {type HocrPage} from '../types';
 
 interface AddRequest {
   to_carea?: string | null; to_block?: string | null; to_line?: string | null;
