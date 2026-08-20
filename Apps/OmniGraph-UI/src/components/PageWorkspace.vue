@@ -193,12 +193,10 @@
               :filtered-pages="filteredPages"
               :visible-pages="visiblePages"
               :selected-pages="selectedPages"
-              :sidebar-lead-info="selectionInfo"
+              :selection-info="selectionInfo"
               :current-page-index="currentPageIndex"
               :current-page="currentPage"
               :focus-page="focusPage"
-              :filter-mode="filterMode"
-              :on-filter-change="onFilterChange"
               :page-db-next-batch="pageDbNextBatch"
               :has-changes="hasChanges"
           />
@@ -849,6 +847,10 @@ defineExpose({
 .sidebar-collapsed .sidebar-lead-label {
   writing-mode: vertical-lr;
   transform: rotate(180deg);
+}
+
+.sidebar-collapsed .sidebar-lead-info {
+  display: none;
 }
 
 .sidebar-lead sl-icon-button::part(base) {
