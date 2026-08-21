@@ -47,7 +47,9 @@
                  v-if="item.role === 'active'">
               <span class="hocr-overlay-item-kind"
                     v-if="item.kind">{{ item.kind }}</span>
+              <span class="hocr-overlay-item-lang" v-if="item.lang">[{{ item.lang }}]</span>
               <span class="hocr-overlay-item-index">#{{ item.index }}</span>
+              <span class="hocr-overlay-item-wconf" v-if="item.wconf != null">{{ item.wconf }}%</span>
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
           </div>
@@ -218,7 +220,8 @@ const overlayItems = computed((): OverlayItem[] => {
         bbox: block.bbox,
         role: br,
         color: colorFor(1, j, br),
-        kind: blockKindFor(block)
+        kind: blockKindFor(block),
+        lang: block.lang,
       });
 
       for (const [k, line] of block.lines.entries()) {
@@ -243,6 +246,8 @@ const overlayItems = computed((): OverlayItem[] => {
             role: wr,
             color: colorFor(3, l, wr),
             kind: null,
+            lang: word.lang,
+            wconf: word.wconf,
           });
         }
       }
@@ -487,15 +492,31 @@ function scanYPct(value: number): string {
 
 function overlayItemStyle(item: OverlayItem) {
   const [l, t, r, b] = item.bbox;
-  return {
+  const style: any = {
     position: 'absolute' as const,
     left: scanXPct(l),
     top: scanYPct(t),
     width: scanXPct(r - l),
     height: scanYPct(b - t),
     '--hocr-color': item.color,
-    background: item.role !== 'active' ? 'transparent' : item.color,
   };
+
+  if (item.role === 'active') {
+    const isHighLevel = item.level === 'carea' || item.level === 'block';
+    if (isHighLevel) {
+      style.background = `color-mix(in srgb, ${item.color} 15%, transparent)`;
+      style.outline = `2px solid ${item.color}`;
+      style['--info-display'] = 'inline-flex';
+    } else {
+      style.background = 'transparent';
+      style.outline = `1px solid color-mix(in srgb, ${item.color} 25%, transparent)`;
+      style['--info-display'] = 'none';
+    }
+  } else {
+    style.background = 'transparent';
+  }
+
+  return style;
 }
 
 
@@ -591,7 +612,7 @@ function overlayItemStyle(item: OverlayItem) {
   top: -0.25rem;
   z-index: 2;
   max-width: calc(100% - 0.5rem);
-  display: inline-flex;
+  display: var(--info-display, none);
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.4rem;
@@ -629,6 +650,15 @@ function overlayItemStyle(item: OverlayItem) {
   font-weight: 400;
 }
 
+.hocr-overlay-item-lang {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.hocr-overlay-item-wconf {
+  color: #fbbf24;
+}
+
 /* N-1: parent context — faint dashed outline, no fill, non-interactive */
 .hocr-overlay--parent {
   pointer-events: none;
@@ -640,14 +670,19 @@ function overlayItemStyle(item: OverlayItem) {
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active {
   outline: 2px solid var(--hocr-color);
-  background: color-mix(in srgb, var(--hocr-color) 15%, transparent) !important;
+  background: color-mix(in srgb, var(--hocr-color) 15%, transparent);
   opacity: 1;
 }
 
-
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active:hover {
+  outline: 2px solid var(--hocr-color) !important;
   background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
+}
+
+.hocr-overlay:hover > .hocr-overlay-item-info,
+.hocr-overlay--indicated > .hocr-overlay-item-info {
+  display: inline-flex !important;
 }
 
 /* Selected item — stronger outline + hover-level fill, stays regardless of hover */

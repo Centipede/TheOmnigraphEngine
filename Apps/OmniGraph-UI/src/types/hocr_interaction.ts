@@ -10,6 +10,8 @@ export interface OverlayItem {
     role: OverlayRole;
     color: string;
     kind: string | null;
+    wconf?: number;
+    lang?: string;
 }
 
 export type PageInteractionUpdate = (
