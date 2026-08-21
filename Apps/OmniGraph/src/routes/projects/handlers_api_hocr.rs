@@ -921,6 +921,164 @@ pub async fn word_remove(
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
+pub async fn word_rescan(
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<RescanRequest>,
+) -> impl IntoResponse {
+    // 1. Parse current page hOCR
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    // 2. Find the selected word by ID
+    let word_path = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Word {
+            carea,
+            block,
+            line,
+            word,
+        }) => HocrPath::Word {
+            carea,
+            block,
+            line,
+            word,
+        },
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let HocrPath::Word {
+        carea: c_idx,
+        block: b_idx,
+        line: l_idx,
+        word: w_idx,
+    } = word_path
+    else {
+        unreachable!()
+    };
+    let word_bbox = page.careas[c_idx].blocks[b_idx].lines[l_idx].words[w_idx].bbox;
+    let dx = word_bbox.left().max(0);
+    let dy = word_bbox.top().max(0);
+
+    // 3. Load the page image from disk
+    let pages_db_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("pagedata.json");
+    let pages_db = storage::load_page_db(&pages_db_path);
+    let page_meta = match pages_db.pages.iter().find(|p| {
+        std::path::Path::new(&p.scan)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            == Some(&stem)
+    }) {
+        Some(p) => p,
+        None => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let scan_path = state
+        .projects_dir
+        .join(&machine_name)
+        .join("pages")
+        .join("scans")
+        .join(&page_meta.scan);
+    let img_bytes = match tokio::fs::read(&scan_path).await {
+        Ok(b) => b,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    // 4. Get page CropEdges
+    let crop_edges = page_meta.crop_edges;
+
+    // 5. Extract image segment using word_bbox
+    // For word rescan, we don't have child image blocks to mask.
+    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(
+        &img_bytes,
+        word_bbox,
+        crop_edges,
+        &[],
+    ) {
+        Ok(b) => b,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+
+    let Ok(_) = tokio::fs::write("/tmp/testimage.jpg", &processed_bytes).await else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+
+    // 6. Call OCR service
+    let server = {
+        let settings = state.settings.read().unwrap();
+        let ocr_status = state.ocr_status.read().unwrap();
+        if matches!(ocr_status.server_1, ServerStatus::Online) {
+            settings.ocr_server_1.clone()
+        } else if matches!(ocr_status.server_2, ServerStatus::Online) {
+            settings.ocr_server_2.clone()
+        } else {
+            None
+        }
+    };
+    let Some(server_config) = server else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "OCR server not configured").into_response();
+    };
+
+    let ocr_results = match crate::ocr_client::call_ocr_service(
+        &server_config,
+        vec![("rescan.png".to_string(), processed_bytes)],
+        &payload.language,
+    )
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+
+    let hocr_text = match ocr_results.into_iter().next() {
+        Some(r) => match r.hocr {
+            Some(h) => h,
+            None => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    r.error.unwrap_or("OCR failed".to_string()),
+                )
+                    .into_response()
+            }
+        },
+        None => return (StatusCode::INTERNAL_SERVER_ERROR, "OCR failed").into_response(),
+    };
+
+    // 7. Parse the returned hOCR as a HocrPage
+    let new_page =
+        match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text))
+            .await
+            .unwrap_or(None)
+        {
+            Some(p) => p,
+            None => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to parse OCR result",
+                )
+                    .into_response()
+            }
+        };
+
+    // 8. Harvest all words from new_page and shift them
+    let mut new_words = new_page.collect_all_words();
+    for nw in &mut new_words {
+        nw.shift(dx, dy);
+    }
+
+    // 9. Replace the original word with the new words
+    page.replace_words(&id, new_words);
+
+    // 10. Save the updated hOCR and return the page JSON
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
 // ── TOOLS ────────────────────────────────────────────────────────────
 
 pub async fn parse_page(

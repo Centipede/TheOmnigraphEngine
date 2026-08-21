@@ -79,7 +79,7 @@
           <sl-button @click="autoFlow(currentPage)" size="small">Auto flow</sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='carea'">
+        <sl-button-group v-if="activeMasterTool === 'edit' && (ocrLevel==='carea' || ocrLevel==='word')">
           <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
             <sl-icon name="arrow-repeat" slot="prefix"></sl-icon>
             Rescan
@@ -205,7 +205,7 @@ const { setActivePanels } = usePanelVisibilityContext();
 const showError = inject<(msg: string) => void>('showError');
 
 const hocrContext = provideHocrContext();
-const { hocrPage, rescanCarea, updateHocr, loadHocr } = hocrContext;
+const { hocrPage, rescanCarea, rescanWord, updateHocr, loadHocr } = hocrContext;
 const route = useRoute();
 
 const currentStem = computed(() => {
@@ -787,10 +787,22 @@ async function restoreFromOriginal(page: Page | null): Promise<void> {
   await handleHocrResponse(resp, 'restoreFromOriginal');
 }
 
-async function rescan(careaId: string | null) {
-  if (!careaId || !hocrContext.machineName.value || !hocrContext.stem.value) return;
-  if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
-  await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId, ocrLanguage.value);
+async function rescan(id: string | null) {
+  if (!id || !hocrContext.machineName.value || !hocrContext.stem.value) return;
+  const level = ocrLevel.value;
+  if (level !== 'carea' && level !== 'word') return;
+
+  const confirmMsg = level === 'carea'
+    ? "Are you sure you want to rescan this carea? This will append new results to the existing ones."
+    : "Are you sure you want to rescan this word? This will replace the word with new results.";
+
+  if (!window.confirm(confirmMsg)) return;
+
+  if (level === 'carea') {
+    await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, id, ocrLanguage.value);
+  } else {
+    await rescanWord(hocrContext.machineName.value, hocrContext.stem.value, id, ocrLanguage.value);
+  }
 }
 
 const getStem = (p: Page) => p.scan.replace(/\.[^.]+$/, '');

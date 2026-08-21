@@ -79,6 +79,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages/{stem}/hocr/words/{id}/move-up",     post(handlers_api_hocr::word_move_up))
         .route("/projects/{machine_name}/pages/{stem}/hocr/words/{id}/move-down",   post(handlers_api_hocr::word_move_down))
         .route("/projects/{machine_name}/pages/{stem}/hocr/words/{id}/remove",      post(handlers_api_hocr::word_remove))
+        .route("/projects/{machine_name}/pages/{stem}/hocr/words/{id}/rescan",      post(handlers_api_hocr::word_rescan))
         .route("/projects/{machine_name}/pages/scan", post(handlers_api::scan_pages_post))
         .route("/projects/{machine_name}/pages/append", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))
         .route("/projects/{machine_name}/pages/insert", post(handlers_api::post_append_images).layer(DefaultBodyLimit::disable()))

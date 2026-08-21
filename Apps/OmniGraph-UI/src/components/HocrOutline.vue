@@ -54,6 +54,9 @@
                   <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id, $event)">W</span>
                   <span class="hocr-id" :title="word.id">{{ word.id }}</span>
                   <span class="hocr-preview">{{ word.text }}</span>
+                  <sl-button variant="text" size="small" class="hocr-rescan-btn" @click.stop="rescanWordAction(word.id)" title="Rescan OCR for this word">
+                    <sl-icon name="arrow-repeat"></sl-icon>
+                  </sl-button>
                   <span class="hocr-conf">{{ word.wconf }}%</span>
                 </div>
               </div>
@@ -84,7 +87,7 @@ import {
   findMultilevelById
 } from '../types/hocr';
 
-const { hocrPage, machineName, stem, rescanCarea } = useHocrContext();
+const { hocrPage, machineName, stem, rescanCarea, rescanWord } = useHocrContext();
 const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
 const indicatedItemId   = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => void>('selectNode', () => {});
@@ -134,6 +137,12 @@ function rescan(careaId: string) {
   if (!machineName.value || !stem.value) return;
   if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
   rescanCarea(machineName.value, stem.value, careaId);
+}
+
+function rescanWordAction(wordId: string) {
+  if (!machineName.value || !stem.value) return;
+  if (!window.confirm("Are you sure you want to rescan this word? This will replace the word with new results.")) return;
+  rescanWord(machineName.value, stem.value, wordId);
 }
 
 // ── Display helpers ──────────────────────────────────────────────────

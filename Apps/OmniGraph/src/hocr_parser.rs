@@ -404,6 +404,45 @@ impl HocrPage {
         }
     }
 
+    pub fn collect_all_words(&self) -> Vec<HocrWord> {
+        self.careas
+            .iter()
+            .flat_map(|c| c.blocks.iter())
+            .flat_map(|b| b.lines.iter())
+            .flat_map(|l| l.words.iter())
+            .cloned()
+            .collect()
+    }
+
+    pub fn replace_words(&mut self, word_id: &str, mut with_words: Vec<HocrWord>) {
+        if let Some(HocrPath::Word {
+            carea,
+            block,
+            line,
+            word,
+        }) = find_node(self, word_id)
+        {
+            // Assign unique IDs to new words
+            let preferred_stem = stem_from_id(word_id);
+            let mut next_number = self
+                .get_next_number_with_stem(preferred_stem.as_str())
+                .unwrap_or(1);
+
+            for new_word in &mut with_words {
+                new_word.id = format!("{}_{}", preferred_stem, next_number);
+                next_number += 1;
+            }
+
+            // Remove the original word and insert new words at its position
+            self.careas[carea].blocks[block].lines[line]
+                .words
+                .splice(word..word + 1, with_words);
+
+            // Rebuild the bounding box of the containing line
+            self.cleanup_line(carea, block, line);
+        }
+    }
+
     pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool) {
         if flows.is_empty() {
             return;
