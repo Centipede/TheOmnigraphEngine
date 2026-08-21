@@ -226,9 +226,9 @@ pub async fn carea_rescan(
         Some(HocrPath::Carea { carea }) => carea,
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
-    let dx = page.careas[carea_index].bbox.left();
-    let dy = page.careas[carea_index].bbox.top();
     let carea_bbox = page.careas[carea_index].bbox;
+    let dx = carea_bbox.left().max(0);
+    let dy = carea_bbox.top().max(0);
 
     // 3. Identify child image blocks within that carea
     let image_blocks: Vec<hocr_parser::HocrBbox> = page.careas[carea_index].blocks.iter()
@@ -256,8 +256,8 @@ pub async fn carea_rescan(
     // 5. Get page CropEdges
     let crop_edges = page_meta.crop_edges;
 
-    // 6. Call image_utils::extract_and_process_carea_image
-    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(&img_bytes, carea_bbox, crop_edges, &image_blocks) {
+    // 6. Call image_utils::extract_and_process_carea_image (with 50px padding)
+    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(&img_bytes, carea_bbox, crop_edges, &image_blocks, 50) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     };
@@ -298,10 +298,10 @@ pub async fn carea_rescan(
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse OCR result").into_response(),
     };
 
-    // 9. Shift the coordinates of the new OCR results by (+dx, +dy)
+    // 9. Shift the coordinates of the new OCR results by (+dx - 50, +dy - 50)
     let mut new_careas = new_page.careas;
     for nc in &mut new_careas {
-        nc.shift(dx, dy);
+        nc.shift(dx - 50, dy - 50);
     }
 
     // 10. Merge the results back into the original page
@@ -992,13 +992,14 @@ pub async fn word_rescan(
     // 4. Get page CropEdges
     let crop_edges = page_meta.crop_edges;
 
-    // 5. Extract image segment using word_bbox
+    // 5. Extract image segment using word_bbox (with 50px padding)
     // For word rescan, we don't have child image blocks to mask.
     let processed_bytes = match crate::image_utils::extract_and_process_carea_image(
         &img_bytes,
         word_bbox,
         crop_edges,
         &[],
+        50,
     ) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
@@ -1066,10 +1067,10 @@ pub async fn word_rescan(
             }
         };
 
-    // 8. Harvest all words from new_page and shift them
+    // 8. Harvest all words from new_page and shift them by (+dx - 50, +dy - 50)
     let mut new_words = new_page.collect_all_words();
     for nw in &mut new_words {
-        nw.shift(dx, dy);
+        nw.shift(dx - 50, dy - 50);
     }
 
     // 9. Replace the original word with the new words

@@ -66,6 +66,7 @@ pub fn extract_and_process_carea_image(
     carea_bbox: HocrBbox,
     page_crop: CropEdges,
     image_blocks: &[HocrBbox],
+    padding: u32,
 ) -> Result<Vec<u8>, String> {
     let format = image::guess_format(page_img_bytes).map_err(|e| e.to_string())?;
     let img = image::load_from_memory(page_img_bytes).map_err(|e| e.to_string())?;
@@ -122,5 +123,18 @@ pub fn extract_and_process_carea_image(
         }
     }
 
-    write_image_without_unneeded_alpha(image::DynamicImage::ImageRgba8(cropped), format)
+    if padding > 0 {
+        let new_width = target_width + 2 * padding;
+        let new_height = target_height + 2 * padding;
+        let mut padded = image::ImageBuffer::from_pixel(new_width, new_height, white);
+
+        for y in 0..target_height {
+            for x in 0..target_width {
+                padded.put_pixel(x + padding, y + padding, *cropped.get_pixel(x, y));
+            }
+        }
+        write_image_without_unneeded_alpha(image::DynamicImage::ImageRgba8(padded), format)
+    } else {
+        write_image_without_unneeded_alpha(image::DynamicImage::ImageRgba8(cropped), format)
+    }
 }
