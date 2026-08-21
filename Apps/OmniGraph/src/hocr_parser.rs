@@ -357,6 +357,20 @@ impl HocrPage {
         }
     }
 
+    pub fn replace_or_merge_carea(&mut self, carea_index: usize, mut new_careas: Vec<HocrCarea>) {
+        // 1. Assign unique IDs recursively
+        self.assign_unique_ids_to_careas(&mut new_careas);
+
+        // 2. Merge or Insert logic
+        if new_careas.len() == 1 {
+            let new_carea = new_careas.pop().unwrap();
+            self.careas[carea_index].blocks.extend(new_carea.blocks);
+            self.careas[carea_index].rebuild_bbox();
+        } else if new_careas.len() > 1 {
+            self.insert_careas_after(carea_index, new_careas);
+        }
+    }
+
     pub fn insert_careas_after(&mut self, index: usize, new_careas: Vec<HocrCarea>) {
         if index < self.careas.len() {
             let mut tail = self.careas.split_off(index + 1);
@@ -401,6 +415,45 @@ impl HocrPage {
         match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
             None => self.bbox = HocrBbox::empty(),
+        }
+    }
+
+    pub fn collect_all_words(&self) -> Vec<HocrWord> {
+        self.careas
+            .iter()
+            .flat_map(|c| c.blocks.iter())
+            .flat_map(|b| b.lines.iter())
+            .flat_map(|l| l.words.iter())
+            .cloned()
+            .collect()
+    }
+
+    pub fn replace_words(&mut self, word_id: &str, mut with_words: Vec<HocrWord>) {
+        if let Some(HocrPath::Word {
+            carea,
+            block,
+            line,
+            word,
+        }) = find_node(self, word_id)
+        {
+            // Assign unique IDs to new words
+            let preferred_stem = stem_from_id(word_id);
+            let mut next_number = self
+                .get_next_number_with_stem(preferred_stem.as_str())
+                .unwrap_or(1);
+
+            for new_word in &mut with_words {
+                new_word.id = format!("{}_{}", preferred_stem, next_number);
+                next_number += 1;
+            }
+
+            // Remove the original word and insert new words at its position
+            self.careas[carea].blocks[block].lines[line]
+                .words
+                .splice(word..word + 1, with_words);
+
+            // Rebuild the bounding box of the containing line
+            self.cleanup_line(carea, block, line);
         }
     }
 
@@ -535,14 +588,30 @@ impl HocrPage {
             Some(numbers.into_iter().max().unwrap() + 1)
         }
     }
-    pub fn get_unique_id(&self, from_id: &str) -> String {
-        let preferred_stem = stem_from_id(from_id);
-        let next = self.get_next_number_with_stem(preferred_stem.as_str());
-
-        match next {
-            Some(n) => format!("{preferred_stem}_{n}"),
-            None => format!("{preferred_stem}_1"),
+    pub fn assign_unique_ids_to_careas(&self, careas: &mut [HocrCarea]) {
+        let mut next_numbers: HashMap<String, usize> = HashMap::new();
+        for carea in careas {
+            carea.id = self.get_unique_id(&carea.id, &mut next_numbers);
+            for block in &mut carea.blocks {
+                block.id = self.get_unique_id(&block.id, &mut next_numbers);
+                for line in &mut block.lines {
+                    line.id = self.get_unique_id(&line.id, &mut next_numbers);
+                    for word in &mut line.words {
+                        word.id = self.get_unique_id(&word.id, &mut next_numbers);
+                    }
+                }
+            }
         }
+    }
+
+    pub fn get_unique_id(&self, from_id: &str, next_numbers: &mut HashMap<String, usize>) -> String {
+        let stem = stem_from_id(from_id);
+        let next = next_numbers.entry(stem.clone()).or_insert_with(|| {
+            self.get_next_number_with_stem(&stem).unwrap_or(1)
+        });
+        let id = format!("{}_{}", stem, *next);
+        *next += 1;
+        id
     }
 
     pub fn cleanup_carea(&mut self, carea: usize) {
@@ -1035,7 +1104,7 @@ impl HocrPage {
             return;
         }
 
-        let new_id = self.get_unique_id(self.careas[carea].id.as_str());
+        let new_id = self.get_unique_id(self.careas[carea].id.as_str(), &mut HashMap::new());
         let (flow, layout) = {
             let old_carea = &self.careas[carea];
             (old_carea.flow.clone(), old_carea.layout.clone())
@@ -1060,7 +1129,7 @@ impl HocrPage {
         if line_before == line_after {
             return;
         }
-        let new_id = self.get_unique_id(self.careas[carea].blocks[block].id.as_str());
+        let new_id = self.get_unique_id(self.careas[carea].blocks[block].id.as_str(), &mut HashMap::new());
         let carea = &mut self.careas[carea];
         let old_block = &mut carea.blocks[block];
         let (_, right) = old_block.lines.split_at_mut(line_after);
@@ -1104,7 +1173,7 @@ impl HocrPage {
         }
         let carea_index = carea_index.unwrap_or(self.careas.len());
 
-        let new_id = self.get_unique_id("carea");
+        let new_id = self.get_unique_id("carea", &mut HashMap::new());
         self.careas.insert(carea_index, HocrCarea {
             level: "carea".to_string(),
             id: new_id.clone(),
@@ -1163,8 +1232,8 @@ impl HocrPage {
                 let carea_index = carea_index.unwrap_or(self.careas.len());
 
                 // 2. Create a new HocrCarea with a unique ID and the new block's bbox.
-                let new_carea_id = self.get_unique_id("carea");
-                let new_block_id = self.get_unique_id("par");
+                let new_carea_id = self.get_unique_id("carea", &mut HashMap::new());
+                let new_block_id = self.get_unique_id("par", &mut HashMap::new());
                 let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
 
                 // 3. Create a new HocrBlock (Paragraph or Image kind) inside the new carea.
@@ -1215,7 +1284,7 @@ impl HocrPage {
                     }
                 }
                 let block_index = block_index.unwrap_or(self.careas[carea].blocks.len());
-                let new_id = self.get_unique_id("par");
+                let new_id = self.get_unique_id("par", &mut HashMap::new());
                 let block_kind = if block_type.unwrap_or(AddBlockType::Text) == AddBlockType::Image { HocrBlockKind::Image } else { HocrBlockKind::Paragraph };
 
                 self.careas[carea].blocks.insert(block_index, HocrBlock {
@@ -1935,9 +2004,9 @@ mod tests {
         assert_eq!(page.get_next_number_with_stem("par"), Some(2));
         assert_eq!(page.get_next_number_with_stem("line"), Some(3));
         assert_eq!(page.get_next_number_with_stem("word"), Some(7));
-        assert_eq!(page.get_unique_id("par_1_1"), "par_1_2");
-        assert_eq!(page.get_unique_id("line_1_2"), "line_1_3");
-        assert_eq!(page.get_unique_id("word_1_1"), "word_1_7");
+        assert_eq!(page.get_unique_id("par_1_1", &mut HashMap::new()), "par_1_2");
+        assert_eq!(page.get_unique_id("line_1_2", &mut HashMap::new()), "line_1_3");
+        assert_eq!(page.get_unique_id("word_1_1", &mut HashMap::new()), "word_1_7");
     }
 
     #[test]
@@ -2640,5 +2709,46 @@ mod tests {
         assert_eq!(page.careas[0].layout, Some("L1".to_string()));
         assert_eq!(page.careas[1].layout, Some("L2".to_string()));
         assert_eq!(page.careas[2].layout, Some("L1".to_string()));
+    }
+
+    #[test]
+    fn test_replace_or_merge_carea_uniqueness() {
+        let mut page = parse(SAMPLE_3CAREAS).unwrap();
+        // The sample has careas with IDs: carea_1, carea_2, carea_3.
+        // It has blocks (pars): par_1, par_2, par_3.
+        // Lines: line_1, line_2, line_3.
+        // Words: word_1, word_2, word_3.
+
+        // Create a new carea that has overlapping IDs.
+        let mut new_carea = page.careas[0].clone();
+        // new_carea has id 'carea_1', block 'par_1', line 'line_1', word 'word_1'.
+
+        let original_carea_count = page.careas.len();
+        page.replace_or_merge_carea(0, vec![new_carea]);
+
+        // It should have merged blocks into the first carea.
+        assert_eq!(page.careas.len(), original_carea_count);
+
+        // Now check for duplicates across the entire page
+        let mut ids = std::collections::HashSet::new();
+        for carea in &page.careas {
+            assert!(ids.insert(carea.id.clone()), "Duplicate carea ID: {}", carea.id);
+            for block in &carea.blocks {
+                assert!(ids.insert(block.id.clone()), "Duplicate block ID: {}", block.id);
+                for line in &block.lines {
+                    assert!(ids.insert(line.id.clone()), "Duplicate line ID: {}", line.id);
+                    for word in &line.words {
+                        assert!(ids.insert(word.id.clone()), "Duplicate word ID: {}", word.id);
+                    }
+                }
+            }
+        }
+
+        // Specifically verify that the merged block got a new ID.
+        // The first carea should now have 2 blocks.
+        assert_eq!(page.careas[0].blocks.len(), 2);
+        // Original was 'par_1', new one should be 'par_4' because par_1, par_2, par_3 exist.
+        assert_eq!(page.careas[0].blocks[0].id, "par_1");
+        assert_eq!(page.careas[0].blocks[1].id, "par_4");
     }
 }

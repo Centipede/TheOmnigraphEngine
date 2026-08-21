@@ -1,5 +1,8 @@
 <template>
   <div class="page-preview">
+    <div class="page-preview-toolbar">
+      <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
+    </div>
     <div
         class="interactive-area"
         :class="pointerVisible ? 'cursor-mode-off' : ''"
@@ -47,7 +50,9 @@
                  v-if="item.role === 'active'">
               <span class="hocr-overlay-item-kind"
                     v-if="item.kind">{{ item.kind }}</span>
+              <span class="hocr-overlay-item-lang" v-if="item.lang">[{{ item.lang }}]</span>
               <span class="hocr-overlay-item-index">#{{ item.index }}</span>
+              <span class="hocr-overlay-item-wconf" v-if="item.wconf != null">{{ item.wconf }}%</span>
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
           </div>
@@ -99,6 +104,18 @@ import CustomPointer from "./CustomPointer.vue";
 
 const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
+const CONFIDENCE_COLOR = '255, 0, 0';
+const CONFIDENCE_MIN_ALPHA = 0.08;
+const CONFIDENCE_MAX_ALPHA = 0.4;
+
+function getMinWconf(node: HocrNode): number {
+  if ('words' in node) return node.words.length > 0 ? Math.min(...node.words.map(w => w.wconf)) : 100;
+  if ('lines' in node) return node.lines.length > 0 ? Math.min(...node.lines.map(getMinWconf)) : 100;
+  if ('blocks' in node) return node.blocks.length > 0 ? Math.min(...node.blocks.map(getMinWconf)) : 100;
+  if ('wconf' in node) return node.wconf;
+  return 100;
+}
+
 const props = withDefaults(defineProps<{
   page: Page;
   imageBaseUrl: string;
@@ -139,6 +156,7 @@ const imageWrapRef = ref<HTMLElement | null>(null);
 const pointerVisible = ref(false);
 const pointerX = ref(0);
 const pointerY = ref(0);
+const showConfidence = ref(false);
 
 // ── Drag-to-draw state ───────────────────────────────────────────────
 const dragStart   = ref<{x: number; y: number} | null>(null);
@@ -207,7 +225,7 @@ const overlayItems = computed((): OverlayItem[] => {
 
   for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(1);
-    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null});
+    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null, wconf: getMinWconf(carea)});
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(2);
@@ -218,7 +236,8 @@ const overlayItems = computed((): OverlayItem[] => {
         bbox: block.bbox,
         role: br,
         color: colorFor(1, j, br),
-        kind: blockKindFor(block)
+        kind: blockKindFor(block),
+        wconf: getMinWconf(block),
       });
 
       for (const [k, line] of block.lines.entries()) {
@@ -231,6 +250,7 @@ const overlayItems = computed((): OverlayItem[] => {
           role: lr,
           color: colorFor(2, k, lr),
           kind: null,
+          wconf: getMinWconf(line),
         });
 
         for (const [l, word] of line.words.entries()) {
@@ -243,6 +263,8 @@ const overlayItems = computed((): OverlayItem[] => {
             role: wr,
             color: colorFor(3, l, wr),
             kind: null,
+            lang: word.lang,
+            wconf: word.wconf,
           });
         }
       }
@@ -487,15 +509,40 @@ function scanYPct(value: number): string {
 
 function overlayItemStyle(item: OverlayItem) {
   const [l, t, r, b] = item.bbox;
-  return {
+  const style: any = {
     position: 'absolute' as const,
     left: scanXPct(l),
     top: scanYPct(t),
     width: scanXPct(r - l),
     height: scanYPct(b - t),
     '--hocr-color': item.color,
-    background: item.role !== 'active' ? 'transparent' : item.color,
   };
+
+  if (item.role === 'active') {
+    const isHighLevel = item.level === 'carea' || item.level === 'block';
+    if (isHighLevel) {
+      style.background = `color-mix(in srgb, ${item.color} 15%, transparent)`;
+      style.outline = `2px solid ${item.color}`;
+      style['--info-display'] = 'inline-flex';
+    } else {
+      style.background = 'transparent';
+      style.outline = `1px solid color-mix(in srgb, ${item.color} 25%, transparent)`;
+      style['--info-display'] = 'none';
+    }
+  } else if (item.role === 'parent') {
+    style.background = 'transparent';
+    style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
+  } else {
+    style.background = 'transparent';
+  }
+
+  if (showConfidence.value && item.role === 'active' && item.wconf !== undefined) {
+    const rawAlpha = (1 - item.wconf / 100) * CONFIDENCE_MAX_ALPHA;
+    const alpha = item.wconf < 100 ? Math.max(rawAlpha, CONFIDENCE_MIN_ALPHA) : 0;
+    style.background = `rgba(${CONFIDENCE_COLOR}, ${alpha})`;
+  }
+
+  return style;
 }
 
 
@@ -515,6 +562,17 @@ function overlayItemStyle(item: OverlayItem) {
 
 .cursor-mode-off {
   cursor: none;
+}
+
+.page-preview-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0.1rem 0.75rem;
+  background: var(--color-surface, #fff);
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+  font-size: 0.85rem;
+  min-height: 1.5rem;
 }
 
 .page-preview {
@@ -591,7 +649,7 @@ function overlayItemStyle(item: OverlayItem) {
   top: -0.25rem;
   z-index: 2;
   max-width: calc(100% - 0.5rem);
-  display: inline-flex;
+  display: var(--info-display, none);
   align-items: center;
   gap: 0.25rem;
   padding: 0.15rem 0.4rem;
@@ -629,25 +687,44 @@ function overlayItemStyle(item: OverlayItem) {
   font-weight: 400;
 }
 
-/* N-1: parent context — faint dashed outline, no fill, non-interactive */
+.hocr-overlay-item-lang {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.hocr-overlay-item-wconf {
+  color: #fbbf24;
+}
+
+/* N-1: parent context — faint dashed outline, no fill, interactive on hover */
 .hocr-overlay--parent {
-  pointer-events: none;
   outline: 2px dotted var(--hocr-color);
   outline-offset: 0.2rem;
-  opacity: 0.85;
+  opacity: 1;
+}
+
+.hocr-overlay--parent:hover {
+  outline: 2px dotted var(--hocr-color) !important;
+  background: color-mix(in srgb, var(--hocr-color) 10%, transparent) !important;
+  opacity: 1 !important;
 }
 
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active {
   outline: 2px solid var(--hocr-color);
-  background: color-mix(in srgb, var(--hocr-color) 15%, transparent) !important;
+  background: color-mix(in srgb, var(--hocr-color) 15%, transparent);
   opacity: 1;
 }
 
-
 /* N: active level — solid outline + translucent fill */
 .hocr-overlay--active:hover {
+  outline: 2px solid var(--hocr-color) !important;
   background: color-mix(in srgb, var(--hocr-color) 45%, transparent) !important;
+}
+
+.hocr-overlay:hover > .hocr-overlay-item-info,
+.hocr-overlay--indicated > .hocr-overlay-item-info {
+  display: inline-flex !important;
 }
 
 /* Selected item — stronger outline + hover-level fill, stays regardless of hover */

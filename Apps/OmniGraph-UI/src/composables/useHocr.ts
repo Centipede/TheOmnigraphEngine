@@ -9,6 +9,7 @@ export interface HocrContext {
   error: Ref<string | null>;
   loadHocr: (machineName: string, stem: string) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
+  rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
 }
@@ -77,6 +78,34 @@ export function provideHocrContext() {
     }
   }
 
+  async function rescanWord(mName: string, sName: string, wordId: string, language = 'eng') {
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${mName}/pages/${sName}/hocr/words/${wordId}/rescan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ language })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && typeof data === 'object' && 'page' in data) {
+          hocrPage.value = data.page as HocrPage;
+        } else {
+          hocrPage.value = data as HocrPage;
+        }
+      } else {
+        error.value = `Rescan failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function updateHocr(page: HocrPage | null) {
     hocrPage.value = page;
   }
@@ -96,6 +125,7 @@ export function provideHocrContext() {
     error,
     loadHocr,
     rescanCarea,
+    rescanWord,
     updateHocr,
     clearHocr
   };
