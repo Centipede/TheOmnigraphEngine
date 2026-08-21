@@ -305,15 +305,7 @@ pub async fn carea_rescan(
     }
 
     // 10. Merge the results back into the original page
-    if new_careas.len() == 1 {
-        // append its blocks to the original carea
-        let new_carea = new_careas.pop().unwrap();
-        page.careas[carea_index].blocks.extend(new_carea.blocks);
-        page.careas[carea_index].rebuild_bbox();
-    } else if new_careas.len() > 1 {
-        // insert them after the original carea
-        page.insert_careas_after(carea_index, new_careas);
-    }
+    page.replace_or_merge_carea(carea_index, new_careas);
 
     // 11. Save the updated hOCR and return the page JSON
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
