@@ -74,6 +74,11 @@
           <sl-button @click="restoreFromOriginal(currentPage)" size="small">Restore</sl-button>
         </sl-button-group>
 
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='page'">
+          <sl-button @click="autoLayout(currentPage)" size="small">Auto layout</sl-button>
+          <sl-button @click="autoFlow(currentPage)" size="small">Auto flow</sl-button>
+        </sl-button-group>
+
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='carea'">
           <sl-button size="small" :disabled="!selectedItemId" @click="rescan(selectedItemId)">
             <sl-icon name="arrow-repeat" slot="prefix"></sl-icon>
@@ -200,7 +205,7 @@ const { setActivePanels } = usePanelVisibilityContext();
 const showError = inject<(msg: string) => void>('showError');
 
 const hocrContext = provideHocrContext();
-const { hocrPage, rescanCarea, updateHocr } = hocrContext;
+const { hocrPage, rescanCarea, updateHocr, loadHocr } = hocrContext;
 const route = useRoute();
 
 const currentStem = computed(() => {
@@ -786,6 +791,48 @@ async function rescan(careaId: string | null) {
   if (!careaId || !hocrContext.machineName.value || !hocrContext.stem.value) return;
   if (!window.confirm("Are you sure you want to rescan this carea? This will append new results to the existing ones.")) return;
   await rescanCarea(hocrContext.machineName.value, hocrContext.stem.value, careaId, ocrLanguage.value);
+}
+
+const getStem = (p: Page) => p.scan.replace(/\.[^.]+$/, '');
+
+async function autoLayout(page: Page | null) {
+  if (!page) return;
+  const stem = getStem(page);
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-layout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stems: [stem] })
+    });
+    if (resp.ok) {
+      await loadHocr(props.machineName, stem);
+    } else {
+      const text = await resp.text();
+      showError?.(`Auto layout failed: ${text}`);
+    }
+  } catch (e) {
+    showError?.(`Auto layout failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+async function autoFlow(page: Page | null) {
+  if (!page) return;
+  const stem = getStem(page);
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-flow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stems: [stem] })
+    });
+    if (resp.ok) {
+      await loadHocr(props.machineName, stem);
+    } else {
+      const text = await resp.text();
+      showError?.(`Auto flow failed: ${text}`);
+    }
+  } catch (e) {
+    showError?.(`Auto flow failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 onMounted(() => {
