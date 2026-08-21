@@ -1,5 +1,8 @@
 <template>
   <div class="page-preview">
+    <div class="page-preview-toolbar">
+      <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
+    </div>
     <div
         class="interactive-area"
         :class="pointerVisible ? 'cursor-mode-off' : ''"
@@ -101,6 +104,18 @@ import CustomPointer from "./CustomPointer.vue";
 
 const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
+const CONFIDENCE_COLOR = '255, 0, 0';
+const CONFIDENCE_MIN_ALPHA = 0.08;
+const CONFIDENCE_MAX_ALPHA = 0.4;
+
+function getMinWconf(node: HocrNode): number {
+  if ('words' in node) return node.words.length > 0 ? Math.min(...node.words.map(w => w.wconf)) : 100;
+  if ('lines' in node) return node.lines.length > 0 ? Math.min(...node.lines.map(getMinWconf)) : 100;
+  if ('blocks' in node) return node.blocks.length > 0 ? Math.min(...node.blocks.map(getMinWconf)) : 100;
+  if ('wconf' in node) return node.wconf;
+  return 100;
+}
+
 const props = withDefaults(defineProps<{
   page: Page;
   imageBaseUrl: string;
@@ -141,6 +156,7 @@ const imageWrapRef = ref<HTMLElement | null>(null);
 const pointerVisible = ref(false);
 const pointerX = ref(0);
 const pointerY = ref(0);
+const showConfidence = ref(false);
 
 // ── Drag-to-draw state ───────────────────────────────────────────────
 const dragStart   = ref<{x: number; y: number} | null>(null);
@@ -209,7 +225,7 @@ const overlayItems = computed((): OverlayItem[] => {
 
   for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(1);
-    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null});
+    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null, wconf: getMinWconf(carea)});
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(2);
@@ -221,7 +237,7 @@ const overlayItems = computed((): OverlayItem[] => {
         role: br,
         color: colorFor(1, j, br),
         kind: blockKindFor(block),
-        lang: block.lang,
+        wconf: getMinWconf(block),
       });
 
       for (const [k, line] of block.lines.entries()) {
@@ -234,6 +250,7 @@ const overlayItems = computed((): OverlayItem[] => {
           role: lr,
           color: colorFor(2, k, lr),
           kind: null,
+          wconf: getMinWconf(line),
         });
 
         for (const [l, word] of line.words.entries()) {
@@ -519,6 +536,12 @@ function overlayItemStyle(item: OverlayItem) {
     style.background = 'transparent';
   }
 
+  if (showConfidence.value && item.role === 'active' && item.wconf !== undefined) {
+    const rawAlpha = (1 - item.wconf / 100) * CONFIDENCE_MAX_ALPHA;
+    const alpha = item.wconf < 100 ? Math.max(rawAlpha, CONFIDENCE_MIN_ALPHA) : 0;
+    style.background = `rgba(${CONFIDENCE_COLOR}, ${alpha})`;
+  }
+
   return style;
 }
 
@@ -539,6 +562,17 @@ function overlayItemStyle(item: OverlayItem) {
 
 .cursor-mode-off {
   cursor: none;
+}
+
+.page-preview-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0.1rem 0.75rem;
+  background: var(--color-surface, #fff);
+  border-bottom: 1px solid var(--color-border, #dee2e6);
+  font-size: 0.85rem;
+  min-height: 1.5rem;
 }
 
 .page-preview {
