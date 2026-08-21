@@ -512,6 +512,9 @@ function overlayItemStyle(item: OverlayItem) {
       style.outline = `1px solid color-mix(in srgb, ${item.color} 25%, transparent)`;
       style['--info-display'] = 'none';
     }
+  } else if (item.role === 'parent') {
+    style.background = 'transparent';
+    style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
   } else {
     style.background = 'transparent';
   }
@@ -659,12 +662,17 @@ function overlayItemStyle(item: OverlayItem) {
   color: #fbbf24;
 }
 
-/* N-1: parent context — faint dashed outline, no fill, non-interactive */
+/* N-1: parent context — faint dashed outline, no fill, interactive on hover */
 .hocr-overlay--parent {
-  pointer-events: none;
   outline: 2px dotted var(--hocr-color);
   outline-offset: 0.2rem;
-  opacity: 0.85;
+  opacity: 1;
+}
+
+.hocr-overlay--parent:hover {
+  outline: 2px dotted var(--hocr-color) !important;
+  background: color-mix(in srgb, var(--hocr-color) 10%, transparent) !important;
+  opacity: 1 !important;
 }
 
 /* N: active level — solid outline + translucent fill */
