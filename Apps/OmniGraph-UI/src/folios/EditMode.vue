@@ -43,6 +43,9 @@
         </sl-checkbox>
 
         <div v-if="activeMasterTool === 'carea-flow'" class="vertical-tool-list">
+          <sl-button size="small" :disabled="!selectedItemId || ocrLevel !== 'carea'" @click="changeCareaOperation('change-flow', '')">
+            No flow <span class="kind-key">0</span>
+          </sl-button>
           <sl-button
               v-for="(flow, index) in flows"
               :key="flow.name"
@@ -55,6 +58,9 @@
         </div>
 
         <div v-if="activeMasterTool === 'carea-layout'" class="vertical-tool-list">
+          <sl-button size="small" :disabled="!selectedItemId || ocrLevel !== 'carea'" @click="changeCareaOperation('change-layout', '')">
+            No layout <span class="kind-key">0</span>
+          </sl-button>
           <sl-button
               v-for="(layout, index) in layouts"
               :key="layout.name"
@@ -654,6 +660,11 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
       }
     } else if (activeMasterTool.value === 'carea-flow') {
       if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
+        if (e.key === '0') {
+          e.preventDefault();
+          await changeCareaOperation('change-flow', '');
+          return;
+        }
         const index = parseInt(e.key) - 1;
         const flow = flows.value[index];
         if (flow) {
@@ -664,6 +675,11 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
       }
     } else if (activeMasterTool.value === 'carea-layout') {
       if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
+        if (e.key === '0') {
+          e.preventDefault();
+          await changeCareaOperation('change-layout', '');
+          return;
+        }
         const index = parseInt(e.key) - 1;
         const layout = layouts.value[index];
         if (layout) {

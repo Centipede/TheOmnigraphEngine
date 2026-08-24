@@ -313,17 +313,55 @@ pub async fn carea_rescan(
 }
 
 pub async fn carea_change_flow(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
-    Json(_payload): Json<MorphRequest>
-) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MorphRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let carea_index = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Carea { carea }) => carea,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let flow = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    page.change_carea_flow(carea_index, flow);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
 
 pub async fn carea_change_layout(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
-    Json(_payload): Json<MorphRequest>
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let carea_index = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Carea { carea }) => carea,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let layout = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    page.change_carea_layout(carea_index, layout);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_change_flow_bulk(
