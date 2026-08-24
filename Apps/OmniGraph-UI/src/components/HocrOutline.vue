@@ -38,6 +38,7 @@
                 <span class="hocr-badge hocr-badge-l" title="Select LINE" @click.stop="selectNode('line', line.id, $event)">L</span>
                 <span class="hocr-count">({{ line.words.length }})</span>
                 <span class="hocr-id" :title="line.id">{{ line.id }}</span>
+                <span v-if="line.lang" class="hocr-lang">{{ line.lang }}</span>
                 <span class="hocr-preview">{{ lineText(line) }}</span>
                 <span class="hocr-toggle">{{ expandedLines.has(line.id) ? '▾' : '▸' }}</span>
               </div>
@@ -53,6 +54,7 @@
                 >
                   <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id, $event)">W</span>
                   <span class="hocr-id" :title="word.id">{{ word.id }}</span>
+                  <span v-if="word.lang" class="hocr-lang">{{ word.lang }}</span>
                   <span class="hocr-preview">{{ word.text }}</span>
                   <sl-button variant="text" size="small" class="hocr-rescan-btn" @click.stop="rescanWordAction(word.id)" title="Rescan OCR for this word">
                     <sl-icon name="arrow-repeat"></sl-icon>

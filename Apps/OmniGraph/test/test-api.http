@@ -31,6 +31,17 @@ Content-Type: application/json
 Accept: application/json
 
 {
+  "sections": [],
+  "headlines": []
+}
+
+###
+
+PUT http://localhost:8080/api/projects/no-test/structure
+Content-Type: application/json
+Accept: application/json
+
+{
   "sections": [
     {
       "path_id": "part-1",

@@ -293,10 +293,11 @@ pub async fn carea_rescan(
     };
 
     // 8. Parse the returned hOCR as a HocrPage
-    let new_page = match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text)).await.unwrap_or(None) {
+    let mut new_page = match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text)).await.unwrap_or(None) {
         Some(p) => p,
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse OCR result").into_response(),
     };
+    new_page.cascade_lang(Some(&payload.language));
 
     // 9. Shift the coordinates of the new OCR results by (+dx - 50, +dy - 50)
     let mut new_careas = new_page.careas;
@@ -1043,8 +1044,10 @@ pub async fn word_rescan(
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "OCR failed").into_response(),
     };
 
+    println!("{:?}", hocr_text.clone());
+
     // 7. Parse the returned hOCR as a HocrPage
-    let new_page =
+    let mut new_page =
         match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text))
             .await
             .unwrap_or(None)
@@ -1058,6 +1061,7 @@ pub async fn word_rescan(
                     .into_response()
             }
         };
+    new_page.cascade_lang(Some(&payload.language));
 
     // 8. Harvest all words from new_page and shift them by (+dx - 50, +dy - 50)
     let mut new_words = new_page.collect_all_words();

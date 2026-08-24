@@ -74,7 +74,7 @@
           <sl-button @click="restoreFromOriginal(currentPage)" size="small">Restore</sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='page'">
+        <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel==='carea'">
           <sl-button @click="autoLayout(currentPage)" size="small">Auto layout</sl-button>
           <sl-button @click="autoFlow(currentPage)" size="small">Auto flow</sl-button>
         </sl-button-group>

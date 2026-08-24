@@ -121,6 +121,8 @@ pub struct HocrLine {
     pub level: String,
     pub id: String,
     pub bbox: HocrBbox,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
     pub words: Vec<HocrWord>,
     pub baseline: Option<(f32, f32)>,
     pub x_size: Option<f32>,
@@ -354,6 +356,12 @@ impl HocrPage {
         self.bbox.shift(dx, dy);
         for carea in &mut self.careas {
             carea.shift(dx, dy);
+        }
+    }
+
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        for carea in &mut self.careas {
+            carea.cascade_lang(default_lang);
         }
     }
 
@@ -1347,6 +1355,12 @@ impl HocrCarea {
         }
     }
 
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        for block in &mut self.blocks {
+            block.cascade_lang(default_lang);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let mut title = format!(
             "bbox {} {} {} {}",
@@ -1479,6 +1493,16 @@ impl HocrBlock {
         }
     }
 
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        if self.lang.is_none() {
+            self.lang = default_lang.map(|s| s.to_string());
+        }
+        let current_lang = self.lang.as_deref();
+        for line in &mut self.lines {
+            line.cascade_lang(current_lang);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let tag = self.kind.tag_name();
         let class = self.kind.class_name();
@@ -1523,9 +1547,25 @@ impl HocrLine {
         }
     }
 
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        if self.lang.is_none() {
+            self.lang = default_lang.map(|s| s.to_string());
+        }
+        let current_lang = self.lang.as_deref();
+        for word in &mut self.words {
+            word.cascade_lang(current_lang);
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
+        let lang_attr = self
+            .lang
+            .as_deref()
+            .map(|lang| format!(" lang=\"{}\"", escape_attr(lang)))
+            .unwrap_or_default();
+
         let mut html = format!(
-            "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}; baseline {} {}; x_size {}; x_descenders {}; x_ascenders {}\">",
+            "<span class=\"ocr_line\" id=\"{}\" title=\"bbox {} {} {} {}; baseline {} {}; x_size {}; x_descenders {}; x_ascenders {}\"{}>",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
@@ -1535,7 +1575,8 @@ impl HocrLine {
             self.baseline.unwrap_or((0.0, 0.0)).1,
             self.x_size.unwrap_or(0.0),
             self.x_descenders.unwrap_or(0.0),
-            self.x_ascenders.unwrap_or(0.0)
+            self.x_ascenders.unwrap_or(0.0),
+            lang_attr
         );
 
         for word in &self.words {
@@ -1557,6 +1598,12 @@ impl HocrLine {
 impl HocrWord {
     pub fn shift(&mut self, dx: i32, dy: i32) {
         self.bbox.shift(dx, dy);
+    }
+
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        if self.lang.is_none() {
+            self.lang = default_lang.map(|s| s.to_string());
+        }
     }
 
     pub fn to_hocr_html(&self) -> String {
@@ -1633,6 +1680,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             let line_x_ascenders = title_keyvals.get("x_ascenders").and_then(|s| s.parse::<f32>().ok());
                             let line_x_descenders = title_keyvals.get("x_descenders").and_then(|s| s.parse::<f32>().ok());
                             let line_id = line_el.attr("id").unwrap_or("").to_string();
+                            let line_lang = line_el.attr("lang").map(str::to_string);
 
                             let words = line_el
                                 .select(&sel_word)
@@ -1654,6 +1702,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                 level: "line".to_string(),
                                 id: line_id,
                                 bbox: line_bbox,
+                                lang: line_lang,
                                 baseline: line_baseline,
                                 x_size: line_x_size,
                                 x_ascenders: line_x_ascenders,
