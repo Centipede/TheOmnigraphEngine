@@ -42,6 +42,36 @@
           Merge items
         </sl-checkbox>
 
+        <div v-if="activeMasterTool === 'carea-flow'" class="vertical-tool-list">
+          <sl-button size="small" :disabled="!selectedItemId || ocrLevel !== 'carea'" @click="changeCareaOperation('change-flow', '')">
+            No flow <span class="kind-key">0</span>
+          </sl-button>
+          <sl-button
+              v-for="(flow, index) in flows"
+              :key="flow.name"
+              size="small"
+              :disabled="!selectedItemId || ocrLevel !== 'carea'"
+              @click="changeCareaOperation('change-flow', flow.name)"
+          >
+            {{ flow.name }} <span class="kind-key">{{ index + 1 }}</span>
+          </sl-button>
+        </div>
+
+        <div v-if="activeMasterTool === 'carea-layout'" class="vertical-tool-list">
+          <sl-button size="small" :disabled="!selectedItemId || ocrLevel !== 'carea'" @click="changeCareaOperation('change-layout', '')">
+            No layout <span class="kind-key">0</span>
+          </sl-button>
+          <sl-button
+              v-for="(layout, index) in layouts"
+              :key="layout.name"
+              size="small"
+              :disabled="!selectedItemId || ocrLevel !== 'carea'"
+              @click="changeCareaOperation('change-layout', layout.name)"
+          >
+            {{ layout.name }} <span class="kind-key">{{ index + 1 }}</span>
+          </sl-button>
+        </div>
+
         <sl-button-group v-if="activeMasterTool === 'edit'">
           <sl-button :variant="ocrLevel==='multi' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('multi')"><sl-icon name="eyedropper"></sl-icon></sl-button>
           <sl-button :variant="ocrLevel==='page' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('page')">Page <span class="kind-key">0</span></sl-button>
@@ -222,12 +252,16 @@ const activeMasterTool = ref<MasterTool>('edit');
 const ocrLevel:Ref<OcrLevel> = ref('multi');
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');
+const project = ref<Project | null>(null);
+const flows = computed(() => project.value?.flows || []);
+const layouts = computed(() => project.value?.layouts || []);
 
 async function fetchProjectMetadata(): Promise<void> {
   try {
     const resp = await fetch(`/api/projects/${props.machineName}`);
     if (resp.ok) {
       const data = await resp.json() as Project;
+      project.value = data;
       if (data.ocr_language) {
         ocrLanguage.value = data.ocr_language;
       }
@@ -467,30 +501,28 @@ const BLOCK_KINDS = [
   { key: '7', kind: 'paragraph',            label: 'P'  },
 ] as const;
 
-async function changeBlockType(kind: string): Promise<void> {
+async function changeBlockType(turn_into: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'block') return;
   activeMasterTool.value = 'block-type';
   const ids = Array.from(selectedItemIds.value);
+  const merge = mergeItems.value['block-type'];
 
-  if (mergeItems.value['block-type'] && ids.length > 1) {
-    await callBulkHocrEndpoint('change-type', { item_ids: ids, kind });
-  } else {
-    for (const id of ids) {
-      await callHocrEndpoint(id, 'change-type', { kind });
-    }
+  if (ids.length > 1) {
+    await callBulkHocrEndpoint('change-type', { item_ids: ids, turn_into, merge });
+  } else if (ids.length === 1) {
+    await callHocrEndpoint(ids[0], 'change-type', { turn_into, merge });
   }
 }
 
-async function changeCareaOperation(action: 'change-flow' | 'change-layout', kind: string): Promise<void> {
+async function changeCareaOperation(action: 'change-flow' | 'change-layout', turn_into: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'carea') return;
   const ids = Array.from(selectedItemIds.value);
+  const merge = mergeItems.value[activeMasterTool.value as MasterTool];
 
-  if (mergeItems.value[activeMasterTool.value as MasterTool] && ids.length > 1) {
-    await callBulkHocrEndpoint(action, { item_ids: ids, kind });
-  } else {
-    for (const id of ids) {
-      await callHocrEndpoint(id, action, { kind });
-    }
+  if (ids.length > 1) {
+    await callBulkHocrEndpoint(action, { item_ids: ids, turn_into, merge });
+  } else if (ids.length === 1) {
+    await callHocrEndpoint(ids[0], action, { turn_into, merge });
   }
 }
 
@@ -626,18 +658,35 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
       }
     } else if (activeMasterTool.value === 'carea-flow') {
       if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
-        e.preventDefault();
-        await changeCareaOperation('change-flow', e.key);
-        return;
+        if (e.key === '0') {
+          e.preventDefault();
+          await changeCareaOperation('change-flow', '');
+          return;
+        }
+        const index = parseInt(e.key) - 1;
+        const flow = flows.value[index];
+        if (flow) {
+          e.preventDefault();
+          await changeCareaOperation('change-flow', flow.name);
+          return;
+        }
       }
     } else if (activeMasterTool.value === 'carea-layout') {
       if (selectedItemIds.value.size > 0 && ocrLevel.value === 'carea') {
-        e.preventDefault();
-        await changeCareaOperation('change-layout', e.key);
-        return;
+        if (e.key === '0') {
+          e.preventDefault();
+          await changeCareaOperation('change-layout', '');
+          return;
+        }
+        const index = parseInt(e.key) - 1;
+        const layout = layouts.value[index];
+        if (layout) {
+          e.preventDefault();
+          await changeCareaOperation('change-layout', layout.name);
+          return;
+        }
       }
     }
-    // Note: carea-flow and carea-layout numeric logic is reserved but not yet implemented.
   }
 
   // Operation keys (Row 3) - Only for Edit master tool
@@ -904,6 +953,16 @@ onUnmounted(() => {
 .ocr-info-id {
   font-family: ui-monospace, monospace;
   color: var(--color-text-dimmed, #a2acb6);
+}
+
+.vertical-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vertical-tool-list sl-button::part(base) {
+  justify-content: flex-start;
 }
 
 .tool-palette {

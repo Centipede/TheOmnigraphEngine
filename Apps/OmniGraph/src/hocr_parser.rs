@@ -389,6 +389,18 @@ impl HocrPage {
         }
     }
 
+    pub fn change_carea_flow(&mut self, carea_index: usize, flow: Option<String>) {
+        if carea_index < self.careas.len() {
+            self.careas[carea_index].flow = flow;
+        }
+    }
+
+    pub fn change_carea_layout(&mut self, carea_index: usize, layout: Option<String>) {
+        if carea_index < self.careas.len() {
+            self.careas[carea_index].layout = layout;
+        }
+    }
+
     pub fn to_hocr_html(&self) -> String {
         let mut html = String::new();
 

@@ -1,6 +1,6 @@
 use crate::hocr_parser;
 use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
-use crate::routes::projects::forms::{AddRequest, ChangeTypeBulkRequest, ChangeTypeRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
+use crate::routes::projects::forms::{AddRequest, MorphRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -312,20 +312,180 @@ pub async fn carea_rescan(
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
-pub async fn carea_change_flow_bulk(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem)): Path<(String, String)>,
-    Json(_payload): Json<ChangeTypeBulkRequest>,
+pub async fn carea_change_flow(
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let carea_index = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Carea { carea }) => carea,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let flow = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    page.change_carea_flow(carea_index, flow);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
+pub async fn carea_change_layout(
+    State(state): State<AppState>,
+    Path((machine_name, stem, id)): Path<(String, String, String)>,
+    Json(payload): Json<MorphRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let carea_index = match hocr_parser::find_node(&page, &id) {
+        Some(HocrPath::Carea { carea }) => carea,
+        _ => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let layout = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    page.change_carea_layout(carea_index, layout);
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
+pub async fn carea_change_flow_bulk(
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MorphRequest>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let paths = payload
+        .item_ids
+        .iter()
+        .map(|id| hocr_parser::find_node(&page, id))
+        .collect::<Vec<_>>();
+
+    if paths
+        .iter()
+        .any(|path| !matches!(path, Some(HocrPath::Carea { .. })))
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "All items must be careas"})),
+        )
+            .into_response();
+    }
+
+    let mut careas = paths
+        .iter()
+        .map(|path| {
+            if let Some(HocrPath::Carea { carea }) = path {
+                *carea
+            } else {
+                unreachable!()
+            }
+        })
+        .collect::<Vec<usize>>();
+
+    if payload.merge {
+        if let Err(err) = page.merge_careas(&mut careas) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
+    }
+
+    let flow = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    if payload.merge {
+        let carea_index = careas[0];
+        page.change_carea_flow(carea_index, flow);
+    } else {
+        for carea_index in careas {
+            page.change_carea_flow(carea_index, flow.clone());
+        }
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 pub async fn carea_change_layout_bulk(
-    State(_state): State<AppState>,
-    Path((_machine_name, _stem)): Path<(String, String)>,
-    Json(_payload): Json<ChangeTypeBulkRequest>,
+    State(state): State<AppState>,
+    Path((machine_name, stem)): Path<(String, String)>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
-    StatusCode::NOT_IMPLEMENTED
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let paths = payload
+        .item_ids
+        .iter()
+        .map(|id| hocr_parser::find_node(&page, id))
+        .collect::<Vec<_>>();
+
+    if paths
+        .iter()
+        .any(|path| !matches!(path, Some(HocrPath::Carea { .. })))
+    {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "All items must be careas"})),
+        )
+            .into_response();
+    }
+
+    let mut careas = paths
+        .iter()
+        .map(|path| {
+            if let Some(HocrPath::Carea { carea }) = path {
+                *carea
+            } else {
+                unreachable!()
+            }
+        })
+        .collect::<Vec<usize>>();
+
+    if payload.merge {
+        if let Err(err) = page.merge_careas(&mut careas) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
+    }
+
+    let layout = if payload.turn_into.is_empty() {
+        None
+    } else {
+        Some(payload.turn_into)
+    };
+
+    if payload.merge {
+        let carea_index = careas[0];
+        page.change_carea_layout(carea_index, layout);
+    } else {
+        for carea_index in careas {
+            page.change_carea_layout(carea_index, layout.clone());
+        }
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
 // ── BLOCK ────────────────────────────────────────────────────────────
@@ -531,7 +691,7 @@ pub async fn block_remove(
 pub async fn block_change_type(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
-    Json(payload): Json<ChangeTypeRequest>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
         Ok(page) => page,
@@ -542,7 +702,7 @@ pub async fn block_change_type(
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    let Some(kind) = HocrBlockKind::from_json_name(&payload.kind) else {
+    let Some(kind) = HocrBlockKind::from_json_name(&payload.turn_into) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
 
@@ -554,7 +714,7 @@ pub async fn block_change_type(
 pub async fn block_change_type_bulk(
     State(state): State<AppState>,
     Path((machine_name, stem)): Path<(String, String)>,
-    Json(payload): Json<ChangeTypeBulkRequest>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
         Ok(page) => page,
@@ -589,7 +749,7 @@ pub async fn block_change_type_bulk(
         })
         .collect::<Vec<(usize, usize)>>();
 
-    let Some(kind) = HocrBlockKind::from_json_name(&payload.kind) else {
+    let Some(kind) = HocrBlockKind::from_json_name(&payload.turn_into) else {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"error": "Invalid block kind"})),
@@ -597,13 +757,18 @@ pub async fn block_change_type_bulk(
             .into_response();
     };
 
-    if let Err(err) = page.merge_blocks(&mut blocks) {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+    if payload.merge {
+        if let Err(err) = page.merge_blocks(&mut blocks) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
+        // After merge, they are all in the same carea and have been merged into one big block
+        let (carea, block) = blocks[0];
+        page.change_block_kind(carea, block, kind);
+    } else {
+        for (carea, block) in blocks {
+            page.change_block_kind(carea, block, kind.clone());
+        }
     }
-
-    // After merge, they are all in the same carea and have been merged into one big block
-    let (carea, block) = blocks[0];
-    page.change_block_kind(carea, block, kind.clone());
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
