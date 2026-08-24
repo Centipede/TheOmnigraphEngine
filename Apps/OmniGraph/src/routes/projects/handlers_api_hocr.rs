@@ -402,18 +402,26 @@ pub async fn carea_change_flow_bulk(
         })
         .collect::<Vec<usize>>();
 
-    if let Err(err) = page.merge_careas(&mut careas) {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+    if payload.merge {
+        if let Err(err) = page.merge_careas(&mut careas) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
     }
 
-    let carea_index = careas[0];
     let flow = if payload.turn_into.is_empty() {
         None
     } else {
         Some(payload.turn_into)
     };
 
-    page.change_carea_flow(carea_index, flow);
+    if payload.merge {
+        let carea_index = careas[0];
+        page.change_carea_flow(carea_index, flow);
+    } else {
+        for carea_index in careas {
+            page.change_carea_flow(carea_index, flow.clone());
+        }
+    }
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
@@ -456,18 +464,26 @@ pub async fn carea_change_layout_bulk(
         })
         .collect::<Vec<usize>>();
 
-    if let Err(err) = page.merge_careas(&mut careas) {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+    if payload.merge {
+        if let Err(err) = page.merge_careas(&mut careas) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
     }
 
-    let carea_index = careas[0];
     let layout = if payload.turn_into.is_empty() {
         None
     } else {
         Some(payload.turn_into)
     };
 
-    page.change_carea_layout(carea_index, layout);
+    if payload.merge {
+        let carea_index = careas[0];
+        page.change_carea_layout(carea_index, layout);
+    } else {
+        for carea_index in careas {
+            page.change_carea_layout(carea_index, layout.clone());
+        }
+    }
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
@@ -741,13 +757,18 @@ pub async fn block_change_type_bulk(
             .into_response();
     };
 
-    if let Err(err) = page.merge_blocks(&mut blocks) {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+    if payload.merge {
+        if let Err(err) = page.merge_blocks(&mut blocks) {
+            return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+        }
+        // After merge, they are all in the same carea and have been merged into one big block
+        let (carea, block) = blocks[0];
+        page.change_block_kind(carea, block, kind);
+    } else {
+        for (carea, block) in blocks {
+            page.change_block_kind(carea, block, kind.clone());
+        }
     }
-
-    // After merge, they are all in the same carea and have been merged into one big block
-    let (carea, block) = blocks[0];
-    page.change_block_kind(carea, block, kind.clone());
 
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }

@@ -128,6 +128,8 @@ pub struct MorphRequest {
     #[serde(default)]
     pub item_ids: Vec<String>,
     pub turn_into: String,
+    #[serde(default)]
+    pub merge: bool,
 }
 
 #[derive(Deserialize, Serialize)]

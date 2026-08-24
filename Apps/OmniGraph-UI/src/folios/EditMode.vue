@@ -505,26 +505,24 @@ async function changeBlockType(turn_into: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'block') return;
   activeMasterTool.value = 'block-type';
   const ids = Array.from(selectedItemIds.value);
+  const merge = mergeItems.value['block-type'];
 
-  if (mergeItems.value['block-type'] && ids.length > 1) {
-    await callBulkHocrEndpoint('change-type', { item_ids: ids, turn_into });
-  } else {
-    for (const id of ids) {
-      await callHocrEndpoint(id, 'change-type', { turn_into });
-    }
+  if (ids.length > 1) {
+    await callBulkHocrEndpoint('change-type', { item_ids: ids, turn_into, merge });
+  } else if (ids.length === 1) {
+    await callHocrEndpoint(ids[0], 'change-type', { turn_into, merge });
   }
 }
 
 async function changeCareaOperation(action: 'change-flow' | 'change-layout', turn_into: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'carea') return;
   const ids = Array.from(selectedItemIds.value);
+  const merge = mergeItems.value[activeMasterTool.value as MasterTool];
 
-  if (mergeItems.value[activeMasterTool.value as MasterTool] && ids.length > 1) {
-    await callBulkHocrEndpoint(action, { item_ids: ids, turn_into });
-  } else {
-    for (const id of ids) {
-      await callHocrEndpoint(id, action, { turn_into });
-    }
+  if (ids.length > 1) {
+    await callBulkHocrEndpoint(action, { item_ids: ids, turn_into, merge });
+  } else if (ids.length === 1) {
+    await callHocrEndpoint(ids[0], action, { turn_into, merge });
   }
 }
 
