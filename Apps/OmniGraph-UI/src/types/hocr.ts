@@ -18,6 +18,7 @@ export interface HocrLine {
     level: HocrLevel;
     id: string;
     bbox: HocrBbox;
+    lang?: string;
     words: HocrWord[];
 }
 
