@@ -3,6 +3,14 @@ export interface Author {
     abbrev: string | null;
 }
 
+export interface FlowSchema {
+    name: string;
+}
+
+export interface LayoutSchema {
+    name: string;
+}
+
 export interface Project {
     name: string;
     machine_name: string;
@@ -11,6 +19,8 @@ export interface Project {
     authors: Author[];
     published: string | null;
     ocr_language: string | null;
+    flows: FlowSchema[];
+    layouts: LayoutSchema[];
 }
 
 export interface ProjectCreateForm {

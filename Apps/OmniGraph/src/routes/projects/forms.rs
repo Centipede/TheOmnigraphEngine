@@ -124,14 +124,10 @@ pub struct SplitRequest {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct ChangeTypeRequest {
-    pub kind: String,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct ChangeTypeBulkRequest {
+pub struct MorphRequest {
+    #[serde(default)]
     pub item_ids: Vec<String>,
-    pub kind: String,
+    pub turn_into: String,
 }
 
 #[derive(Deserialize, Serialize)]

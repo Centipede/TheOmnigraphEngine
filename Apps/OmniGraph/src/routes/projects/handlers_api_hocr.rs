@@ -1,6 +1,6 @@
 use crate::hocr_parser;
 use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
-use crate::routes::projects::forms::{AddRequest, ChangeTypeBulkRequest, ChangeTypeRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
+use crate::routes::projects::forms::{AddRequest, MorphRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
@@ -312,10 +312,24 @@ pub async fn carea_rescan(
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
+pub async fn carea_change_flow(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MorphRequest>
+) -> impl IntoResponse { StatusCode::NOT_IMPLEMENTED }
+
+pub async fn carea_change_layout(
+    State(_state): State<AppState>,
+    Path((_machine_name, _stem, _id)): Path<(String, String, String)>,
+    Json(_payload): Json<MorphRequest>
+) -> impl IntoResponse {
+    StatusCode::NOT_IMPLEMENTED
+}
+
 pub async fn carea_change_flow_bulk(
     State(_state): State<AppState>,
     Path((_machine_name, _stem)): Path<(String, String)>,
-    Json(_payload): Json<ChangeTypeBulkRequest>,
+    Json(_payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }
@@ -323,7 +337,7 @@ pub async fn carea_change_flow_bulk(
 pub async fn carea_change_layout_bulk(
     State(_state): State<AppState>,
     Path((_machine_name, _stem)): Path<(String, String)>,
-    Json(_payload): Json<ChangeTypeBulkRequest>,
+    Json(_payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     StatusCode::NOT_IMPLEMENTED
 }
@@ -531,7 +545,7 @@ pub async fn block_remove(
 pub async fn block_change_type(
     State(state): State<AppState>,
     Path((machine_name, stem, id)): Path<(String, String, String)>,
-    Json(payload): Json<ChangeTypeRequest>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
         Ok(page) => page,
@@ -542,7 +556,7 @@ pub async fn block_change_type(
         return StatusCode::NOT_FOUND.into_response();
     };
 
-    let Some(kind) = HocrBlockKind::from_json_name(&payload.kind) else {
+    let Some(kind) = HocrBlockKind::from_json_name(&payload.turn_into) else {
         return StatusCode::BAD_REQUEST.into_response();
     };
 
@@ -554,7 +568,7 @@ pub async fn block_change_type(
 pub async fn block_change_type_bulk(
     State(state): State<AppState>,
     Path((machine_name, stem)): Path<(String, String)>,
-    Json(payload): Json<ChangeTypeBulkRequest>,
+    Json(payload): Json<MorphRequest>,
 ) -> impl IntoResponse {
     let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
         Ok(page) => page,
@@ -589,7 +603,7 @@ pub async fn block_change_type_bulk(
         })
         .collect::<Vec<(usize, usize)>>();
 
-    let Some(kind) = HocrBlockKind::from_json_name(&payload.kind) else {
+    let Some(kind) = HocrBlockKind::from_json_name(&payload.turn_into) else {
         return (
             StatusCode::BAD_REQUEST,
             Json(json!({"error": "Invalid block kind"})),
