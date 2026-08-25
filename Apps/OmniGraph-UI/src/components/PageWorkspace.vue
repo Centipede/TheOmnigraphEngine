@@ -99,6 +99,14 @@
                 :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
                 :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
                 :selected="selectedPageSet.has(page.index)"
+                :machine-name="machineName"
+                :is-current="page.index === currentPageIndex"
+                :flows="flowsMap"
+                :layouts="layoutsMap"
+                :carea-overlay-color="careaOverlayColor"
+                :block-overlay-color="blockOverlayColor"
+                :carea-layers="careaLayers"
+                :show-blocks="showBlocks"
                 @click="handleStripClick(page.index, $event)"
             />
           </div>
@@ -293,6 +301,8 @@ const props = withDefaults(defineProps<{
       wordOverlayColor?: string;
       flows?: FlowSchema[];
       layouts?: LayoutSchema[];
+      careaLayers?: { flow: boolean; layout: boolean };
+      showBlocks?: boolean;
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
       initialPageStem?: string;
@@ -338,6 +348,23 @@ const structure = ref<StructureDb>({ sections: [], headlines: [] });
 
 const thumbBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/thumbs/`);
 const scanBaseUrl = computed(() => `/media/projects/${props.machineName}/pages/scans/`);
+
+const flowsMap = computed(() => {
+  const map: Record<string, FlowSchema> = {};
+  for (const f of props.flows ?? []) {
+    map[f.name] = f;
+  }
+  return map;
+});
+
+const layoutsMap = computed(() => {
+  const map: Record<string, LayoutSchema> = {};
+  for (const l of props.layouts ?? []) {
+    map[l.name] = l;
+  }
+  return map;
+});
+
 const currentPage = computed(() => {
   const index = currentPageIndex.value;
   if (index === null) return null;
