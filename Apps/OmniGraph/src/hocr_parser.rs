@@ -163,14 +163,27 @@ pub enum AddBlockType {
     Image,
 }
 
+/// A color can either be determined by a base color, or by a hue shift, lightness shift, and/or saturation shift.
+/// The point is that either a specification defines a color directly (base color) or it provides adjustment for an already given color.
+/// This way you can stack specifications. If a carea has its own base color, then a flow and a layout may define two stackable modifications to that base color.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ColorSpecification {
+    pub base_color: Option<String>,
+    pub hue_shift: Option<f32>,
+    pub lightness_shift: Option<f32>,
+    pub saturation_shift: Option<f32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowSchema {
     pub name: String,
+    pub color: Option<ColorSpecification>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutSchema {
     pub name: String,
+    pub color: Option<ColorSpecification>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2637,7 +2650,7 @@ mod tests {
             unknowns: vec![],
         };
 
-        let flows = vec![FlowSchema { name: "default".to_string() }];
+        let flows = vec![FlowSchema { name: "default".to_string(), color: Some(ColorSpecification::default()) }];
         page.auto_flow(flows, vec![], true);
 
         assert_eq!(page.careas[0].flow, Some("default".to_string()));
@@ -2704,8 +2717,8 @@ mod tests {
         };
 
         let flows = vec![
-            FlowSchema { name: "F1".to_string() },
-            FlowSchema { name: "F2".to_string() },
+            FlowSchema { name: "F1".to_string(), color: Some(ColorSpecification::default()) },
+            FlowSchema { name: "F2".to_string(), color: Some(ColorSpecification::default()) },
         ];
         page.auto_flow(flows, vec![], true);
 
@@ -2762,7 +2775,7 @@ mod tests {
             unknowns: vec![],
         };
 
-        let flows = vec![FlowSchema { name: "F1".to_string() }];
+        let flows = vec![FlowSchema { name: "F1".to_string(), color: Some(ColorSpecification::default()) }];
         page.auto_flow(flows, vec![], true);
 
         // Result should be 3 careas because L1 is interrupted by L2

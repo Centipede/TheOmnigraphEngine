@@ -3,12 +3,21 @@ export interface Author {
     abbrev: string | null;
 }
 
+export interface ColorSpecification {
+    base_color?: string;
+    hue_shift?: number;
+    lightness_shift?: number;
+    saturation_shift?: number;
+}
+
 export interface FlowSchema {
     name: string;
+    color?: ColorSpecification;
 }
 
 export interface LayoutSchema {
     name: string;
+    color?: ColorSpecification;
 }
 
 export interface Project {

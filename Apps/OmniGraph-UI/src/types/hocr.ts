@@ -5,6 +5,10 @@ export type HocrLevel = 'page' | 'carea' | 'block' | 'line' | 'word';
 
 export const HocrLevelOrder: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
 
+export interface HocrUnknown {
+    string: string;
+}
+
 export interface HocrWord {
     level: HocrLevel;
     id: string;
@@ -20,6 +24,10 @@ export interface HocrLine {
     bbox: HocrBbox;
     lang?: string;
     words: HocrWord[];
+    baseline?: [number, number];
+    x_size?: number;
+    x_descenders?: number;
+    x_ascenders?: number;
 }
 
 export interface HocrBlock {
@@ -35,7 +43,10 @@ export interface HocrCarea {
     level: HocrLevel;
     id: string;
     bbox: HocrBbox;
+    flow?: string;
+    layout?: string;
     blocks: HocrBlock[];
+    unknowns?: HocrUnknown[];
 }
 
 export interface HocrPage {
@@ -43,6 +54,7 @@ export interface HocrPage {
     page_id: string;
     bbox: HocrBbox;
     careas: HocrCarea[];
+    unknowns?: HocrUnknown[];
 }
 
 export type HocrNode = HocrCarea | HocrBlock | HocrLine | HocrWord;

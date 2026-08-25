@@ -1,4 +1,6 @@
 
+import type { ColorSpecification } from '../types';
+
 export function makeVariedPalette(
     color: string,
     count = 8,
@@ -141,4 +143,33 @@ function clamp(value: number, min: number, max: number): number {
 
 function wrapHue(hue: number): number {
     return ((hue % 360) + 360) % 360;
+}
+
+export function applyColorSpecs(baseColor: string, specs: ColorSpecification[]): string {
+    let currentBase = baseColor;
+    let totalHueShift = 0;
+    let totalSaturationShift = 0;
+    let totalLightnessShift = 0;
+
+    for (const spec of specs) {
+        if (spec.base_color) {
+            currentBase = spec.base_color;
+        }
+        totalHueShift += spec.hue_shift ?? 0;
+        totalSaturationShift += spec.saturation_shift ?? 0;
+        totalLightnessShift += spec.lightness_shift ?? 0;
+    }
+
+    const rgb = parseCssColorToRgb(currentBase);
+    if (!rgb) {
+        return currentBase;
+    }
+
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+    const h = wrapHue(hsl.h + totalHueShift);
+    const s = clamp(hsl.s + totalSaturationShift, 0, 100);
+    const l = clamp(hsl.l + totalLightnessShift, 0, 100);
+
+    return `hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`;
 }
