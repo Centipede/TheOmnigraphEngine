@@ -6,6 +6,8 @@
       :panels="panels"
       :show-crop-overlay="false"
       :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
+      :flows="flows"
+      :layouts="layouts"
       carea-overlay-color="rgba(249, 115, 22)"
       block-overlay-color="rgba(168, 85, 247)"
       line-overlay-color="rgba(59, 130, 246)"

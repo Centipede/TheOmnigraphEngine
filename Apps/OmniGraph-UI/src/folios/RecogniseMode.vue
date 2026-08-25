@@ -7,6 +7,8 @@
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
                  :show-crop-overlay="true"
+                 :flows="flows"
+                 :layouts="layouts"
   >
 
     <template #tools="{ selectionInfo, filteredPages, currentPage }">
@@ -67,7 +69,7 @@
 <script setup lang="ts">
 import PageWorkspace from "../components/PageWorkspace.vue";
 
-import {onMounted, onUnmounted, ref, inject} from 'vue';
+import {onMounted, onUnmounted, ref, inject, computed} from 'vue';
 import type {Page, Project} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
@@ -132,12 +134,16 @@ const isScanning = ref(false);
 const ocrLanguage = ref('eng');
 const scanResults = ref<ScanPageResult[]>([]);
 const scanError = ref('');
+const project = ref<Project | null>(null);
+const flows = computed(() => project.value?.flows || []);
+const layouts = computed(() => project.value?.layouts || []);
 
 async function fetchProjectMetadata(): Promise<void> {
   try {
     const resp = await fetch(`/api/projects/${props.machineName}`);
     if (resp.ok) {
       const data = await resp.json() as Project;
+      project.value = data;
       if (data.ocr_language) {
         ocrLanguage.value = data.ocr_language;
       }

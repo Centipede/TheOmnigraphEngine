@@ -5,6 +5,8 @@
       :initial-page-stem="initialPageStem"
       :panels="panels"
       :show-crop-overlay="true"
+      :flows="flows"
+      :layouts="layouts"
   >
     <template #tools="{ selectedPages, currentPage }">
       <sl-button-group>
@@ -29,12 +31,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import PageWorkspace from "../components/PageWorkspace.vue";
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
-import type { Page } from '../types';
+import type { Page, Project } from '../types';
 
 const props = defineProps<{
   machineName: string;
@@ -56,7 +58,26 @@ const panels = usePersistentPanels('panels.assist', {
 
 const { setActivePanels } = usePanelVisibilityContext();
 
-onMounted(() => setActivePanels(panels));
+const project = ref<Project | null>(null);
+const flows = computed(() => project.value?.flows || []);
+const layouts = computed(() => project.value?.layouts || []);
+
+async function fetchProjectMetadata(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      const data = await resp.json() as Project;
+      project.value = data;
+    }
+  } catch (e) {
+    console.error('Failed to fetch project metadata:', e);
+  }
+}
+
+onMounted(() => {
+  setActivePanels(panels);
+  void fetchProjectMetadata();
+});
 onUnmounted(() => setActivePanels(null));
 
 const getStem = (p: Page) => p.scan.replace(/\.[^.]+$/, '');

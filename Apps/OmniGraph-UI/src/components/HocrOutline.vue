@@ -5,9 +5,15 @@
 
       <!-- Carea row -->
       <div class="hocr-row hocr-carea-row" :class="{ 'hocr-row-selected': selectedItemIds?.has(carea.id) }" @click="toggleCarea(carea.id)" @mouseenter="indicate(carea.id)" @mouseleave="indicate(null)">
-        <span class="hocr-badge hocr-badge-c" title="Select CAREA" @click.stop="selectNode('carea', carea.id, $event)">C</span>
+        <span class="hocr-badge hocr-badge-c" :style="careaBadgeStyle(carea)" title="Select CAREA" @click.stop="selectNode('carea', carea.id, $event)">C</span>
         <span class="hocr-count">({{ carea.blocks.length }})</span>
         <span class="hocr-id" :title="carea.id">{{ carea.id }}</span>
+        <span :class="getBadgeDetails('flow', carea.flow).class" :style="getBadgeDetails('flow', carea.flow).style">
+          {{ getBadgeDetails('flow', carea.flow).text }}
+        </span>
+        <span :class="getBadgeDetails('layout', carea.layout).class" :style="getBadgeDetails('layout', carea.layout).style">
+          {{ getBadgeDetails('layout', carea.layout).text }}
+        </span>
         <span class="hocr-preview">{{ careaPreview(carea) }}</span>
         <sl-button variant="text" size="small" class="hocr-rescan-btn" @click.stop="rescan(carea.id)" title="Rescan OCR for this carea">
           <sl-icon name="arrow-repeat"></sl-icon>
@@ -78,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject, reactive, ref, watch} from 'vue';
+import {inject, reactive, ref, watch, computed} from 'vue';
 import type { Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import {
@@ -88,6 +94,24 @@ import {
   type HocrLevel,
   findMultilevelById
 } from '../types/hocr';
+import type { FlowSchema, LayoutSchema, ColorSpecification } from '../types';
+import { applyColorSpecs } from '../utils/colors';
+
+const props = withDefaults(defineProps<{
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  lineOverlayColor?: string;
+  wordOverlayColor?: string;
+  flows?: FlowSchema[];
+  layouts?: LayoutSchema[];
+}>(), {
+  careaOverlayColor: '#f97316',
+  blockOverlayColor: '#a855f7',
+  lineOverlayColor: '#2563eb',
+  wordOverlayColor: '#16a34a',
+  flows: () => [],
+  layouts: () => [],
+});
 
 const { hocrPage, machineName, stem, rescanCarea, rescanWord } = useHocrContext();
 const selectedItemIds   = inject<Ref<Set<string>>>('selectedItemIds', ref(new Set()));
@@ -198,6 +222,69 @@ function collapseAll() {
 
 defineExpose({ expandAll, collapseAll });
 
+function careaBadgeStyle(carea: HocrCarea) {
+  const specs: ColorSpecification[] = [];
+
+  if (carea.flow) {
+    const flow = props.flows.find(f => f.name === carea.flow);
+    if (flow?.color) specs.push(flow.color);
+  }
+
+  if (carea.layout) {
+    const layout = props.layouts.find(l => l.name === carea.layout);
+    if (layout?.color) specs.push(layout.color);
+  }
+
+  return {
+    backgroundColor: applyColorSpecs(props.careaOverlayColor, specs),
+    color: '#fff'
+  };
+}
+
+function getBadgeDetails(type: 'flow' | 'layout', value?: string) {
+  const schemas = type === 'flow' ? props.flows : props.layouts;
+  const label = type === 'flow' ? 'flow' : 'layout';
+
+  if (schemas.length === 0) {
+    return {
+      text: '',
+      class: 'hocr-badge-pill hocr-badge-none',
+      style: {}
+    };
+  }
+
+  if (!value) {
+    return {
+      text: `No ${label}`,
+      class: 'hocr-badge-pill hocr-badge-alarm',
+      style: {}
+    };
+  }
+
+  const schema = schemas.find(s => s.name === value);
+  if (!schema) {
+    return {
+      text: `Bad ${label}`,
+      class: 'hocr-badge-pill hocr-badge-alarm',
+      style: {}
+    };
+  }
+
+  const specs: ColorSpecification[] = [];
+  if (schema.color) specs.push(schema.color);
+
+  const color = applyColorSpecs(props.careaOverlayColor, specs);
+
+  return {
+    text: value,
+    class: `hocr-badge-pill hocr-badge-${type}`,
+    style: {
+      borderColor: color,
+      color: color
+    }
+  };
+}
+
 function careaPreview(carea: HocrCarea, maxLen = 60): string {
   const text = carea.blocks
       .flatMap(p => blockKinds.includes(p.kind) ? p.lines : [])
@@ -259,6 +346,30 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
 .hocr-badge-p { background: #a855f7; color: #fff; }
 .hocr-badge-l { background: #2563eb; color: #fff; }
 .hocr-badge-w { background: #16a34a; color: #fff; }
+
+.hocr-badge-pill {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 1rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: white;
+  line-height: 1.2;
+}
+
+.hocr-badge-alarm {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #f87171;
+}
+
+.hocr-badge-none {
+  border-color: #d1d5db;
+  min-width: 2rem;
+  height: 0.8rem;
+}
 
 .hocr-count {
   flex-shrink: 0;

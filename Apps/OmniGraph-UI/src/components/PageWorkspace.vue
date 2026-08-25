@@ -215,7 +215,15 @@
           class="workspace-hocr-outline-pane"
           :class="{ 'workspace-pane-hidden': !isPanelVisible('ocr-structure') }"
       >
-        <HocrOutline ref="hocrOutlineRef"/>
+        <HocrOutline
+            ref="hocrOutlineRef"
+            :flows="flows"
+            :layouts="layouts"
+            :carea-overlay-color="careaOverlayColor"
+            :block-overlay-color="blockOverlayColor"
+            :line-overlay-color="lineOverlayColor"
+            :word-overlay-color="wordOverlayColor"
+        />
       </div>
     </div><!-- end workspace-right-sidebar -->
 
@@ -229,7 +237,10 @@ import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import { useHocrContext } from '../composables/useHocr';
-import type {CropEdges, HocrLevel, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb} from '../types';
+import type {
+  CropEdges, FlowSchema, HocrLevel,
+  LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb
+} from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -280,6 +291,8 @@ const props = withDefaults(defineProps<{
       blockOverlayColor?: string;
       lineOverlayColor?: string;
       wordOverlayColor?: string;
+      flows?: FlowSchema[];
+      layouts?: LayoutSchema[];
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
       initialPageStem?: string;
