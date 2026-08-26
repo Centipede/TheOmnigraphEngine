@@ -7,6 +7,7 @@
       :show-crop-overlay="true"
       :flows="flows"
       :layouts="layouts"
+      :carea-layers="{ flow: true, layout: true }"
   >
     <template #tools="{ selectedPages, currentPage }">
       <sl-button-group>

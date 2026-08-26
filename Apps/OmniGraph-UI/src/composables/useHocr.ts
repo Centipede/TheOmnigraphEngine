@@ -16,6 +16,14 @@ export interface HocrContext {
 
 const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
 
+export async function fetchHocrPage(machineName: string, stem: string): Promise<HocrPage> {
+  const resp = await fetch(`/api/projects/${machineName}/pages/${stem}/hocr-json`);
+  if (!resp.ok) {
+    throw new Error(`Failed to load hOCR: ${resp.statusText}`);
+  }
+  return await resp.json() as HocrPage;
+}
+
 export function provideHocrContext() {
   const hocrPage = ref<HocrPage | null>(null);
   const machineName = ref<string | null>(null);
@@ -30,18 +38,13 @@ export function provideHocrContext() {
       stem.value = null;
       return;
     }
+    hocrPage.value = null;
     loading.value = true;
     error.value = null;
     machineName.value = mName;
     stem.value = sName;
     try {
-      const resp = await fetch(`/api/projects/${mName}/pages/${sName}/hocr-json`);
-      if (resp.ok) {
-        hocrPage.value = await resp.json() as HocrPage;
-      } else {
-        hocrPage.value = null;
-        error.value = `Failed to load hOCR: ${resp.statusText}`;
-      }
+      hocrPage.value = await fetchHocrPage(mName, sName);
     } catch (e) {
       hocrPage.value = null;
       error.value = e instanceof Error ? e.message : String(e);

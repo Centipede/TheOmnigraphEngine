@@ -1,13 +1,29 @@
 <template>
-  <div class="strip-wrapper" :class="{ 'strip-selected': selected }">
+  <div class="strip-wrapper" :class="{ 'strip-selected': selected }" ref="el">
     <div class="strip-container" :style="containerStyle">
       <img :src="src" class="strip-img" :style="imgStyle" :alt="label" :title="label" />
+
+      <!-- OCR Overlays -->
+      <template v-if="hocrData">
+        <!-- CAREAs -->
+        <template v-if="careaLayers?.flow || careaLayers?.layout">
+          <div v-for="carea in hocrData.careas" :key="'carea-' + carea.id" :style="getCareaStyle(carea)" />
+        </template>
+
+        <!-- BLOCKs -->
+        <template v-if="showBlocks">
+          <template v-for="carea in hocrData.careas" :key="'blocks-' + carea.id">
+            <div v-for="block in carea.blocks" :key="'block-' + block.id" :style="getBlockStyle(block)" />
+          </template>
+        </template>
+      </template>
+
       <template v-if="showOverlay">
-        <div class="ov-red"   :style="topRedStyle"    />
-        <div class="ov-red"   :style="bottomRedStyle" />
-        <div class="ov-red"   :style="leftRedStyle"   />
-        <div class="ov-red"   :style="rightRedStyle"  />
-        <div class="ov-green" :style="greenStyle"     />
+        <div :style="topDiscardStyle"    />
+        <div :style="bottomDiscardStyle" />
+        <div :style="leftDiscardStyle"   />
+        <div :style="rightDiscardStyle"  />
+        <div :style="keepStyle"          />
       </template>
     </div>
     <div class="strip-info">
@@ -17,8 +33,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { Page, CropEdges } from '../types';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import type { Page, CropEdges, FlowSchema, LayoutSchema } from '../types';
+import type { HocrPage, HocrCarea, HocrBlock } from '../types/hocr';
+import { fetchHocrPage } from '../composables/useHocr';
+import { applyColorSpecs } from '../utils/colors';
 
 const props = withDefaults(defineProps<{
   page:        Page;
@@ -30,9 +49,21 @@ const props = withDefaults(defineProps<{
   selected?:   boolean;
   cropColor?:  string;
   discardColor?: string;
+  // OCR props
+  machineName?: string;
+  flows?: Record<string, FlowSchema>;
+  layouts?: Record<string, LayoutSchema>;
+  careaOverlayColor?: string;
+  blockOverlayColor?: string;
+  careaLayers?: { flow: boolean; layout: boolean };
+  showBlocks?: boolean;
+  isCurrent?: boolean;
+  hocrSyncData?: HocrPage | null;
 }>(), {
   cropColor: 'rgba(0, 180, 0, 0.12)',
   discardColor: 'rgba(220, 0, 0, 0.35)',
+  careaOverlayColor: 'rgba(249, 115, 22, 0.5)',
+  blockOverlayColor: 'rgba(168, 85, 247, 0.3)',
 });
 
 const label = computed(() => props.page.name || props.page.scan);
@@ -89,7 +120,7 @@ const oy = computed(() => imgOffset.value.y);
 const tw = computed(() => props.page.thumb_width);
 const th = computed(() => props.page.thumb_height);
 
-const greenStyle = computed(() => ({
+const keepStyle = computed(() => ({
   position: 'absolute' as const,
   left:   `${ox.value + tl.value}px`,
   top:    `${oy.value + tt.value}px`,
@@ -101,7 +132,7 @@ const greenStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
-const topRedStyle = computed(() => ({
+const topDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left:   `${ox.value}px`,
   top:    `${oy.value}px`,
@@ -111,7 +142,7 @@ const topRedStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
-const bottomRedStyle = computed(() => ({
+const bottomDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left:   `${ox.value}px`,
   top:    `${oy.value + th.value - tb.value}px`,
@@ -121,7 +152,7 @@ const bottomRedStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
-const leftRedStyle = computed(() => ({
+const leftDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left:   `${ox.value}px`,
   top:    `${oy.value + tt.value}px`,
@@ -131,7 +162,7 @@ const leftRedStyle = computed(() => ({
   pointerEvents: 'none' as const,
 }));
 
-const rightRedStyle = computed(() => ({
+const rightDiscardStyle = computed(() => ({
   position: 'absolute' as const,
   left:   `${ox.value + tw.value - tr.value}px`,
   top:    `${oy.value + tt.value}px`,
@@ -140,6 +171,130 @@ const rightRedStyle = computed(() => ({
   background: props.discardColor,
   pointerEvents: 'none' as const,
 }));
+
+// ── OCR Overlays ────────────────────────────────────────────────────
+
+const hocrData = ref<HocrPage | null>(null);
+const el = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+function setHocrData(page: HocrPage | null) {
+  if (!page) {
+    hocrData.value = null;
+    return;
+  }
+  // Memory-efficient storage: filter out lines and words
+  hocrData.value = {
+    ...page,
+    careas: page.careas.map(c => ({
+      ...c,
+      blocks: c.blocks.map(b => ({
+        ...b,
+        lines: [] // Clear lines to save memory
+      }))
+    }))
+  };
+}
+
+async function loadData() {
+  if (!props.machineName) return;
+  try {
+    const stem = props.page.scan.replace(/\.[^/.]+$/, "");
+    const fullPage = await fetchHocrPage(props.machineName, stem);
+    setHocrData(fullPage);
+  } catch (e) {
+    console.error('Failed to load hOCR for strip:', e);
+    hocrData.value = null;
+  }
+}
+
+function clearData() {
+  hocrData.value = null;
+}
+
+onMounted(() => {
+  observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      loadData();
+    } else {
+      clearData();
+    }
+  }, { rootMargin: '100% 0px' });
+
+  if (el.value) {
+    observer.observe(el.value);
+  }
+});
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect();
+  }
+});
+
+watch(() => props.isCurrent, (newVal) => {
+  if (newVal) {
+    loadData();
+  }
+});
+
+watch(() => props.hocrSyncData, (newVal) => {
+  if (props.isCurrent) {
+    setHocrData(newVal);
+  }
+});
+
+function getCareaStyle(carea: HocrCarea) {
+  const [l, t, r, b] = carea.bbox;
+  const wl = Math.round(l * sx.value);
+  const wt = Math.round(t * sy.value);
+  const wr = Math.round(r * sx.value);
+  const wb = Math.round(b * sy.value);
+
+  const specs = [];
+  if (props.careaLayers?.flow && carea.flow && props.flows?.[carea.flow]) {
+    const f = props.flows[carea.flow];
+    if (f.color) specs.push(f.color);
+  }
+  if (props.careaLayers?.layout && carea.layout && props.layouts?.[carea.layout]) {
+    const l = props.layouts[carea.layout];
+    if (l.color) specs.push(l.color);
+  }
+
+  const background = applyColorSpecs(props.careaOverlayColor || 'rgba(249, 115, 22, 0.5)', specs);
+
+  return {
+    position: 'absolute' as const,
+    left: `${ox.value + wl}px`,
+    top: `${oy.value + wt}px`,
+    width: `${wr - wl}px`,
+    height: `${wb - wt}px`,
+    background,
+    opacity: 0.5,
+    mixBlendMode: 'multiply' as const,
+    pointerEvents: 'none' as const,
+  };
+}
+
+function getBlockStyle(block: HocrBlock) {
+  const [l, t, r, b] = block.bbox;
+  const wl = Math.round(l * sx.value);
+  const wt = Math.round(t * sy.value);
+  const wr = Math.round(r * sx.value);
+  const wb = Math.round(b * sy.value);
+
+  return {
+    position: 'absolute' as const,
+    left: `${ox.value + wl}px`,
+    top: `${oy.value + wt}px`,
+    width: `${wr - wl}px`,
+    height: `${wb - wt}px`,
+    outline: `2px solid ${props.blockOverlayColor}`,
+    opacity: 0.5,
+    mixBlendMode: 'normal' as const,
+    pointerEvents: 'none' as const,
+  };
+}
 </script>
 
 <style scoped>

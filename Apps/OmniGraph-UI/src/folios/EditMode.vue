@@ -13,6 +13,8 @@
       line-overlay-color="rgba(59, 130, 246)"
       word-overlay-color="rgba(34, 197, 94)"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
+      :carea-layers="careaLayers"
+      :show-blocks="showBlocks"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
@@ -252,6 +254,16 @@ type OcrOperation = 'context' | 'none' | 'add' | 'select' | 'join' | 'split' | '
 
 const activeMasterTool = ref<MasterTool>('edit');
 const ocrLevel:Ref<OcrLevel> = ref('multi');
+
+const careaLayers = computed(() => ({
+  flow: activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'edit',
+  layout: activeMasterTool.value === 'carea-layout' || activeMasterTool.value === 'edit'
+}));
+
+const showBlocks = computed(() =>
+  ['carea-flow', 'carea-layout', 'block-type'].includes(activeMasterTool.value)
+);
+
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');
 const project = ref<Project | null>(null);
