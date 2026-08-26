@@ -240,7 +240,7 @@ watch(() => props.isCurrent, (newVal) => {
 
 watch(() => props.hocrSyncData, (newVal) => {
   if (props.isCurrent) {
-    setHocrData(newVal);
+    setHocrData(newVal ?? null);
   }
 });
 

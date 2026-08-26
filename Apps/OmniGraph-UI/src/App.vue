@@ -25,11 +25,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, provide, nextTick} from 'vue';
+import {computed, ref, provide, nextTick, onMounted, onUnmounted} from 'vue';
 import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
 import type {PanelId} from './types';
 import { providePanelVisibilityContext } from './composables/usePanelVisibility';
+import { isTypingElement } from './utils/dom';
 
 const route = useRoute();
 
@@ -54,6 +55,22 @@ function togglePanel(panelId: PanelId) {
   if (!activePanels.value) return;
   activePanels.value[panelId] = !activePanels.value[panelId];
 }
+
+function handleAutoBlur(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  const button = target.closest?.('button, [role="button"], sl-button, sl-radio-button, sl-switch, sl-checkbox');
+  if (button && !isTypingElement(button)) {
+    (button as HTMLElement).blur();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('mouseup', handleAutoBlur);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleAutoBlur);
+});
 
 </script>
 

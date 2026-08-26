@@ -250,6 +250,7 @@ import {onBeforeRouteLeave, useRoute, useRouter} from 'vue-router';
 import {useFilteredPages, makeIsInFilter} from "../composables/useFilteredPages";
 import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import { useHocrContext } from '../composables/useHocr';
+import { isTypingTarget } from '../utils/dom';
 import type {
   CropEdges, FlowSchema, HocrLevel,
   LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb
@@ -539,16 +540,10 @@ const {onFilterChange} = usePageFilterNavigation({
 
 // ── Page navigation ──────────────────────────────────────────────────
 
-function isTypingTarget(): boolean {
-  const active = document.activeElement;
-  if (!(active instanceof HTMLElement)) return false;
-  return active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' ||
-      active.tagName === 'SELECT' || active.isContentEditable;
-}
 
 function navigatePage(delta: number) {
   const navPages = visiblePages.value;
-  if (!navPages.length || isTypingTarget()) return;
+  if (!navPages.length || isTypingTarget(document.activeElement)) return;
   const anchor = selectionAnchor.value ?? navPages[0].index;
   const pos = navPages.findIndex(p => p.index === anchor);
   const next = pos < 0 ? 0 : Math.max(0, Math.min(navPages.length - 1, pos + delta));
@@ -569,9 +564,7 @@ function makeKeyboardContext(): PageWorkspaceKeyboardContext {
 }
 
 function onKeyDown(e: KeyboardEvent) {
-  const target = e.target as HTMLElement;
-
-  if (target.closest?.('.workspace-tools')) return;
+  if (isTypingTarget(e.target)) return;
 
   if (props.keyboardHandler?.(e, makeKeyboardContext()) === true) {
     return;

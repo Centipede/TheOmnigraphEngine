@@ -207,6 +207,7 @@ import {
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
+import { isTypingTarget } from '../utils/dom';
 import {type HocrPage} from '../types';
 
 interface AddRequest {
@@ -611,25 +612,8 @@ function pageInteractionUpdate(
   }
 }
 
-function isTypingElement(el: Element | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
-      || ['SL-INPUT', 'SL-TEXTAREA', 'SL-SELECT'].includes(el.tagName)
-      || el.isContentEditable;
-}
-
-function isTypingTarget(): boolean {
-  const el = document.activeElement;
-
-  if (isTypingElement(el)) return true;
-
-  const shadowActiveElement = el?.shadowRoot?.activeElement;
-  return isTypingElement(shadowActiveElement || null);
-}
-
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
-  if (isTypingTarget()) return;
+  if (isTypingTarget(document.activeElement)) return;
 
   // Master tools (Row 2)
   if (e.key === 'q') {

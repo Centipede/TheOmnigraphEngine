@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject, reactive, ref, watch, computed} from 'vue';
+import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import {
