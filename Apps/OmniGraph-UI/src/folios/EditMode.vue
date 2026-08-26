@@ -256,8 +256,8 @@ const activeMasterTool = ref<MasterTool>('edit');
 const ocrLevel:Ref<OcrLevel> = ref('multi');
 
 const careaLayers = computed(() => ({
-  flow: activeMasterTool.value === 'carea-flow',
-  layout: activeMasterTool.value === 'carea-layout'
+  flow: activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'edit',
+  layout: activeMasterTool.value === 'carea-layout' || activeMasterTool.value === 'edit'
 }));
 
 const showBlocks = computed(() =>

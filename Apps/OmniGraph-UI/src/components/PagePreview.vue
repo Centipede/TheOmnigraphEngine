@@ -97,9 +97,11 @@ import {
   type Page,
   type PageInteractionUpdate,
   type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
-  type HocrNode
+  type HocrNode,
+  type FlowSchema,
+  type LayoutSchema
 } from '../types';
-import {makeVariedPalette} from '../utils/colors';
+import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
 
 const LEVELS: HocrLevel[] = ['page', 'carea', 'block', 'line', 'word'];
@@ -132,6 +134,9 @@ const props = withDefaults(defineProps<{
   interactionUpdate?: PageInteractionUpdate;
   interactionClick?: () => void;
   interactionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
+  flows?: Record<string, FlowSchema>;
+  layouts?: Record<string, LayoutSchema>;
+  careaLayers?: { flow: boolean; layout: boolean };
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
@@ -209,6 +214,7 @@ const overlayItems = computed((): OverlayItem[] => {
     if (d === -1) return 'parent';
     if (d === 0) return 'active';
     if (d === 1) return 'child';
+    if (levelIdx === 1 && (props.careaLayers?.flow || props.careaLayers?.layout)) return 'parent';
     return null;
   }
 
@@ -225,7 +231,32 @@ const overlayItems = computed((): OverlayItem[] => {
 
   for (const [i, carea] of page.careas.entries()) {
     const cr = roleFor(1);
-    if (cr) items.push({id: carea.id, level: 'carea', index: i, bbox: carea.bbox, role: cr, color: colorFor(0, i, cr), kind: null, wconf: getMinWconf(carea)});
+    if (cr) {
+      let careaColor = colorFor(0, i, cr);
+      if (props.careaLayers?.flow || props.careaLayers?.layout) {
+        const specs = [];
+        if (props.careaLayers?.flow && carea.flow && props.flows?.[carea.flow]) {
+          const f = props.flows[carea.flow];
+          if (f.color) specs.push(f.color);
+        }
+        if (props.careaLayers?.layout && carea.layout && props.layouts?.[carea.layout]) {
+          const l = props.layouts[carea.layout];
+          if (l.color) specs.push(l.color);
+        }
+        careaColor = applyColorSpecs(careaColor, specs);
+      }
+
+      items.push({
+        id: carea.id,
+        level: 'carea',
+        index: i,
+        bbox: carea.bbox,
+        role: cr,
+        color: careaColor,
+        kind: null,
+        wconf: getMinWconf(carea)
+      });
+    }
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(2);
@@ -530,8 +561,18 @@ function overlayItemStyle(item: OverlayItem) {
       style['--info-display'] = 'none';
     }
   } else if (item.role === 'parent') {
-    style.background = 'transparent';
-    style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
+    const isCareaHighlight = item.level === 'carea' && (props.careaLayers?.flow || props.careaLayers?.layout);
+    if (isCareaHighlight) {
+      style.background = `color-mix(in srgb, ${item.color} 15%, transparent)`;
+      style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
+      const isImmediateParent = props.hocrLevel && LEVELS.indexOf(item.level) === LEVELS.indexOf(props.hocrLevel) - 1;
+      if (!isImmediateParent) {
+        style.pointerEvents = 'none';
+      }
+    } else {
+      style.background = 'transparent';
+      style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
+    }
   } else {
     style.background = 'transparent';
   }

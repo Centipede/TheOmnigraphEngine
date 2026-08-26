@@ -152,6 +152,9 @@
               :interaction-update="pageInteractionUpdate"
               :interaction-click="pageInteractionClick"
               :interaction-drag="pageInteractionDrag"
+              :flows="flowsMap"
+              :layouts="layoutsMap"
+              :carea-layers="careaLayers"
           />
         </slot>
       </div>
