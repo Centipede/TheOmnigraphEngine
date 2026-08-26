@@ -38,6 +38,7 @@ export function provideHocrContext() {
       stem.value = null;
       return;
     }
+    hocrPage.value = null;
     loading.value = true;
     error.value = null;
     machineName.value = mName;

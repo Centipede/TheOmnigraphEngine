@@ -58,6 +58,7 @@ const props = withDefaults(defineProps<{
   careaLayers?: { flow: boolean; layout: boolean };
   showBlocks?: boolean;
   isCurrent?: boolean;
+  hocrSyncData?: HocrPage | null;
 }>(), {
   cropColor: 'rgba(0, 180, 0, 0.12)',
   discardColor: 'rgba(220, 0, 0, 0.35)',
@@ -177,21 +178,30 @@ const hocrData = ref<HocrPage | null>(null);
 const el = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 
+function setHocrData(page: HocrPage | null) {
+  if (!page) {
+    hocrData.value = null;
+    return;
+  }
+  // Memory-efficient storage: filter out lines and words
+  hocrData.value = {
+    ...page,
+    careas: page.careas.map(c => ({
+      ...c,
+      blocks: c.blocks.map(b => ({
+        ...b,
+        lines: [] // Clear lines to save memory
+      }))
+    }))
+  };
+}
+
 async function loadData() {
   if (!props.machineName) return;
   try {
-    const fullPage = await fetchHocrPage(props.machineName, props.page.scan);
-    // Memory-efficient storage: filter out lines and words
-    hocrData.value = {
-      ...fullPage,
-      careas: fullPage.careas.map(c => ({
-        ...c,
-        blocks: c.blocks.map(b => ({
-          ...b,
-          lines: [] // Clear lines to save memory
-        }))
-      }))
-    };
+    const stem = props.page.scan.replace(/\.[^/.]+$/, "");
+    const fullPage = await fetchHocrPage(props.machineName, stem);
+    setHocrData(fullPage);
   } catch (e) {
     console.error('Failed to load hOCR for strip:', e);
     hocrData.value = null;
@@ -225,6 +235,12 @@ onUnmounted(() => {
 watch(() => props.isCurrent, (newVal) => {
   if (newVal) {
     loadData();
+  }
+});
+
+watch(() => props.hocrSyncData, (newVal) => {
+  if (props.isCurrent) {
+    setHocrData(newVal);
   }
 });
 

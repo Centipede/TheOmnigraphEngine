@@ -84,6 +84,7 @@
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!isPanelVisible('page-strips')"
             :show-page-preview="!isPanelVisible('page-preview')"
+            :hocr-page="hocrContext.hocrPage.value"
         >
           <div class="strip-grid">
             <PageStrip
@@ -101,6 +102,7 @@
                 :selected="selectedPageSet.has(page.index)"
                 :machine-name="machineName"
                 :is-current="page.index === currentPageIndex"
+                :hocr-sync-data="page.index === currentPageIndex ? hocrContext.hocrPage.value : null"
                 :flows="flowsMap"
                 :layouts="layoutsMap"
                 :carea-overlay-color="careaOverlayColor"
