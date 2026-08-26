@@ -656,7 +656,9 @@ impl HocrPage {
     }
     pub fn cleanup_block(&mut self, carea: usize, block: usize) {
         if self.careas[carea].blocks[block].lines.is_empty() {
-            self.careas[carea].blocks.remove(block);
+            if self.careas[carea].blocks[block].kind != HocrBlockKind::Image {
+                self.careas[carea].blocks.remove(block);
+            }
         } else {
             self.careas[carea].blocks[block].rebuild_bbox();
         }
@@ -1296,11 +1298,14 @@ impl HocrPage {
                 if erase_underneath.unwrap_or(false) && erase_overlap.is_some() {
                     let erase_block_ids: Vec<String> = self.careas[carea].blocks
                         .iter()
-                        .filter(|carea| bbox.overlap_percentage(carea.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
-                        .map(|carea| carea.id.clone())
+                        .filter(|block| bbox.overlap_percentage(block.bbox).overlapping_other_pct as u8 >= erase_overlap.unwrap())
+                        .map(|block| block.id.clone())
                         .collect();
 
                     self.careas[carea].blocks.retain(|block| !erase_block_ids.contains(&block.id));
+                    if !erase_block_ids.is_empty() {
+                        self.cleanup_carea(carea);
+                    }
                 }
 
                 // Nodes are not really meant to overlap. It is up to the user to handle this case.
@@ -1369,6 +1374,7 @@ impl HocrPage {
     pub fn change_block_kind(&mut self, carea: usize, block: usize, kind: HocrBlockKind) {
         self.careas[carea].blocks[block].kind = kind;
         self.careas[carea].blocks[block].rebuild_bbox();
+        self.cleanup_carea(carea);
     }
 }
 
@@ -1556,6 +1562,9 @@ impl HocrBlock {
         html
     }
     pub fn rebuild_bbox(&mut self) {
+        if self.kind == HocrBlockKind::Image {
+            return;
+        }
         let subboxes = self.lines.iter().map(|l| l.bbox).collect::<Vec<_>>();
         match HocrBbox::union_all(&subboxes) {
             Some(union) => self.bbox = union,
