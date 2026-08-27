@@ -202,7 +202,7 @@ import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type Project, type OverlayItem, type HocrNode,
   findItem, findMultiLevelItemByPoint, type MultiSelect,
-  sortIdsByDocumentOrder,
+  sortIdsByDocumentOrder, findMultilevelById
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
@@ -306,36 +306,89 @@ watch(activeMasterTool, (newVal) => {
 
 const overItemId = ref<string | null>(null);
 const selectedItemIds = ref<Set<string>>(new Set());
+
+// Multi-select: live hover stack (updated on mousemove) and committed selection (set on click).
+const multiHover = ref<MultiSelect | null>(null);
+const multiSelect = ref<MultiSelect | null>(null);
+
 const selectedItemId = computed({
-  get: () => selectedItemIds.value.size > 0 ? Array.from(selectedItemIds.value)[0] : null,
+  get: () => {
+    if (!multiSelect.value) return null;
+    if (ocrLevel.value === 'multi') {
+      return multiSelect.value.word?.id || multiSelect.value.line?.id || multiSelect.value.block?.id || multiSelect.value.carea?.id || null;
+    }
+    if (ocrLevel.value === 'page') return null;
+    return multiSelect.value[ocrLevel.value as keyof MultiSelect]?.id ?? null;
+  },
   set: (val) => {
-    selectedItemIds.value.clear();
-    if (val) selectedItemIds.value.add(val);
+    window.alert(`Forbidden direct assignment to selectedItemId.value = ${val}. Use newSelection(), addToSelection() or removeFromSelection() instead.`);
   }
 });
+
+function newSelection(id: string | null) {
+  if (!id) {
+    selectedItemIds.value.clear();
+    multiSelect.value = null;
+    return;
+  }
+  const stack = findMultilevelById(hocrPage.value!, id);
+  if (stack) {
+    multiSelect.value = stack;
+    const targetId = ocrLevel.value === 'multi'
+        ? (stack.word?.id || stack.line?.id || stack.block?.id || stack.carea?.id || null)
+        : (stack[ocrLevel.value as keyof MultiSelect]?.id || null);
+
+    if (targetId) {
+      selectedItemIds.value = new Set([targetId]);
+    }
+  }
+}
+
+function addToSelection(id: string) {
+  const stack = findMultilevelById(hocrPage.value!, id);
+  if (stack) {
+    multiSelect.value = stack;
+    const targetId = ocrLevel.value === 'multi'
+        ? (stack.word?.id || stack.line?.id || stack.block?.id || stack.carea?.id || null)
+        : (stack[ocrLevel.value as keyof MultiSelect]?.id || null);
+
+    if (targetId) {
+      selectedItemIds.value.add(targetId);
+    }
+  }
+}
+
+function removeFromSelection(id: string) {
+  selectedItemIds.value.delete(id);
+  if (selectedItemIds.value.size === 0) {
+    multiSelect.value = null;
+  } else {
+    const lastId = Array.from(selectedItemIds.value).pop()!;
+    const stack = findMultilevelById(hocrPage.value!, lastId);
+    if (stack) multiSelect.value = stack;
+  }
+}
+
 const indicatedItemId  = ref<string | null>(null);
 provide('selectedItemIds', selectedItemIds);
 provide('selectedItemId',  selectedItemId);
 provide('indicatedItemId', indicatedItemId);
 provide('selectNode', (level: OcrLevel, id: string, e?: MouseEvent) => {
+  console.log("selectNode", level, id, e);
+  setOcrLevel(level);
   if (e?.shiftKey) {
     if (selectedItemIds.value.has(id)) {
-      selectedItemIds.value.delete(id);
+      removeFromSelection(id);
     } else {
-      selectedItemIds.value.add(id);
+      addToSelection(id);
     }
   } else {
-    selectedItemId.value = id;
+    newSelection(id);
   }
-  setOcrLevel(level);
 });
 const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
-
-// Multi-select: live hover stack (updated on mousemove) and committed selection (set on click).
-const multiHover = ref<MultiSelect | null>(null);
-const multiSelect = ref<MultiSelect | null>(null);
 
 // ── Modifier key state ───────────────────────────────────────────────
 
@@ -433,9 +486,31 @@ const pointerEnabled = computed(() => {
   }
 });
 
-// Can we called from UI with the intent of setting both level, master tool (and operation, depending on leftover setup).
+// Can be called from UI with the intent of setting both level, master tool (and operation, depending on leftover setup).
+function syncSelectionToLevel(level: OcrLevel) {
+  if (level === 'multi' || level === 'page') return;
+
+  const newIds = new Set<string>();
+  for (const id of selectedItemIds.value) {
+    const stack = findMultilevelById(hocrPage.value!, id);
+    if (stack) {
+      const target = stack[level as keyof MultiSelect];
+      if (target) {
+        newIds.add(target.id);
+      }
+    }
+  }
+  selectedItemIds.value = newIds;
+  if (newIds.size > 0) {
+    const lastId = Array.from(newIds).pop()!;
+    multiSelect.value = findMultilevelById(hocrPage.value!, lastId);
+  }
+}
+
 function setOcrLevel(level: OcrLevel) {
   ocrLevel.value = level;
+  syncSelectionToLevel(level);
+
   if (level !== 'multi') {
 
     // Precaution: If we force the level to something that these master tools cannot handle: Change master tool.
@@ -483,7 +558,7 @@ async function bulkRemove() {
   for (const id of ids) {
     await callHocrEndpoint(id, 'remove');
   }
-  selectedItemIds.value.clear();
+  newSelection(null);
 }
 
 // ── Change block type ────────────────────────────────────────────────
@@ -560,29 +635,32 @@ async function pageInteractionDrag(x1: number, y1: number, x2: number, y2: numbe
 async function pageInteractionClick(): Promise<void> {
   const mode = effectiveOcrOperation.value;
   if (mode === 'none') return;
-  if (ocrLevel.value === 'multi') {
-    multiSelect.value = multiHover.value;
-    return;
-  }
 
   if (mode === 'select') {
+    const targetId = (ocrLevel.value === 'multi' && multiHover.value)
+        ? (multiHover.value.word?.id || multiHover.value.line?.id || multiHover.value.block?.id || multiHover.value.carea?.id || null)
+        : overItemId.value;
+
     if (shiftDown.value) {
-      if (overItemId.value) {
-        if (selectedItemIds.value.has(overItemId.value)) {
-          selectedItemIds.value.delete(overItemId.value);
+      if (targetId) {
+        if (selectedItemIds.value.has(targetId)) {
+          removeFromSelection(targetId);
         } else {
-          selectedItemIds.value.add(overItemId.value);
+          addToSelection(targetId);
         }
       }
     } else {
-      selectedItemId.value = overItemId.value;
+      newSelection(targetId);
     }
     return;
   }
   else if (mode === 'remove') {
-    if (overItemId.value) {
-      await callHocrEndpoint(overItemId.value, 'remove');
-      selectedItemIds.value.delete(overItemId.value);
+    const targetId = (ocrLevel.value === 'multi' && multiHover.value)
+        ? (multiHover.value.word?.id || multiHover.value.line?.id || multiHover.value.block?.id || multiHover.value.carea?.id || null)
+        : overItemId.value;
+    if (targetId) {
+      await callHocrEndpoint(targetId, 'remove');
+      removeFromSelection(targetId);
     }
   }
   else if (mode === 'join' && betweenTargets.value[0] && betweenTargets.value[1]) {
@@ -597,24 +675,22 @@ async function pageInteractionClick(): Promise<void> {
 function pageInteractionUpdate(
     x: number,
     y: number,
-    overlappingOverlayItems: OverlayItem[],
+    _: OverlayItem[],
     _activeItem: HocrNode | null,
     betweenOverlayItems: [HocrNode | null, HocrNode | null],
     betweenOverlaySubItems: [HocrNode | null, HocrNode | null],
 ) {
-  overItemId.value = null;
   betweenTargets.value = betweenOverlayItems;
   betweenSubTargets.value = betweenOverlaySubItems;
 
-  if (ocrLevel.value === 'multi') {
-    multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
-  }
-  else {
-    for (const item of overlappingOverlayItems) {
-      if (item.level === ocrLevel.value) {
-        overItemId.value = item.id;
-      }
-    }
+  // Always populate the multi-level stack
+  multiHover.value = findMultiLevelItemByPoint(hocrPage.value!, x, y);
+
+  // Derive overItemId from multiHover based on ocrLevel
+  if (ocrLevel.value === 'multi' || ocrLevel.value === 'page') {
+    overItemId.value = null;
+  } else {
+    overItemId.value = multiHover.value?.[ocrLevel.value as keyof MultiSelect]?.id ?? null;
   }
 }
 
@@ -733,7 +809,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
     for (const id of ids) {
       await callHocrEndpoint(id, 'remove');
     }
-    selectedItemIds.value.clear();
+    newSelection(null);
   }
 }
 
@@ -752,7 +828,7 @@ async function handleHocrResponse(resp: Response, source: string): Promise<void>
     if (data && typeof data === 'object' && 'page' in data) {
       updateHocr(data.page as HocrPage);
       if (data.new_id) {
-        selectedItemId.value = data.new_id;
+        newSelection(data.new_id);
       }
     } else {
       updateHocr(data as HocrPage);
@@ -813,10 +889,11 @@ async function callAddEndpoint(bbox: [number, number, number, number]): Promise<
     erase_overlap: form.eraseOverlapPercentage,
   };
 
-  const parent = selectedTarget.value;
-  if (tool === 'block' && parent?.level === 'carea') body.to_carea = parent.id;
-  else if (tool === 'line' && parent?.level === 'block') body.to_block = parent.id;
-  else if (tool === 'word' && parent?.level === 'line') body.to_line = parent.id;
+  if (multiSelect.value) {
+    if (tool === 'block') body.to_carea = multiSelect.value.carea?.id;
+    else if (tool === 'line') body.to_block = multiSelect.value.block?.id;
+    else if (tool === 'word') body.to_line = multiSelect.value.line?.id;
+  }
   console.log('callAddEndpoint', body, tool);
 
   const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/${LEVEL_SEGMENT[tool]}/add`;
