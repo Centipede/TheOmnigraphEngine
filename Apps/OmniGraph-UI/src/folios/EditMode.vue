@@ -207,6 +207,7 @@ import {
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
+import { isTypingTarget } from '../utils/dom';
 import {type HocrPage} from '../types';
 
 interface AddRequest {
@@ -501,6 +502,9 @@ const BLOCK_KIND_KEYS: Record<string, string> = {
   '5': 'subsubsubsection',    // H5
   '6': 'subsubsubsubsection', // H6
   '7': 'paragraph',           // P
+  '8': 'image',               // IMG
+  '9': 'table',               // TBL
+  'l': 'list',                // LST
 };
 
 // Ordered list for the button palette, including paragraph.
@@ -513,6 +517,9 @@ const BLOCK_KINDS = [
   { key: '5', kind: 'subsubsubsection',     label: 'H5' },
   { key: '6', kind: 'subsubsubsubsection',  label: 'H6' },
   { key: '7', kind: 'paragraph',            label: 'P'  },
+  { key: '8', kind: 'image',                label: 'IMG' },
+  { key: '9', kind: 'table',                label: 'TBL' },
+  { key: 'L', kind: 'list',                 label: 'LST' },
 ] as const;
 
 async function changeBlockType(turn_into: string): Promise<void> {
@@ -611,25 +618,8 @@ function pageInteractionUpdate(
   }
 }
 
-function isTypingElement(el: Element | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
-      || ['SL-INPUT', 'SL-TEXTAREA', 'SL-SELECT'].includes(el.tagName)
-      || el.isContentEditable;
-}
-
-function isTypingTarget(): boolean {
-  const el = document.activeElement;
-
-  if (isTypingElement(el)) return true;
-
-  const shadowActiveElement = el?.shadowRoot?.activeElement;
-  return isTypingElement(shadowActiveElement || null);
-}
-
 async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
-  if (isTypingTarget()) return;
+  if (isTypingTarget(document.activeElement)) return;
 
   // Master tools (Row 2)
   if (e.key === 'q') {
@@ -650,7 +640,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
   }
 
   // Numeric keys (Row 1) - Context sensitive
-  if (/^[0-9]$/.test(e.key)) {
+  if (/^[0-9l]$/i.test(e.key)) {
     if (activeMasterTool.value === 'edit') {
       const toolMap: Record<string, OcrLevel> = {
         '0': 'page',
@@ -664,7 +654,7 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
         return;
       }
     } else if (activeMasterTool.value === 'block-type') {
-      const kind = BLOCK_KIND_KEYS[e.key];
+      const kind = BLOCK_KIND_KEYS[e.key.toLowerCase()];
       if (kind && selectedItemIds.value.size > 0 && ocrLevel.value === 'block') {
         e.preventDefault();
         await changeBlockType(kind);

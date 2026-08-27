@@ -226,6 +226,9 @@ const overlayItems = computed((): OverlayItem[] => {
     if(block.kind == 'subsubsection') return 'H4'
     if(block.kind == 'subsubsubsection') return 'H5'
     if(block.kind == 'subsubsubsubsection') return 'H6'
+    if(block.kind == 'image') return 'IMG'
+    if(block.kind == 'table') return 'TBL'
+    if(block.kind == 'list') return 'LST'
     return 'P'
   }
 
