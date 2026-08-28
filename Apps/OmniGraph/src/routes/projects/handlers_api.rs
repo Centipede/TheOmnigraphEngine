@@ -340,7 +340,14 @@ pub async fn scan_pages_post(
             .into_response();
     };
 
-    // Read scan files from disk and white out crop margins
+    // Load project metadata to get processing settings
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(p) => p,
+        Err(status) => return status.into_response(),
+    };
+    let processing_settings = project.processing.clone();
+
+    // Read scan files from disk and apply pipeline (crop margins + processing settings)
     let scans_dir = state
         .projects_dir
         .join(&machine_name)
@@ -360,8 +367,9 @@ pub async fn scan_pages_post(
 
         let crop = page.crop_edges;
         let scan_name = page.scan.clone();
+        let settings = processing_settings.clone();
         let bytes = match tokio::task::spawn_blocking(move || {
-            crate::image_utils::apply_crop_mask(&raw, crop)
+            crate::image_utils::apply_crop_mask(&raw, crop, Some(&settings))
         })
         .await
         {

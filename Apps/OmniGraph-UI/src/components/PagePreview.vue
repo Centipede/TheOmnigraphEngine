@@ -172,16 +172,22 @@ async function fetchProject() {
 onMounted(fetchProject);
 
 const imageStyle = computed(() => {
-  if (!applyProcessing.value || !project.value?.processing?.desaturate) {
-    return {};
-  }
-  return {
-    filter: 'grayscale(100%)',
-  };
+  return {};
 });
 
 const label = computed(() => props.page.name || props.page.scan);
-const src = computed(() => props.imageBaseUrl + props.page.scan);
+const src = computed(() => {
+  let url = props.imageBaseUrl + props.page.scan;
+  if (applyProcessing.value) {
+    const params = new URLSearchParams();
+    params.append('processed', 'true');
+    if (props.crop) {
+      params.append('crop', `${props.crop.left},${props.crop.top},${props.crop.right},${props.crop.bottom}`);
+    }
+    url += '?' + params.toString();
+  }
+  return url;
+});
 
 const imageFrameRef = ref<HTMLElement | null>(null);
 const imageWrapRef = ref<HTMLElement | null>(null);

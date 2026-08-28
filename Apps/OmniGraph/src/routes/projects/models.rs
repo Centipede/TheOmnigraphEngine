@@ -10,6 +10,10 @@ pub struct Author {
 pub struct ProcessingSettings {
     #[serde(default)]
     pub desaturate: bool,
+    #[serde(default)]
+    pub contrast: f32,
+    #[serde(default)]
+    pub brightness: f32,
 }
 
 #[derive(Serialize, Deserialize)]

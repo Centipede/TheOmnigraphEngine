@@ -1,5 +1,5 @@
 use crate::hocr_parser::HocrBbox;
-use crate::routes::projects::models::CropEdges;
+use crate::routes::projects::models::{CropEdges, ProcessingSettings};
 use image::{GenericImage, GenericImageView, ImageFormat};
 use std::io::Cursor;
 
@@ -23,40 +23,92 @@ fn write_image_without_unneeded_alpha(
 
 /// White out the crop-edge margins of an image in memory.
 /// The image dimensions are unchanged so all hOCR coordinates stay valid.
-pub fn apply_crop_mask(bytes: &[u8], crop: CropEdges) -> Result<Vec<u8>, String> {
-    if crop.left == 0 && crop.top == 0 && crop.right == 0 && crop.bottom == 0 {
-        return Ok(bytes.to_vec());
-    }
+pub fn apply_crop_mask(
+    bytes: &[u8],
+    crop: CropEdges,
+    settings: Option<&ProcessingSettings>,
+) -> Result<Vec<u8>, String> {
+    apply_image_pipeline(bytes, Some(crop), settings)
+}
 
+/// Unified image processing pipeline: load, crop mask, and apply processing settings.
+pub fn apply_image_pipeline(
+    bytes: &[u8],
+    crop: Option<CropEdges>,
+    settings: Option<&ProcessingSettings>,
+) -> Result<Vec<u8>, String> {
     let format = image::guess_format(bytes).map_err(|e| e.to_string())?;
     let mut img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
+
+    if let Some(crop) = crop {
+        apply_crop_mask_to_image(&mut img, crop);
+    }
+
+    if let Some(settings) = settings {
+        img = apply_processing_settings(img, settings);
+    }
+
+    write_image_without_unneeded_alpha(img, format)
+}
+
+/// Apply desaturation, contrast, and brightness adjustments to a DynamicImage.
+pub fn apply_processing_settings(
+    mut img: image::DynamicImage,
+    settings: &ProcessingSettings,
+) -> image::DynamicImage {
+    if settings.desaturate {
+        img = img.grayscale();
+    }
+
+    if settings.contrast != 0.0 {
+        img = img.adjust_contrast(settings.contrast);
+    }
+
+    if settings.brightness != 0.0 {
+        img = img.brighten(settings.brightness as i32);
+    }
+
+    img
+}
+
+/// White out the crop-edge margins of an image in memory (modifies image in place).
+pub fn apply_crop_mask_to_image(img: &mut image::DynamicImage, crop: CropEdges) {
+    if crop.left == 0 && crop.top == 0 && crop.right == 0 && crop.bottom == 0 {
+        return;
+    }
 
     let (w, h) = (img.width(), img.height());
     let white = image::Rgba([255u8, 255, 255, 255]);
 
-    let left  = crop.left.min(w);
+    let left = crop.left.min(w);
     let right = crop.right.min(w);
-    let top   = crop.top.min(h);
-    let bot   = crop.bottom.min(h);
+    let top = crop.top.min(h);
+    let bot = crop.bottom.min(h);
 
     // Top strip
     for y in 0..top {
-        for x in 0..w { img.put_pixel(x, y, white); }
+        for x in 0..w {
+            img.put_pixel(x, y, white);
+        }
     }
     // Bottom strip
     for y in h.saturating_sub(bot)..h {
-        for x in 0..w { img.put_pixel(x, y, white); }
+        for x in 0..w {
+            img.put_pixel(x, y, white);
+        }
     }
-    // Left strip (full height so corners are covered)
+    // Left strip
     for x in 0..left {
-        for y in 0..h { img.put_pixel(x, y, white); }
+        for y in 0..h {
+            img.put_pixel(x, y, white);
+        }
     }
     // Right strip
     for x in w.saturating_sub(right)..w {
-        for y in 0..h { img.put_pixel(x, y, white); }
+        for y in 0..h {
+            img.put_pixel(x, y, white);
+        }
     }
-
-    write_image_without_unneeded_alpha(img, format)
 }
 
 /// Extract a content area from a page image, blotting out anything outside the page's
@@ -67,6 +119,7 @@ pub fn extract_and_process_carea_image(
     page_crop: CropEdges,
     image_blocks: &[HocrBbox],
     padding: u32,
+    settings: Option<&ProcessingSettings>,
 ) -> Result<Vec<u8>, String> {
     let format = image::guess_format(page_img_bytes).map_err(|e| e.to_string())?;
     let img = image::load_from_memory(page_img_bytes).map_err(|e| e.to_string())?;
@@ -133,8 +186,16 @@ pub fn extract_and_process_carea_image(
                 padded.put_pixel(x + padding, y + padding, *cropped.get_pixel(x, y));
             }
         }
-        write_image_without_unneeded_alpha(image::DynamicImage::ImageRgba8(padded), format)
+        let mut final_img = image::DynamicImage::ImageRgba8(padded);
+        if let Some(s) = settings {
+            final_img = apply_processing_settings(final_img, s);
+        }
+        write_image_without_unneeded_alpha(final_img, format)
     } else {
-        write_image_without_unneeded_alpha(image::DynamicImage::ImageRgba8(cropped), format)
+        let mut final_img = image::DynamicImage::ImageRgba8(cropped);
+        if let Some(s) = settings {
+            final_img = apply_processing_settings(final_img, s);
+        }
+        write_image_without_unneeded_alpha(final_img, format)
     }
 }

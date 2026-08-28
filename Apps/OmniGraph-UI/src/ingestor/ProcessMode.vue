@@ -22,6 +22,28 @@
           </sl-checkbox>
           <p class="help-text">Convert all book scans to grayscale for better OCR results.</p>
 
+          <div class="control-group">
+            <label class="label">Contrast</label>
+            <sl-input
+                type="number"
+                step="0.1"
+                :value="project.processing.contrast"
+                @sl-input="updateContrast"
+            ></sl-input>
+            <p class="help-text">Adjust image contrast. 0.0 is neutral. Positive values increase contrast.</p>
+          </div>
+
+          <div class="control-group">
+            <label class="label">Brightness</label>
+            <sl-input
+                type="number"
+                step="1"
+                :value="project.processing.brightness"
+                @sl-input="updateBrightness"
+            ></sl-input>
+            <p class="help-text">Adjust image brightness. 0.0 is neutral.</p>
+          </div>
+
           <sl-button
               variant="primary"
               :loading="isSaving"
@@ -85,6 +107,18 @@ function toggleDesaturate(e: any) {
   }
 }
 
+function updateContrast(e: any) {
+  if (project.value) {
+    project.value.processing.contrast = parseFloat(e.target.value) || 0;
+  }
+}
+
+function updateBrightness(e: any) {
+  if (project.value) {
+    project.value.processing.brightness = parseFloat(e.target.value) || 0;
+  }
+}
+
 async function saveSettings() {
   if (!project.value) return;
 
@@ -132,5 +166,16 @@ onUnmounted(() => setActivePanels(null));
   font-size: 0.8rem;
   color: var(--color-text-muted);
   margin-top: -0.5rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 </style>

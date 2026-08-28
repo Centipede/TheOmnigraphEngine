@@ -22,6 +22,8 @@ export interface LayoutSchema {
 
 export interface ProcessingSettings {
     desaturate: boolean;
+    contrast: number;
+    brightness: number;
 }
 
 export interface Project {
