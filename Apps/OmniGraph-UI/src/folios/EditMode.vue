@@ -183,7 +183,7 @@ import { useRoute } from 'vue-router';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type Project, type OverlayItem, type HocrNode,
-  findItem, findMultiLevelItemByPoint, type MultiSelect,
+  findMultiLevelItemByPoint, type MultiSelect,
   sortIdsByDocumentOrder, findMultilevelById
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
@@ -378,7 +378,6 @@ provide('selectNode', (level: OcrLevel, id: string, e?: MouseEvent) => {
     newSelection(id);
   }
 });
-const selectedTarget = computed(() => selectedItemId.value && hocrPage.value ? findItem(hocrPage.value, selectedItemId.value) : null);
 const betweenTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 const betweenSubTargets = ref<[HocrNode | null, HocrNode | null]>([null, null]);
 

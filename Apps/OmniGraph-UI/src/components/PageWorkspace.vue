@@ -157,6 +157,7 @@
               :flows="flowsMap"
               :layouts="layoutsMap"
               :carea-layers="careaLayers"
+              :machine-name="machineName"
           />
         </slot>
       </div>

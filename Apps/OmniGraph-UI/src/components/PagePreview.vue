@@ -2,6 +2,7 @@
   <div class="page-preview">
     <div class="page-preview-toolbar">
       <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
+      <sl-checkbox size="small" :checked="applyProcessing" @sl-change="applyProcessing = $event.target.checked">Processing</sl-checkbox>
     </div>
     <div
         class="interactive-area"
@@ -25,6 +26,7 @@
           <img id="scan-image"
                :src="src"
                class="page-preview-image"
+               :style="imageStyle"
                :alt="label"
                :title="label"
                draggable="false"
@@ -82,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject, ref, type Ref} from 'vue';
+import {computed, inject, ref, type Ref, onMounted} from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import {
   type CropEdges,
@@ -137,6 +139,7 @@ const props = withDefaults(defineProps<{
   flows?: Record<string, FlowSchema>;
   layouts?: Record<string, LayoutSchema>;
   careaLayers?: { flow: boolean; layout: boolean };
+  machineName: string;
 }>(), {
   showCropOverlay: true,
   cropColor: 'rgba(0, 180, 0, 0.12)',
@@ -152,6 +155,31 @@ const { hocrPage } = useHocrContext();
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 
+const project = ref<any>(null);
+
+async function fetchProject() {
+  if (!props.machineName) return;
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      project.value = await resp.json();
+    }
+  } catch (e) {
+    console.error('Failed to fetch project in PagePreview', e);
+  }
+}
+
+onMounted(fetchProject);
+
+const imageStyle = computed(() => {
+  if (!applyProcessing.value || !project.value?.processing?.desaturate) {
+    return {};
+  }
+  return {
+    filter: 'grayscale(100%)',
+  };
+});
+
 const label = computed(() => props.page.name || props.page.scan);
 const src = computed(() => props.imageBaseUrl + props.page.scan);
 
@@ -162,6 +190,7 @@ const pointerVisible = ref(false);
 const pointerX = ref(0);
 const pointerY = ref(0);
 const showConfidence = ref(false);
+const applyProcessing = ref(false);
 
 // ── Drag-to-draw state ───────────────────────────────────────────────
 const dragStart   = ref<{x: number; y: number} | null>(null);

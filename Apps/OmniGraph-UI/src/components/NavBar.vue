@@ -76,16 +76,40 @@
 
         <RouterLink
             v-if="hasProject"
-            :to="{ name: 'ingestor', params: { machineName, page: currentPageParam } }"
+            :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
             custom
-            v-slot="{ navigate, isActive }"
+            v-slot="{ navigate }"
         >
           <sl-button
-              :variant="isActive ? 'primary' : 'text'"
+              :variant="isIngestorRoute ? 'primary' : 'text'"
               @click="navigate"
           >
             Ingestor
           </sl-button>
+          <template v-if="isIngestorRoute">
+            <!-- Mode selector -->
+            <sl-button-group>
+              <RouterLink
+                  :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Assemble
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
+                  :to="{ name: 'ingestor-process', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Process
+                </sl-button>
+              </RouterLink>
+            </sl-button-group>
+          </template>
         </RouterLink>
         <sl-button v-else variant="text" disabled>
           Ingestor
@@ -248,6 +272,9 @@ const emit = defineEmits<{
 const route = useRoute();
 const hasProject = computed(() => props.machineName.length > 0);
 const currentPageParam = computed(() => route.params.page ? String(route.params.page) : undefined);
+const isIngestorRoute = computed(() => {
+  return typeof route.name === 'string' && route.name.startsWith('ingestor-');
+});
 const isFoliosRoute = computed(() => {
   return typeof route.name === 'string' && route.name.startsWith('folios-');
 });
