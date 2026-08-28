@@ -7,7 +7,13 @@
       :show-crop-overlay="true"
       :flows="flows"
       :layouts="layouts"
+      :hocr-level="'carea'"
       :carea-layers="{ flow: true, layout: true }"
+      :show-blocks="true"
+      carea-overlay-color="rgba(249, 115, 22)"
+      block-overlay-color="rgba(168, 85, 247)"
+      line-overlay-color="rgba(59, 130, 246)"
+      word-overlay-color="rgba(34, 197, 94)"
   >
     <template #tools="{ selectedPages, currentPage }">
       <sl-button-group>

@@ -566,7 +566,8 @@ function overlayItemStyle(item: OverlayItem) {
   } else if (item.role === 'parent') {
     const isCareaHighlight = item.level === 'carea' && (props.careaLayers?.flow || props.careaLayers?.layout);
     if (isCareaHighlight) {
-      style.background = `color-mix(in srgb, ${item.color} 15%, transparent)`;
+      const isLineOrWordMode = props.hocrLevel === 'line' || props.hocrLevel === 'word';
+      style.background = isLineOrWordMode ? 'transparent' : `color-mix(in srgb, ${item.color} 15%, transparent)`;
       style.outline = `1px dotted color-mix(in srgb, ${item.color} 25%, transparent)`;
       const isImmediateParent = props.hocrLevel && LEVELS.indexOf(item.level) === LEVELS.indexOf(props.hocrLevel) - 1;
       if (!isImmediateParent) {

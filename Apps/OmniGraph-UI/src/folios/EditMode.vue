@@ -18,6 +18,7 @@
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
+      @current-page-change="clearSelection"
   >
     <template #tools="{ currentPage }">
 
@@ -150,45 +151,26 @@
       </div>
 
       <div class="ocr-info-panel">
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Level</span>
-          <span class="ocr-info-value">{{ ocrLevel }}</span>
+        <div class="ocr-info-row" :class="{ active: ocrLevel === 'carea' }">
+          <span class="ocr-info-label">Carea</span>
+          <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
+          <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
         </div>
-        <div class="ocr-info-row">
-          <span class="ocr-info-label">Mode</span>
-          <span class="ocr-info-value">{{ pointerLabel || 'None' }}</span>
+        <div class="ocr-info-row" :class="{ active: ocrLevel === 'block' }">
+          <span class="ocr-info-label">Block</span>
+          <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
+          <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
         </div>
-        <template v-if="ocrLevel === 'multi'">
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Carea</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.carea?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.carea?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Block</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.block?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.block?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Line</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
-          </div>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Word</span>
-            <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
-            <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
-          </div>
-        </template>
-        <template v-else>
-          <div class="ocr-info-row">
-            <span class="ocr-info-label">Selected</span>
-            <span class="ocr-info-value ocr-info-id">
-              <template v-if="selectedTarget">{{ selectedTarget.id }} ({{ selectedTarget.level }})</template>
-              <template v-else>—</template>
-            </span>
-          </div>
-        </template>
+        <div class="ocr-info-row" :class="{ active: ocrLevel === 'line' }">
+          <span class="ocr-info-label">Line</span>
+          <span class="ocr-info-value ocr-info-id">{{ multiSelect?.line?.id ?? '—' }}</span>
+          <span class="ocr-info-value ocr-info-id">({{ multiHover?.line?.id ?? '—' }})</span>
+        </div>
+        <div class="ocr-info-row" :class="{ active: ocrLevel === 'word' }">
+          <span class="ocr-info-label">Word</span>
+          <span class="ocr-info-value ocr-info-id">{{ multiSelect?.word?.id ?? '—' }}</span>
+          <span class="ocr-info-value ocr-info-id">({{ multiHover?.word?.id ?? '—' }})</span>
+        </div>
       </div>
 
     </template>
@@ -367,6 +349,16 @@ function removeFromSelection(id: string) {
     const stack = findMultilevelById(hocrPage.value!, lastId);
     if (stack) multiSelect.value = stack;
   }
+}
+
+function clearSelection() {
+  selectedItemIds.value.clear();
+  multiSelect.value = null;
+  overItemId.value = null;
+  multiHover.value = null;
+  indicatedItemId.value = null;
+  betweenTargets.value = [null, null];
+  betweenSubTargets.value = [null, null];
 }
 
 const indicatedItemId  = ref<string | null>(null);
@@ -1012,6 +1004,16 @@ onUnmounted(() => {
   align-items: baseline;
   gap: 0.35rem;
   flex-wrap: wrap;
+}
+
+.ocr-info-row.active .ocr-info-label {
+  font-weight: 800;
+  color: var(--color-text, #212529);
+}
+
+.ocr-info-row.active .ocr-info-id {
+  font-weight: 700;
+  color: var(--color-text, #212529);
 }
 
 .ocr-info-label {
