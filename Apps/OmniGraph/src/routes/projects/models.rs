@@ -16,6 +16,12 @@ pub struct ProcessingSettings {
     pub brightness: f32,
 }
 
+impl ProcessingSettings {
+    pub fn has_effect(&self) -> bool {
+        self.desaturate || self.contrast != 0.0 || self.brightness != 0.0
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
@@ -32,7 +38,7 @@ pub struct Project {
     #[serde(default)]
     pub layouts: Vec<crate::hocr_parser::LayoutSchema>,
     #[serde(default)]
-    pub processing: ProcessingSettings,
+    pub processing: Option<ProcessingSettings>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]

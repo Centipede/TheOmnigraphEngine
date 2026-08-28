@@ -37,6 +37,16 @@ pub fn apply_image_pipeline(
     crop: Option<CropEdges>,
     settings: Option<&ProcessingSettings>,
 ) -> Result<Vec<u8>, String> {
+    let has_crop = crop
+        .map(|c| c.left > 0 || c.top > 0 || c.right > 0 || c.bottom > 0)
+        .unwrap_or(false);
+
+    let has_settings = settings.map(|s| s.has_effect()).unwrap_or(false);
+
+    if !has_crop && !has_settings {
+        return Ok(bytes.to_vec());
+    }
+
     let format = image::guess_format(bytes).map_err(|e| e.to_string())?;
     let mut img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
 
@@ -56,6 +66,10 @@ pub fn apply_processing_settings(
     mut img: image::DynamicImage,
     settings: &ProcessingSettings,
 ) -> image::DynamicImage {
+    if !settings.has_effect() {
+        return img;
+    }
+
     if settings.desaturate {
         img = img.grayscale();
     }

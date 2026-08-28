@@ -44,7 +44,7 @@ pub async fn serve_thumb(
                     Ok(p) => p,
                     Err(e) => return e.into_response(),
                 };
-                match crate::image_utils::apply_image_pipeline(&data, crop, Some(&project.processing)) {
+                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref()) {
                     Ok(processed) => {
                         let mime = mime_guess::from_path(&filename).first_or_octet_stream();
                         ([(header::CONTENT_TYPE, mime.as_ref().to_string())], processed).into_response()
@@ -79,7 +79,7 @@ pub async fn serve_scan(
                     Ok(p) => p,
                     Err(e) => return e.into_response(),
                 };
-                match crate::image_utils::apply_image_pipeline(&data, crop, Some(&project.processing)) {
+                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref()) {
                     Ok(processed) => {
                         let mime = mime_guess::from_path(&filename).first_or_octet_stream();
                         ([(header::CONTENT_TYPE, mime.as_ref().to_string())], processed).into_response()

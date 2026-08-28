@@ -36,7 +36,7 @@ export interface Project {
     ocr_language: string | null;
     flows: FlowSchema[];
     layouts: LayoutSchema[];
-    processing: ProcessingSettings;
+    processing?: ProcessingSettings | null;
 }
 
 export interface ProjectCreateForm {

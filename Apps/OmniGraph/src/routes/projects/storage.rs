@@ -29,7 +29,7 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
         ocr_language: None,
         flows: vec![],
         layouts: vec![],
-        processing: crate::routes::projects::models::ProcessingSettings::default(),
+        processing: None,
     };
 
     let toml_str = toml::to_string(&project)

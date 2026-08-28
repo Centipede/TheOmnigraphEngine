@@ -15,7 +15,7 @@
 
         <div v-if="project" class="settings-form">
           <sl-checkbox
-              :checked="project.processing.desaturate"
+              :checked="project.processing?.desaturate ?? false"
               @sl-change="toggleDesaturate"
           >
             Desaturate (Grayscale)
@@ -27,7 +27,7 @@
             <sl-input
                 type="number"
                 step="0.1"
-                :value="project.processing.contrast"
+                :value="project.processing?.contrast ?? 0"
                 @sl-input="updateContrast"
             ></sl-input>
             <p class="help-text">Adjust image contrast. 0.0 is neutral. Positive values increase contrast.</p>
@@ -38,19 +38,28 @@
             <sl-input
                 type="number"
                 step="1"
-                :value="project.processing.brightness"
+                :value="project.processing?.brightness ?? 0"
                 @sl-input="updateBrightness"
             ></sl-input>
             <p class="help-text">Adjust image brightness. 0.0 is neutral.</p>
           </div>
 
-          <sl-button
-              variant="primary"
-              :loading="isSaving"
-              @click="saveSettings"
-          >
-            Save Settings
-          </sl-button>
+          <div class="form-actions">
+            <sl-button
+                variant="primary"
+                :loading="isSaving"
+                @click="saveSettings"
+            >
+              Save Settings
+            </sl-button>
+            <sl-button
+                variant="warning"
+                outline
+                @click="resetSettings"
+            >
+              Reset
+            </sl-button>
+          </div>
         </div>
         <p v-else>Loading settings...</p>
       </div>
@@ -101,21 +110,34 @@ async function fetchProject() {
   }
 }
 
+function ensureProcessing() {
+  if (project.value && !project.value.processing) {
+    project.value.processing = {
+      desaturate: false,
+      contrast: 0,
+      brightness: 0
+    };
+  }
+}
+
 function toggleDesaturate(e: any) {
   if (project.value) {
-    project.value.processing.desaturate = e.target.checked;
+    ensureProcessing();
+    project.value.processing!.desaturate = e.target.checked;
   }
 }
 
 function updateContrast(e: any) {
   if (project.value) {
-    project.value.processing.contrast = parseFloat(e.target.value) || 0;
+    ensureProcessing();
+    project.value.processing!.contrast = parseFloat(e.target.value) || 0;
   }
 }
 
 function updateBrightness(e: any) {
   if (project.value) {
-    project.value.processing.brightness = parseFloat(e.target.value) || 0;
+    ensureProcessing();
+    project.value.processing!.brightness = parseFloat(e.target.value) || 0;
   }
 }
 
@@ -139,6 +161,13 @@ async function saveSettings() {
     showError?.('Failed to save project settings');
   } finally {
     isSaving.value = false;
+  }
+}
+
+async function resetSettings() {
+  if (project.value) {
+    project.value.processing = null;
+    await saveSettings();
   }
 }
 
@@ -177,5 +206,11 @@ onUnmounted(() => setActivePanels(null));
 .label {
   font-size: 0.9rem;
   font-weight: 500;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 </style>

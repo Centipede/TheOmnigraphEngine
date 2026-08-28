@@ -269,7 +269,7 @@ pub async fn carea_rescan(
         crop_edges,
         &image_blocks,
         50,
-        Some(&project.processing),
+        project.processing.as_ref(),
     ) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
@@ -1177,7 +1177,7 @@ pub async fn word_rescan(
         crop_edges,
         &[],
         50,
-        Some(&project.processing),
+        project.processing.as_ref(),
     ) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
