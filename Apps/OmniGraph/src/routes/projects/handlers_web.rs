@@ -44,7 +44,13 @@ pub async fn serve_thumb(
                     Ok(p) => p,
                     Err(e) => return e.into_response(),
                 };
-                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref()) {
+                let pagedb = storage::load_page_db(&state.project_pagesdb_path(&machine_name));
+                let hints = pagedb.pages.iter()
+                    .find(|p| p.thumb == filename)
+                    .map(|p| p.hints.as_slice())
+                    .unwrap_or(&[]);
+
+                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref(), hints) {
                     Ok(processed) => {
                         let mime = mime_guess::from_path(&filename).first_or_octet_stream();
                         ([(header::CONTENT_TYPE, mime.as_ref().to_string())], processed).into_response()
@@ -79,7 +85,13 @@ pub async fn serve_scan(
                     Ok(p) => p,
                     Err(e) => return e.into_response(),
                 };
-                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref()) {
+                let pagedb = storage::load_page_db(&state.project_pagesdb_path(&machine_name));
+                let hints = pagedb.pages.iter()
+                    .find(|p| p.scan == filename)
+                    .map(|p| p.hints.as_slice())
+                    .unwrap_or(&[]);
+
+                match crate::image_utils::apply_image_pipeline(&data, crop, project.processing.as_ref(), hints) {
                     Ok(processed) => {
                         let mime = mime_guess::from_path(&filename).first_or_octet_stream();
                         ([(header::CONTENT_TYPE, mime.as_ref().to_string())], processed).into_response()

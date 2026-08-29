@@ -366,10 +366,11 @@ pub async fn scan_pages_post(
         };
 
         let crop = page.crop_edges;
+        let hints = page.hints.clone();
         let scan_name = page.scan.clone();
         let settings = processing_settings.clone();
         let bytes = match tokio::task::spawn_blocking(move || {
-            crate::image_utils::apply_crop_mask(&raw, crop, settings.as_ref())
+            crate::image_utils::apply_crop_mask(&raw, crop, settings.as_ref(), &hints)
         })
         .await
         {

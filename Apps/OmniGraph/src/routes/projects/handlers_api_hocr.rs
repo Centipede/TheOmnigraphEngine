@@ -268,6 +268,7 @@ pub async fn carea_rescan(
         carea_bbox,
         crop_edges,
         &image_blocks,
+        &page_meta.hints,
         50,
         project.processing.as_ref(),
     ) {
@@ -1176,6 +1177,7 @@ pub async fn word_rescan(
         word_bbox,
         crop_edges,
         &[],
+        &page_meta.hints,
         50,
         project.processing.as_ref(),
     ) {
