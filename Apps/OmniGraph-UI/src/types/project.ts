@@ -20,6 +20,12 @@ export interface LayoutSchema {
     color?: ColorSpecification;
 }
 
+export interface ProcessingSettings {
+    desaturate: boolean;
+    contrast: number;
+    brightness: number;
+}
+
 export interface Project {
     name: string;
     machine_name: string;
@@ -30,6 +36,7 @@ export interface Project {
     ocr_language: string | null;
     flows: FlowSchema[];
     layouts: LayoutSchema[];
+    processing?: ProcessingSettings | null;
 }
 
 export interface ProjectCreateForm {

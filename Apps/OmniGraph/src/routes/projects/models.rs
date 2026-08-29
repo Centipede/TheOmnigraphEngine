@@ -6,6 +6,22 @@ pub struct Author {
     pub abbrev: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct ProcessingSettings {
+    #[serde(default)]
+    pub desaturate: bool,
+    #[serde(default)]
+    pub contrast: f32,
+    #[serde(default)]
+    pub brightness: f32,
+}
+
+impl ProcessingSettings {
+    pub fn has_effect(&self) -> bool {
+        self.desaturate || self.contrast != 0.0 || self.brightness != 0.0
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
@@ -21,6 +37,8 @@ pub struct Project {
     pub flows: Vec<crate::hocr_parser::FlowSchema>,
     #[serde(default)]
     pub layouts: Vec<crate::hocr_parser::LayoutSchema>,
+    #[serde(default)]
+    pub processing: Option<ProcessingSettings>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]

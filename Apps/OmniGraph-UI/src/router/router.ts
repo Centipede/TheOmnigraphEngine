@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Projects from '../projects/Projects.vue';
 import ProjectDetailView from '../projects/ProjectDetailView.vue';
 import IngestorView from '../ingestor/IngestorView.vue';
+import AssembleMode from '../ingestor/AssembleMode.vue';
+import ProcessMode from '../ingestor/ProcessMode.vue';
 import FoliosView from '../folios/FoliosView.vue';
 import AssistMode from '../folios/AssistMode.vue';
 import CropMode from '../folios/CropMode.vue';
@@ -42,10 +44,27 @@ export const router = createRouter({
             props: projectProps,
         },
         {
-            path: '/projects/:machineName/ingestor/:page?',
-            name: 'ingestor',
+            path: '/projects/:machineName/ingestor',
             component: IngestorView,
-            props: folioProps,
+            props: projectProps,
+            children: [
+                {
+                    path: '',
+                    redirect: { name: 'ingestor-assemble' },
+                },
+                {
+                    path: 'assemble/:page?',
+                    name: 'ingestor-assemble',
+                    component: AssembleMode,
+                    props: folioProps,
+                },
+                {
+                    path: 'process/:page?',
+                    name: 'ingestor-process',
+                    component: ProcessMode,
+                    props: folioProps,
+                },
+            ],
         },
         {
             path: '/projects/:machineName/folios',

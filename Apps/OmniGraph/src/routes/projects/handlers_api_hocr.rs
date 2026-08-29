@@ -256,8 +256,21 @@ pub async fn carea_rescan(
     // 5. Get page CropEdges
     let crop_edges = page_meta.crop_edges;
 
-    // 6. Call image_utils::extract_and_process_carea_image (with 50px padding)
-    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(&img_bytes, carea_bbox, crop_edges, &image_blocks, 50) {
+    // Load project metadata to get processing settings
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(p) => p,
+        Err(status) => return status.into_response(),
+    };
+
+    // 6. Call image_utils::extract_and_process_carea_image (with 50px padding and settings)
+    let processed_bytes = match crate::image_utils::extract_and_process_carea_image(
+        &img_bytes,
+        carea_bbox,
+        crop_edges,
+        &image_blocks,
+        50,
+        project.processing.as_ref(),
+    ) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     };
@@ -1150,7 +1163,13 @@ pub async fn word_rescan(
     // 4. Get page CropEdges
     let crop_edges = page_meta.crop_edges;
 
-    // 5. Extract image segment using word_bbox (with 50px padding)
+    // Load project metadata to get processing settings
+    let project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(p) => p,
+        Err(status) => return status.into_response(),
+    };
+
+    // 5. Extract image segment using word_bbox (with 50px padding and settings)
     // For word rescan, we don't have child image blocks to mask.
     let processed_bytes = match crate::image_utils::extract_and_process_carea_image(
         &img_bytes,
@@ -1158,6 +1177,7 @@ pub async fn word_rescan(
         crop_edges,
         &[],
         50,
+        project.processing.as_ref(),
     ) {
         Ok(b) => b,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
