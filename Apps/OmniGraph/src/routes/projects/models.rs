@@ -41,7 +41,7 @@ pub struct Project {
     pub processing: Option<ProcessingSettings>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
 pub struct CropEdges {
     /// Scan pixels from left edge.
     pub left: u32,
@@ -51,6 +51,20 @@ pub struct CropEdges {
     pub right: u32,
     /// Scan pixels from bottom edge.
     pub bottom: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HintType {
+    DropCap,
+    Image,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Hint {
+    #[serde(rename = "type")]
+    pub hint_type: HintType,
+    pub area: CropEdges,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -74,6 +88,8 @@ pub struct Page {
     pub import_order: u32,
     #[serde(default)]
     pub crop_edges: CropEdges,
+    #[serde(default)]
+    pub hints: Vec<Hint>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

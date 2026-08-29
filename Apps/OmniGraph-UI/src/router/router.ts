@@ -7,6 +7,7 @@ import ProcessMode from '../ingestor/ProcessMode.vue';
 import FoliosView from '../folios/FoliosView.vue';
 import AssistMode from '../folios/AssistMode.vue';
 import CropMode from '../folios/CropMode.vue';
+import HintMode from '../folios/HintMode.vue';
 import EditMode from '../folios/EditMode.vue';
 import Settings from '../settings/Settings.vue';
 import RecogniseMode from "../folios/RecogniseMode.vue";
@@ -85,6 +86,12 @@ export const router = createRouter({
                     path: 'crop/:page?',
                     name: 'folios-crop',
                     component: CropMode,
+                    props: folioProps,
+                },
+                {
+                    path: 'hint/:page?',
+                    name: 'folios-hint',
+                    component: HintMode,
                     props: folioProps,
                 },
                 {

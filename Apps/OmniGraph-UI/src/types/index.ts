@@ -1,4 +1,4 @@
-export type { Page, PageDb, CropEdges } from './page';
+export type { Page, PageDb, CropEdges, HintType, Hint } from './page';
 export type { SectionHeadline, SubsectionType, SectionKind, Section, Headline, StructureDb } from './structure';
 export type { Project, FlowSchema, LayoutSchema, ColorSpecification } from './project';
 export type { OcrCommandFormat, OcrServer, OcrServerStatus, OcrSettingsUpdate, SettingsForm, SettingsStatus } from './settings';

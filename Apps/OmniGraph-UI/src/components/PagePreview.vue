@@ -59,6 +59,15 @@
             </div>
           </div>
 
+          <template v-if="page.hints">
+            <div v-for="(hint, index) in page.hints"
+                 :key="index"
+                 class="hint-overlay"
+                 :class="`hint-overlay--${hint.type}`"
+                 :style="hintStyle(hint)"
+            />
+          </template>
+
           <div v-if="isDragging && dragRectStyle" class="drag-rect" :style="dragRectStyle" />
         </div>
 
@@ -97,6 +106,7 @@ import {
   type OverlayItem,
   type OverlayRole,
   type Page,
+  type Hint,
   type PageInteractionUpdate,
   type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
   type HocrNode,
@@ -576,6 +586,17 @@ function scanYPct(value: number): string {
       : '0%';
 }
 
+function hintStyle(hint: Hint) {
+  return {
+    position: 'absolute' as const,
+    left: scanXPct(hint.area.left),
+    top: scanYPct(hint.area.top),
+    width: scanXPct(hint.area.right - hint.area.left),
+    height: scanYPct(hint.area.bottom - hint.area.top),
+    pointerEvents: 'none' as const,
+  };
+}
+
 function overlayItemStyle(item: OverlayItem) {
   const [l, t, r, b] = item.bbox;
   const style: any = {
@@ -715,8 +736,19 @@ function overlayItemStyle(item: OverlayItem) {
 }
 
 .preview-discard,
-.preview-crop-area {
+.preview-crop-area,
+.hint-overlay {
   box-sizing: border-box;
+}
+
+.hint-overlay--dropcap {
+  background: rgba(255, 140, 0, 0.4);
+  border: 1px solid rgb(255, 140, 0);
+}
+
+.hint-overlay--image {
+  background: rgba(0, 191, 255, 0.4);
+  border: 1px solid rgb(0, 191, 255);
 }
 
 .hocr-overlay {
