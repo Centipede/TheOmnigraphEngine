@@ -2,6 +2,7 @@ export type HintType = 'dropcap' | 'image';
 
 export interface Hint {
     type: HintType;
+    letter?: string;
     area: CropEdges;
 }
 

@@ -33,14 +33,14 @@
               @click="activeTool = 'dropcap'"
               size="small"
           >
-            Dropcap (D)
+            Dropcap <span class="hint-key">D</span>
           </sl-button>
           <sl-button
               :variant="activeTool === 'image' ? 'primary' : 'default'"
               @click="activeTool = 'image'"
               size="small"
           >
-            Image (I)
+            Image <span class="hint-key">I</span>
           </sl-button>
         </sl-button-group>
 
@@ -52,17 +52,29 @@
 
         <div class="hint-list" v-if="currentPage && currentPage.hints && currentPage.hints.length > 0">
           <div v-for="(hint, index) in currentPage.hints" :key="index" class="hint-item">
-            <sl-badge :variant="hint.type === 'dropcap' ? 'warning' : 'info'">
-              {{ hint.type }}
-            </sl-badge>
-            <span class="hint-area">
+            <div class="hint-main-row">
+              <sl-badge :variant="hint.type === 'dropcap' ? 'warning' : 'info'">
+                {{ hint.type }}
+              </sl-badge>
+              <sl-input
+                  v-if="hint.type === 'dropcap'"
+                  size="small"
+                  placeholder="Letter"
+                  :value="hint.letter"
+                  @sl-input="hint.letter = ($event.target as HTMLInputElement).value"
+                  @sl-change="workspaceRef?.savePageDb()"
+                  class="hint-letter-input"
+              ></sl-input>
+              <div style="flex: 1"></div>
+              <sl-icon-button
+                  name="x-lg"
+                  label="Remove hint"
+                  @click="removeHint(index)"
+              ></sl-icon-button>
+            </div>
+            <div class="hint-area">
               {{ hint.area.left }},{{ hint.area.top }} - {{ hint.area.right }},{{ hint.area.bottom }}
-            </span>
-            <sl-icon-button
-                name="x-lg"
-                label="Remove hint"
-                @click="removeHint(index)"
-            ></sl-icon-button>
+            </div>
           </div>
         </div>
         <div v-else class="hint-list-empty">
@@ -140,6 +152,7 @@ async function handleInteractionDrag(x1: number, y1: number, x2: number, y2: num
 
   const hint: Hint = {
     type: activeTool.value,
+    letter: activeTool.value === 'dropcap' ? '' : undefined,
     area: {
       left: Math.min(x1, x2),
       top: Math.min(y1, y2),
@@ -182,6 +195,14 @@ function onPagesLoaded() {
   flex-direction: column;
 }
 
+.hint-key {
+  font-weight: 600;
+  color: var(--color-text-muted, #6c757d);
+  margin-left: 0.2rem;
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
 .hint-list-header {
   font-weight: bold;
   margin-bottom: 0.5rem;
@@ -198,21 +219,36 @@ function onPagesLoaded() {
 
 .hint-item {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.4rem;
   border: 1px solid var(--color-border, #dee2e6);
   border-radius: 4px;
   background: var(--color-bg-muted, #f8f9fa);
 }
 
+.hint-main-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .hint-area {
-  flex: 1;
   font-family: monospace;
-  font-size: 0.75rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #6c757d);
+}
+
+.hint-letter-input {
+  width: 4rem;
+}
+
+.hint-letter-input::part(base) {
+  height: 1.5rem;
+}
+
+.hint-letter-input::part(input) {
+  padding: 0 0.25rem;
 }
 
 .hint-list-empty {

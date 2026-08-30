@@ -54,15 +54,18 @@ pub struct CropEdges {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "lowercase", tag = "type")]
 pub enum HintType {
-    DropCap,
+    DropCap {
+        #[serde(default)]
+        letter: String,
+    },
     Image,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Hint {
-    #[serde(rename = "type")]
+    #[serde(flatten)]
     pub hint_type: HintType,
     pub area: CropEdges,
 }

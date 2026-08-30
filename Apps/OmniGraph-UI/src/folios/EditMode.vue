@@ -25,16 +25,16 @@
       <div class="tool-palette">
         <sl-button-group>
           <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
-            <span class="master-key">Q</span> Flow
+            Flow <span class="master-key">Q</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'carea-layout' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-layout'">
-            <span class="master-key">W</span> Layout
+            Layout <span class="master-key">W</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'edit' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'edit'">
-            <span class="master-key">E</span> Edit
+            Edit <span class="master-key">E</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'block-type' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'block-type'">
-            <span class="master-key">R</span> Type
+            Type <span class="master-key">R</span>
           </sl-button>
         </sl-button-group>
 
@@ -1079,15 +1079,16 @@ onUnmounted(() => {
 }
 
 .kind-key {
-  opacity: 0.55;
-  font-size: 0.7em;
+  font-size: 0.8em;
+  opacity: 0.7;
 }
 
 .master-key {
   font-weight: 600;
   color: var(--color-text-muted, #6c757d);
-  margin-right: 0.2rem;
+  margin-left: 0.2rem;
   font-size: 0.8em;
+  opacity: 0.7;
 }
 
 sl-button[variant="primary"] .master-key {
