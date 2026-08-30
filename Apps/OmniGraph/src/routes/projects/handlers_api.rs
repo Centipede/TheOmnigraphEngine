@@ -3,7 +3,7 @@ use crate::routes::projects::forms::{
     CreateProject, IngestQuery, RemoveRequest, ScanConflict, ScanPageResult, ScanRequest,
     ScanResponse, SettingsUpdate, AutoAssistRequest,
 };
-use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureDb};
+use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureDb, HintType};
 use crate::routes::projects::storage::hocr_edited_path;
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
@@ -411,8 +411,48 @@ pub async fn scan_pages_post(
         let page = pages.iter().find(|p| p.scan == ocr.upload_name);
         let Some(page) = page else { continue };
 
-        if let Some(hocr) = ocr.hocr {
-            match storage::save_hocr_original(&state.projects_dir, &machine_name, &page.scan, &hocr)
+        if let Some(original_hocr) = ocr.hocr {
+            let hocr_to_save = if page.hints.iter().any(|h| matches!(h.hint_type, HintType::DropCap { .. })) {
+                let hints = page.hints.clone();
+                let hocr_str = original_hocr.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    let mut hocr_page = crate::hocr_parser::parse(&hocr_str)?;
+                    let injections = hints
+                        .into_iter()
+                        .filter_map(|h| {
+                            if let HintType::DropCap { letter } = h.hint_type {
+                                Some(crate::hocr_parser::DropCapInjection {
+                                    text: letter,
+                                    bbox: crate::hocr_parser::HocrBbox([
+                                        h.area.left as i32,
+                                        h.area.top as i32,
+                                        h.area.right as i32,
+                                        h.area.bottom as i32,
+                                    ]),
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    hocr_page.inject_dropcaps(injections);
+                    Some(hocr_page.to_hocr_html())
+                })
+                .await;
+                match result {
+                    Ok(Some(processed_hocr)) => processed_hocr,
+                    _ => original_hocr,
+                }
+            } else {
+                original_hocr
+            };
+
+            match storage::save_hocr_original(
+                &state.projects_dir,
+                &machine_name,
+                &page.scan,
+                &hocr_to_save,
+            )
             {
                 Ok(()) => {
                     // For now we delete any edited hOCRs when we save a new hOCR.
