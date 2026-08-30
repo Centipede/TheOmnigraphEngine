@@ -1,3 +1,11 @@
+export type HintType = 'dropcap' | 'image';
+
+export interface Hint {
+    type: HintType;
+    letter?: string;
+    area: CropEdges;
+}
+
 export interface Page {
     index: number;
     name: string;
@@ -10,6 +18,7 @@ export interface Page {
     batch: number;
     import_order: number;
     crop_edges: CropEdges;
+    hints?: Hint[];
 }
 
 export interface PageDb {

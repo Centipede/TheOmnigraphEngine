@@ -3,6 +3,15 @@
     <div class="strip-container" :style="containerStyle">
       <img :src="src" class="strip-img" :style="imgStyle" :alt="label" :title="label" />
 
+      <template v-if="showHints && page.hints">
+        <div v-for="(hint, index) in page.hints"
+             :key="index"
+             class="hint-overlay"
+             :class="`hint-overlay--${hint.type}`"
+             :style="getHintStyle(hint)"
+        />
+      </template>
+
       <!-- OCR Overlays -->
       <template v-if="hocrData">
         <!-- CAREAs -->
@@ -34,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Page, CropEdges, FlowSchema, LayoutSchema } from '../types';
+import type { Page, CropEdges, FlowSchema, LayoutSchema, Hint } from '../types';
 import type { HocrPage, HocrCarea, HocrBlock } from '../types/hocr';
 import { fetchHocrPage } from '../composables/useHocr';
 import { applyColorSpecs } from '../utils/colors';
@@ -59,6 +68,7 @@ const props = withDefaults(defineProps<{
   showBlocks?: boolean;
   isCurrent?: boolean;
   hocrSyncData?: HocrPage | null;
+  showHints?: boolean;
 }>(), {
   cropColor: 'rgba(0, 180, 0, 0.12)',
   discardColor: 'rgba(220, 0, 0, 0.35)',
@@ -295,6 +305,22 @@ function getBlockStyle(block: HocrBlock) {
     pointerEvents: 'none' as const,
   };
 }
+
+function getHintStyle(hint: Hint) {
+  const wl = Math.round(hint.area.left * sx.value);
+  const wt = Math.round(hint.area.top * sy.value);
+  const wr = Math.round(hint.area.right * sx.value);
+  const wb = Math.round(hint.area.bottom * sy.value);
+
+  return {
+    position: 'absolute' as const,
+    left: `${ox.value + wl}px`,
+    top: `${oy.value + wt}px`,
+    width: `${wr - wl}px`,
+    height: `${wb - wt}px`,
+    pointerEvents: 'none' as const,
+  };
+}
 </script>
 
 <style scoped>
@@ -350,5 +376,19 @@ function getBlockStyle(block: HocrBlock) {
 
 .strip-img {
   user-select: none;
+}
+
+.hint-overlay {
+  box-sizing: border-box;
+}
+
+.hint-overlay--dropcap {
+  background: rgba(255, 140, 0, 0.4);
+  border: 1px solid rgb(255, 140, 0);
+}
+
+.hint-overlay--image {
+  background: rgba(0, 191, 255, 0.4);
+  border: 1px solid rgb(0, 191, 255);
 }
 </style>

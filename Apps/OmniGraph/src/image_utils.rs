@@ -1,5 +1,5 @@
 use crate::hocr_parser::HocrBbox;
-use crate::routes::projects::models::{CropEdges, ProcessingSettings};
+use crate::routes::projects::models::{CropEdges, Hint, ProcessingSettings};
 use image::{GenericImage, GenericImageView, ImageFormat};
 use std::io::Cursor;
 
@@ -27,8 +27,9 @@ pub fn apply_crop_mask(
     bytes: &[u8],
     crop: CropEdges,
     settings: Option<&ProcessingSettings>,
+    hints: &[Hint],
 ) -> Result<Vec<u8>, String> {
-    apply_image_pipeline(bytes, Some(crop), settings)
+    apply_image_pipeline(bytes, Some(crop), settings, hints)
 }
 
 /// Unified image processing pipeline: load, crop mask, and apply processing settings.
@@ -36,14 +37,16 @@ pub fn apply_image_pipeline(
     bytes: &[u8],
     crop: Option<CropEdges>,
     settings: Option<&ProcessingSettings>,
+    hints: &[Hint],
 ) -> Result<Vec<u8>, String> {
     let has_crop = crop
         .map(|c| c.left > 0 || c.top > 0 || c.right > 0 || c.bottom > 0)
         .unwrap_or(false);
 
     let has_settings = settings.map(|s| s.has_effect()).unwrap_or(false);
+    let has_hints = !hints.is_empty();
 
-    if !has_crop && !has_settings {
+    if !has_crop && !has_settings && !has_hints {
         return Ok(bytes.to_vec());
     }
 
@@ -52,6 +55,10 @@ pub fn apply_image_pipeline(
 
     if let Some(crop) = crop {
         apply_crop_mask_to_image(&mut img, crop);
+    }
+
+    if has_hints {
+        apply_hints_to_image(&mut img, hints);
     }
 
     if let Some(settings) = settings {
@@ -83,6 +90,30 @@ pub fn apply_processing_settings(
     }
 
     img
+}
+
+/// White out regions defined by hints (dropcaps and images).
+pub fn apply_hints_to_image(img: &mut image::DynamicImage, hints: &[Hint]) {
+    if hints.is_empty() {
+        return;
+    }
+
+    let (w, h) = (img.width(), img.height());
+    let white = image::Rgba([255u8, 255, 255, 255]);
+
+    for hint in hints {
+        let area = hint.area;
+        let left = area.left.min(w);
+        let right = area.right.min(w);
+        let top = area.top.min(h);
+        let bottom = area.bottom.min(h);
+
+        for y in top..bottom {
+            for x in left..right {
+                img.put_pixel(x, y, white);
+            }
+        }
+    }
 }
 
 /// White out the crop-edge margins of an image in memory (modifies image in place).
@@ -132,6 +163,7 @@ pub fn extract_and_process_carea_image(
     carea_bbox: HocrBbox,
     page_crop: CropEdges,
     image_blocks: &[HocrBbox],
+    hints: &[Hint],
     padding: u32,
     settings: Option<&ProcessingSettings>,
 ) -> Result<Vec<u8>, String> {
@@ -183,6 +215,15 @@ pub fn extract_and_process_carea_image(
             // 3. Blot out provided child image block bboxes.
             for img_bbox in image_blocks {
                 if abs_x >= img_bbox.left() && abs_x < img_bbox.right() && abs_y >= img_bbox.top() && abs_y < img_bbox.bottom() {
+                    cropped.put_pixel(x, y, white);
+                    break;
+                }
+            }
+
+            // 4. Blot out regions defined by hints.
+            for hint in hints {
+                let area = hint.area;
+                if abs_x >= area.left as i32 && abs_x < area.right as i32 && abs_y >= area.top as i32 && abs_y < area.bottom as i32 {
                     cropped.put_pixel(x, y, white);
                     break;
                 }

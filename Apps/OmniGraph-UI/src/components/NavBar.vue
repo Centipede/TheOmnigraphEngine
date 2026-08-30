@@ -152,6 +152,16 @@
               </RouterLink>
 
               <RouterLink
+                  :to="{ name: 'folios-hint', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Hint
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
                   :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
                   custom
                   v-slot="{ navigate, isActive }"

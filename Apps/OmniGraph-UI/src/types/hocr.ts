@@ -16,6 +16,7 @@ export interface HocrWord {
     lang?: string;
     text: string;
     wconf: number;
+    dropcap?: string;
 }
 
 export interface HocrLine {

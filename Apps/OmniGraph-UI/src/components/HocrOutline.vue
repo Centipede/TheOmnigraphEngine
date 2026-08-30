@@ -61,7 +61,7 @@
                   <span class="hocr-badge hocr-badge-w" title="Select WORD" @click.stop="selectNode('word', word.id, $event)">W</span>
                   <span class="hocr-id" :title="word.id">{{ word.id }}</span>
                   <span v-if="word.lang" class="hocr-lang">{{ word.lang }}</span>
-                  <span class="hocr-preview">{{ word.text }}</span>
+                  <span class="hocr-preview">{{ wordText(word) }}</span>
                   <sl-button variant="text" size="small" class="hocr-rescan-btn" @click.stop="rescanWordAction(word.id)" title="Rescan OCR for this word">
                     <sl-icon name="arrow-repeat"></sl-icon>
                   </sl-button>
@@ -91,6 +91,7 @@ import {
   type HocrCarea,
   type HocrLine,
   type HocrBlock,
+  type HocrWord,
   type HocrLevel,
   findMultilevelById
 } from '../types/hocr';
@@ -183,8 +184,15 @@ function blockBadge(block: HocrBlock): string {
   return blockAbbreviations[block.kind] ?? block.kind;
 }
 
+function wordText(word: HocrWord): string {
+  if (word.dropcap) {
+    return `[${word.dropcap}]${word.text}`;
+  }
+  return word.text;
+}
+
 function lineText(line: HocrLine): string {
-  return line.words.map(w => w.text).join(' ');
+  return line.words.map(wordText).join(' ');
 }
 
 function blockPreview(block: HocrBlock, maxLen = 60): string {

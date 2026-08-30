@@ -113,6 +113,8 @@ pub struct HocrWord {
     pub lang: Option<String>,
     pub text: String,
     pub wconf: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dropcap: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +200,12 @@ pub struct HocrCarea {
     pub layout: Option<String>,
     pub blocks: Vec<HocrBlock>,
     pub unknowns: Vec<HocrUnknown>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DropCapInjection {
+    pub text: String,
+    pub bbox: HocrBbox,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -442,6 +450,43 @@ impl HocrPage {
         html.push_str("</html>\n");
 
         html
+    }
+
+    pub fn inject_dropcaps(&mut self, injections: Vec<DropCapInjection>) {
+        for injection in injections {
+            let mut best_match: Option<(usize, usize, usize, i32)> = None;
+
+            for (c_idx, carea) in self.careas.iter().enumerate() {
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    for (l_idx, line) in block.lines.iter().enumerate() {
+                        if line.words.is_empty() {
+                            continue;
+                        }
+
+                        let v_diff = (line.bbox.top() - injection.bbox.top()).abs();
+                        let h_dist = (line.bbox.left() - injection.bbox.right()).abs();
+
+                        if v_diff <= 50 && h_dist <= 100 {
+                            match best_match {
+                                Some((_, _, _, best_v_diff)) if v_diff < best_v_diff => {
+                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
+                                }
+                                None => {
+                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some((c_idx, b_idx, l_idx, _)) = best_match {
+                if let Some(word) = self.careas[c_idx].blocks[b_idx].lines[l_idx].words.get_mut(0) {
+                    word.dropcap = Some(injection.text);
+                }
+            }
+        }
     }
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
@@ -1645,8 +1690,12 @@ impl HocrWord {
             Some(l) => format!(" lang=\"{}\"", escape_attr(l)),
             None => "".to_string(),
         };
+        let dropcap_html = match &self.dropcap {
+            Some(d) => format!("<span class=\"dropcap\">{}</span>", escape_text(d)),
+            None => "".to_string(),
+        };
         format!(
-            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}</span>",
+            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}{}</span>",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
@@ -1654,6 +1703,7 @@ impl HocrWord {
             self.bbox.bottom(),
             self.wconf,
             lang_attr,
+            dropcap_html,
             escape_text(&self.text),
         )
     }
@@ -1680,6 +1730,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
     let sel_block = Selector::parse("img, p.ocr_par, h1.ocr_part, h1.ocr_chapter, h2.ocr_section, h3.ocr_subsection, h4.ocr_subsubsection, h5.ocr_subsubsubsection, h6.ocr_subsubsubsubsection").ok()?;
     let sel_line = Selector::parse("span.ocr_line, span.ocr_caption").ok()?;
     let sel_word = Selector::parse("span.ocrx_word").ok()?;
+    let sel_dropcap = Selector::parse("span.dropcap").ok()?;
 
 
     let page_el = document.select(&sel_page).next()?;
@@ -1721,13 +1772,25 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                 .filter_map(|word_el| {
                                     let title = word_el.attr("title").unwrap_or("");
                                     let word_bbox = bbox(title)?;
+                                    let dropcap = word_el.select(&sel_dropcap).next().map(|el| el.text().collect::<String>());
+                                    let full_text = word_el.text().collect::<String>();
+                                    let text = if let Some(ref d) = dropcap {
+                                        if full_text.starts_with(d) {
+                                            full_text[d.len()..].trim().to_string()
+                                        } else {
+                                            full_text.trim().to_string()
+                                        }
+                                    } else {
+                                        full_text.trim().to_string()
+                                    };
                                     Some(HocrWord {
                                         level: "word".to_string(),
                                         id: word_el.attr("id").unwrap_or("").to_string(),
                                         bbox: word_bbox,
                                         lang: word_el.attr("lang").map(str::to_string),
-                                        text: word_el.text().collect::<String>().trim().to_string(),
+                                        text,
                                         wconf: wconf(title),
+                                        dropcap,
                                     })
                                 })
                                 .collect();
@@ -2833,5 +2896,58 @@ mod tests {
         // Original was 'par_1', new one should be 'par_4' because par_1, par_2, par_3 exist.
         assert_eq!(page.careas[0].blocks[0].id, "par_1");
         assert_eq!(page.careas[0].blocks[1].id, "par_4");
+    }
+
+    #[test]
+    fn test_dropcap_roundtrip() {
+        let html = r#"
+            <span class="ocrx_word" id="word_1" title="bbox 10 10 50 50; x_wconf 90"><span class="dropcap">W</span>hen</span>
+        "#;
+        let full_html = format!(r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 100 100">
+                <div class="ocr_carea" id="carea_1" title="bbox 0 0 100 100">
+                    <p class="ocr_par" id="par_1" title="bbox 0 0 100 100">
+                        <span class="ocr_line" id="line_1" title="bbox 0 0 100 100">
+                            {}
+                        </span>
+                    </p>
+                </div>
+            </div>
+        "#, html);
+
+        let page = parse(&full_html).unwrap();
+        let word = &page.careas[0].blocks[0].lines[0].words[0];
+        assert_eq!(word.dropcap, Some("W".to_string()));
+        assert_eq!(word.text, "hen".to_string());
+
+        let rendered = word.to_hocr_html();
+        assert!(rendered.contains(r#"<span class="dropcap">W</span>"#));
+        assert!(rendered.contains("hen</span>"));
+    }
+
+    #[test]
+    fn test_inject_dropcaps() {
+        let mut page = parse(r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+                <div class="ocr_carea" id="carea_1" title="bbox 100 100 500 500">
+                    <p class="ocr_par" id="par_1" title="bbox 100 100 500 500">
+                        <span class="ocr_line" id="line_1" title="bbox 110 105 400 130">
+                            <span class="ocrx_word" id="word_1" title="bbox 110 105 200 130">hen</span>
+                        </span>
+                    </p>
+                </div>
+            </div>
+        "#).unwrap();
+
+        let injections = vec![DropCapInjection {
+            text: "W".to_string(),
+            bbox: HocrBbox([50, 100, 105, 200]),
+        }];
+
+        page.inject_dropcaps(injections);
+
+        let word = &page.careas[0].blocks[0].lines[0].words[0];
+        assert_eq!(word.dropcap, Some("W".to_string()));
+        assert_eq!(word.text, "hen");
     }
 }
