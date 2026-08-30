@@ -7,23 +7,12 @@
       :panels="panels"
       :pointer-settings="pointerSettings"
       :keyboard-handler="handleKeyDown"
+      :page-interaction-drag="handleInteractionDrag"
+      :show-crop-overlay="true"
+      :show-hints="true"
       @current-page-change="currentPage = $event"
       @pages-loaded="onPagesLoaded"
   >
-    <template #page-preview="workspace">
-      <PagePreview
-          v-if="workspace.currentPage && workspace.currentPageCrop"
-          :page="workspace.currentPage"
-          :image-base-url="workspace.scanBaseUrl"
-          :crop="workspace.currentPageCrop"
-          :show-crop-overlay="true"
-          :crop-color="'rgba(0, 0, 0, 0.0)'"
-          :discard-color="'rgba(50, 50, 50, 0.35)'"
-          :pointer-settings="pointerSettings"
-          :interaction-drag="handleInteractionDrag"
-          :machine-name="machineName"
-      />
-    </template>
 
     <template #tools>
       <div class="hint-tools">
@@ -88,7 +77,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
-import PagePreview from '../components/PagePreview.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import type { Page, Hint, HintType, PointerSettings } from '../types';
@@ -122,12 +110,12 @@ onMounted(() => setActivePanels(panels));
 onUnmounted(() => setActivePanels(null));
 
 const pointerSettings = computed((): PointerSettings => {
-  if (!activeTool.value) return { enabled: false, color: '', icon: '', label: '' };
+  if (!activeTool.value) return { enabled: false, color: '#808080', icon: 'crosshair', label: '' };
   return {
     enabled: true,
     label: activeTool.value === 'dropcap' ? 'Dropcap' : 'Image',
     color: activeTool.value === 'dropcap' ? 'rgba(255, 140, 0, 1)' : 'rgba(0, 191, 255, 1)',
-    icon: '',
+    icon: 'crosshair',
   };
 });
 

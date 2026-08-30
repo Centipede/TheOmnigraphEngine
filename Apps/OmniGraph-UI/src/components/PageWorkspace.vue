@@ -109,6 +109,7 @@
                 :block-overlay-color="blockOverlayColor"
                 :carea-layers="careaLayers"
                 :show-blocks="showBlocks"
+                :show-hints="showHints"
                 @click="handleStripClick(page.index, $event)"
             />
           </div>
@@ -310,6 +311,7 @@ const props = withDefaults(defineProps<{
       layouts?: LayoutSchema[];
       careaLayers?: { flow: boolean; layout: boolean };
       showBlocks?: boolean;
+      showHints?: boolean;
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
       initialPageStem?: string;
