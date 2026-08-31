@@ -10,7 +10,7 @@
       :layouts="layouts"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
       :show-layers="careaLayers"
-      :show-blocks="showBlocks"
+      :show-blocks="true"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
@@ -238,10 +238,6 @@ const careaLayers = computed(() => ({
   flow: activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'edit',
   layout: activeMasterTool.value === 'carea-layout' || activeMasterTool.value === 'edit'
 }));
-
-const showBlocks = computed(() =>
-  ['carea-flow', 'carea-layout', 'block-type'].includes(activeMasterTool.value)
-);
 
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');

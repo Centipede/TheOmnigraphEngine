@@ -7,6 +7,7 @@
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
                  :show-crop-overlay="true"
+                 :show-hints="true"
                  :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
                  :flows="flows"
                  :layouts="layouts"
