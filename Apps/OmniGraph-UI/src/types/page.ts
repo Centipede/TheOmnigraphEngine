@@ -1,4 +1,4 @@
-export type HintType = 'dropcap' | 'image';
+export type HintType = 'dropcap' | 'image' | 'callout' | 'garbage';
 
 export interface Hint {
     type: HintType;

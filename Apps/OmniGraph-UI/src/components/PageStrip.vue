@@ -391,4 +391,14 @@ function getHintStyle(hint: Hint) {
   background: rgba(0, 191, 255, 0.4);
   border: 1px solid rgb(0, 191, 255);
 }
+
+.hint-overlay--callout {
+  background: rgba(40, 167, 69, 0.4);
+  border: 1px solid rgb(40, 167, 69);
+}
+
+.hint-overlay--garbage {
+  background: rgba(220, 53, 69, 0.4);
+  border: 1px solid rgb(220, 53, 69);
+}
 </style>

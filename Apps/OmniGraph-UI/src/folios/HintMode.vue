@@ -31,6 +31,20 @@
           >
             Image <span class="hint-key">I</span>
           </sl-button>
+          <sl-button
+              :variant="activeTool === 'callout' ? 'primary' : 'default'"
+              @click="activeTool = 'callout'"
+              size="small"
+          >
+            Callout <span class="hint-key">C</span>
+          </sl-button>
+          <sl-button
+              :variant="activeTool === 'garbage' ? 'primary' : 'default'"
+              @click="activeTool = 'garbage'"
+              size="small"
+          >
+            Garbage <span class="hint-key">G</span>
+          </sl-button>
         </sl-button-group>
 
         <br><br>
@@ -42,7 +56,7 @@
         <div class="hint-list" v-if="currentPage && currentPage.hints && currentPage.hints.length > 0">
           <div v-for="(hint, index) in currentPage.hints" :key="index" class="hint-item">
             <div class="hint-main-row">
-              <sl-badge :variant="hint.type === 'dropcap' ? 'warning' : 'info'">
+              <sl-badge :variant="getBadgeVariant(hint.type)">
                 {{ hint.type }}
               </sl-badge>
               <sl-input
@@ -111,21 +125,40 @@ onUnmounted(() => setActivePanels(null));
 
 const pointerSettings = computed((): PointerSettings => {
   if (!activeTool.value) return { enabled: false, color: '#808080', icon: 'crosshair', label: '' };
+  
+  const settings: Record<string, { label: string, color: string }> = {
+    dropcap: { label: 'Dropcap', color: 'rgba(255, 140, 0, 1)' },
+    image: { label: 'Image', color: 'rgba(0, 191, 255, 1)' },
+    callout: { label: 'Callout', color: 'rgba(40, 167, 69, 1)' },
+    garbage: { label: 'Garbage', color: 'rgba(220, 53, 69, 1)' },
+  };
+
+  const current = settings[activeTool.value] || { label: '', color: 'rgba(128, 128, 128, 1)' };
+
   return {
     enabled: true,
-    label: activeTool.value === 'dropcap' ? 'Dropcap' : 'Image',
-    color: activeTool.value === 'dropcap' ? 'rgba(255, 140, 0, 1)' : 'rgba(0, 191, 255, 1)',
+    label: current.label,
+    color: current.color,
     icon: 'crosshair',
   };
 });
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key.toLowerCase() === 'd') {
+  const key = e.key.toLowerCase();
+  if (key === 'd') {
     activeTool.value = 'dropcap';
     return true;
   }
-  if (e.key.toLowerCase() === 'i') {
+  if (key === 'i') {
     activeTool.value = 'image';
+    return true;
+  }
+  if (key === 'c') {
+    activeTool.value = 'callout';
+    return true;
+  }
+  if (key === 'g') {
+    activeTool.value = 'garbage';
     return true;
   }
   if (e.key === 'Escape') {
@@ -133,6 +166,14 @@ function handleKeyDown(e: KeyboardEvent) {
     return true;
   }
   return false;
+}
+
+function getBadgeVariant(type: HintType) {
+  if (type === 'dropcap') return 'warning';
+  if (type === 'image') return 'info';
+  if (type === 'callout') return 'success';
+  if (type === 'garbage') return 'danger';
+  return 'neutral';
 }
 
 async function handleInteractionDrag(x1: number, y1: number, x2: number, y2: number) {

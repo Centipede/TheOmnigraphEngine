@@ -61,6 +61,8 @@ pub enum HintType {
         letter: String,
     },
     Image,
+    Callout,
+    Garbage,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
