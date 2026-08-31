@@ -7,7 +7,7 @@ export interface HocrContext {
   stem: Ref<string | null>;
   loading: Ref<boolean>;
   error: Ref<string | null>;
-  loadHocr: (machineName: string, stem: string) => Promise<void>;
+  loadHocr: (machineName: string, stem: string, isNoHocrAcceptable?: boolean) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
@@ -16,9 +16,12 @@ export interface HocrContext {
 
 const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
 
-export async function fetchHocrPage(machineName: string, stem: string): Promise<HocrPage> {
+export async function fetchHocrPage(machineName: string, stem: string, isNoHocrAcceptable = true): Promise<HocrPage | null> {
   const resp = await fetch(`/api/projects/${machineName}/pages/${stem}/hocr-json`);
   if (!resp.ok) {
+    if (resp.status === 404 && isNoHocrAcceptable) {
+      return null;
+    }
     throw new Error(`Failed to load hOCR: ${resp.statusText}`);
   }
   return await resp.json() as HocrPage;
@@ -31,7 +34,7 @@ export function provideHocrContext() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function loadHocr(mName: string, sName: string) {
+  async function loadHocr(mName: string, sName: string, isNoHocrAcceptable = true) {
     if (!mName || !sName) {
       hocrPage.value = null;
       machineName.value = null;
@@ -44,7 +47,7 @@ export function provideHocrContext() {
     machineName.value = mName;
     stem.value = sName;
     try {
-      hocrPage.value = await fetchHocrPage(mName, sName);
+      hocrPage.value = await fetchHocrPage(mName, sName, isNoHocrAcceptable);
     } catch (e) {
       hocrPage.value = null;
       error.value = e instanceof Error ? e.message : String(e);

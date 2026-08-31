@@ -14,6 +14,7 @@
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
+      :is-no-hocr-acceptable="false"
       @current-page-change="clearSelection"
   >
     <template #tools="{ currentPage }">

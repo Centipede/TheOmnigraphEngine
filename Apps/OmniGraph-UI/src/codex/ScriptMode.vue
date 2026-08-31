@@ -4,6 +4,7 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :is-no-hocr-acceptable="false"
   >
     <template #tools="{ currentPage }">
       <div class="codex-tools">

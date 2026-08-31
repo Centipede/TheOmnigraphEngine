@@ -305,9 +305,11 @@ const props = withDefaults(defineProps<{
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
+      isNoHocrAcceptable?: boolean;
     }>(), {
       canPagesBeFiltered: true,
       palette: () => DEFAULT_PALETTE,
+      isNoHocrAcceptable: true,
     }
 );
 
@@ -698,7 +700,7 @@ watch(currentPage, (page) => {
   emit('currentPageChange', page);
   if (page) {
     const stem = page.scan.replace(/\.[^.]+$/, '');
-    hocrContext.loadHocr(props.machineName, stem);
+    hocrContext.loadHocr(props.machineName, stem, props.isNoHocrAcceptable);
   } else {
     hocrContext.clearHocr();
   }
