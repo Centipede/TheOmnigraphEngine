@@ -488,6 +488,15 @@ impl HocrPage {
             }
         }
     }
+
+    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
+        for bbox in bboxes {
+            // Add as an image block, letting the engine find the best carea/vertical position
+            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
+        }
+        self.rebuild_bbox();
+    }
+
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
         match HocrBbox::union_all(&subboxes) {
@@ -2949,5 +2958,40 @@ mod tests {
         let word = &page.careas[0].blocks[0].lines[0].words[0];
         assert_eq!(word.dropcap, Some("W".to_string()));
         assert_eq!(word.text, "hen");
+    }
+
+    #[test]
+    fn test_inject_images() {
+        let mut page = parse(r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+                <div class="ocr_carea" id="carea_1" title="bbox 100 100 500 500">
+                    <p class="ocr_par" id="par_1" title="bbox 100 100 500 500">
+                        <span class="ocr_line" id="line_1" title="bbox 110 105 400 130">
+                            <span class="ocrx_word" id="word_1" title="bbox 110 105 200 130">Text</span>
+                        </span>
+                    </p>
+                </div>
+            </div>
+        "#).unwrap();
+
+        let image_bboxes = vec![HocrBbox([600, 600, 800, 800])];
+
+        page.inject_images(image_bboxes);
+
+        // Should have 2 careas now
+        assert_eq!(page.careas.len(), 2);
+        
+        // The new carea should be at index 1 because its center Y (700) is greater than carea_1 center Y (300)
+        let new_carea = &page.careas[1];
+        assert_eq!(new_carea.blocks.len(), 1);
+        assert_eq!(new_carea.blocks[0].kind, HocrBlockKind::Image);
+        assert_eq!(new_carea.blocks[0].bbox, HocrBbox([600, 600, 800, 800]));
+
+        // Verify page bbox was rebuilt
+        assert_eq!(page.bbox, HocrBbox([100, 100, 800, 800]));
+        
+        let html = page.to_hocr_html();
+        assert!(html.contains("<img class=\"ocr_photo\""));
+        assert!(html.contains("title=\"bbox 600 600 800 800\""));
     }
 }

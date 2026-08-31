@@ -412,16 +412,21 @@ pub async fn scan_pages_post(
         let Some(page) = page else { continue };
 
         if let Some(original_hocr) = ocr.hocr {
-            let hocr_to_save = if page.hints.iter().any(|h| matches!(h.hint_type, HintType::DropCap { .. })) {
+            let hocr_to_save = if page.hints.iter().any(|h| {
+                matches!(h.hint_type, HintType::DropCap { .. })
+                    || matches!(h.hint_type, HintType::Image)
+            }) {
                 let hints = page.hints.clone();
                 let hocr_str = original_hocr.clone();
                 let result = tokio::task::spawn_blocking(move || {
                     let mut hocr_page = crate::hocr_parser::parse(&hocr_str)?;
-                    let injections = hints
-                        .into_iter()
-                        .filter_map(|h| {
-                            if let HintType::DropCap { letter } = h.hint_type {
-                                Some(crate::hocr_parser::DropCapInjection {
+                    let mut dropcaps = Vec::new();
+                    let mut images = Vec::new();
+
+                    for h in hints {
+                        match h.hint_type {
+                            HintType::DropCap { letter } => {
+                                dropcaps.push(crate::hocr_parser::DropCapInjection {
                                     text: letter,
                                     bbox: crate::hocr_parser::HocrBbox([
                                         h.area.left as i32,
@@ -429,13 +434,27 @@ pub async fn scan_pages_post(
                                         h.area.right as i32,
                                         h.area.bottom as i32,
                                     ]),
-                                })
-                            } else {
-                                None
+                                });
                             }
-                        })
-                        .collect();
-                    hocr_page.inject_dropcaps(injections);
+                            HintType::Image => {
+                                images.push(crate::hocr_parser::HocrBbox([
+                                    h.area.left as i32,
+                                    h.area.top as i32,
+                                    h.area.right as i32,
+                                    h.area.bottom as i32,
+                                ]));
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if !dropcaps.is_empty() {
+                        hocr_page.inject_dropcaps(dropcaps);
+                    }
+                    if !images.is_empty() {
+                        hocr_page.inject_images(images);
+                    }
+
                     Some(hocr_page.to_hocr_html())
                 })
                 .await;
