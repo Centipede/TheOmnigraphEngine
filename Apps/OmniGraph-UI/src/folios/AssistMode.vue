@@ -8,12 +8,9 @@
       :flows="flows"
       :layouts="layouts"
       :hocr-level="'carea'"
-      :carea-layers="{ flow: true, layout: true }"
+      :show-layers="{ flow: true, layout: true }"
       :show-blocks="true"
-      carea-overlay-color="rgba(249, 115, 22)"
-      block-overlay-color="rgba(168, 85, 247)"
-      line-overlay-color="rgba(59, 130, 246)"
-      word-overlay-color="rgba(34, 197, 94)"
+      :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
   >
     <template #tools="{ selectedPages, currentPage }">
       <sl-button-group>
@@ -43,7 +40,7 @@ import PageWorkspace from "../components/PageWorkspace.vue";
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
-import type { Page, Project } from '../types';
+import {DEFAULT_PALETTE, type Page, type Project} from '../types';
 
 const props = defineProps<{
   machineName: string;

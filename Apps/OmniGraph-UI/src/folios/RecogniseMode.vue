@@ -7,6 +7,7 @@
                  :page-list-columns="['name-or-scan', 'extras']"
                  :format-page-extras="formatPageExtras"
                  :show-crop-overlay="true"
+                 :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
                  :flows="flows"
                  :layouts="layouts"
   >
@@ -70,7 +71,7 @@
 import PageWorkspace from "../components/PageWorkspace.vue";
 
 import {onMounted, onUnmounted, ref, inject, computed} from 'vue';
-import type {Page, Project} from '../types';
+import {DEFAULT_PALETTE, type Page, type Project} from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';

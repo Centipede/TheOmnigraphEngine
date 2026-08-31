@@ -10,6 +10,7 @@
       :page-interaction-drag="handleInteractionDrag"
       :show-crop-overlay="true"
       :show-hints="true"
+      :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
       @current-page-change="currentPage = $event"
       @pages-loaded="onPagesLoaded"
   >
@@ -93,7 +94,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
-import type { Page, Hint, HintType, PointerSettings } from '../types';
+import {type Page, type Hint, type HintType, type PointerSettings, DEFAULT_PALETTE} from '../types';
 import {provideHocrContext} from "../composables/useHocr.ts";
 
 const props = defineProps<{

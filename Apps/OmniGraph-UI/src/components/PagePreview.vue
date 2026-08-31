@@ -111,8 +111,10 @@ import {
   type PointerSettings, type HocrCarea, type HocrBlock, type HocrLine, type HocrWord, findSiblingsAroundCursor,
   type HocrNode,
   type FlowSchema,
-  type LayoutSchema
+  type LayoutSchema,
+  type EditorPalette
 } from '../types';
+import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
 import CustomPointer from "./CustomPointer.vue";
 
@@ -135,13 +137,8 @@ const props = withDefaults(defineProps<{
   imageBaseUrl: string;
   crop?: CropEdges;
   showCropOverlay?: boolean;
-  cropColor?: string;
-  discardColor?: string;
+  palette?: EditorPalette;
   hocrLevel?: HocrLevel | null;
-  careaOverlayColor?: string;
-  blockOverlayColor?: string;
-  lineOverlayColor?: string;
-  wordOverlayColor?: string;
   pointerSettings?: PointerSettings;
   interactionUpdate?: PageInteractionUpdate;
   interactionClick?: () => void;
@@ -152,13 +149,8 @@ const props = withDefaults(defineProps<{
   machineName: string;
 }>(), {
   showCropOverlay: true,
-  cropColor: 'rgba(0, 180, 0, 0.12)',
-  discardColor: 'rgba(220, 0, 0, 0.28)',
+  palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
-  careaOverlayColor: 'rgba(249, 115, 22)',
-  blockOverlayColor: 'rgba(168, 85, 247)',
-  lineOverlayColor: 'rgba(34, 197, 94)',
-  wordOverlayColor: 'rgba(59, 130, 246)',
 });
 
 const { hocrPage } = useHocrContext();
@@ -232,10 +224,10 @@ const dragRectStyle = computed(() => {
 });
 
 const colorByLevel = computed(() => [
-  props.careaOverlayColor!,
-  props.blockOverlayColor!,
-  props.lineOverlayColor!,
-  props.wordOverlayColor!,
+  props.palette.careaOverlayColor,
+  props.palette.blockOverlayColor,
+  props.palette.lineOverlayColor,
+  props.palette.wordOverlayColor,
 ]);
 
 const overlayItems = computed((): OverlayItem[] => {
@@ -364,8 +356,8 @@ const cropAreaStyle = computed(() => ({
   top: cropTop.value,
   right: cropRight.value,
   bottom: cropBottom.value,
-  background: props.cropColor,
-  outline: `2px solid ${props.cropColor}`,
+  background: props.palette.keepColor,
+  outline: `2px solid ${props.palette.keepColor}`,
   outlineOffset: '-1px',
   pointerEvents: 'none' as const,
 }));
@@ -375,7 +367,7 @@ const topDiscardStyle = computed(() => ({
   top: '0',
   right: '0',
   height: cropTop.value,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 const bottomDiscardStyle = computed(() => ({
@@ -384,7 +376,7 @@ const bottomDiscardStyle = computed(() => ({
   right: '0',
   bottom: '0',
   height: cropBottom.value,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 const leftDiscardStyle = computed(() => ({
@@ -393,7 +385,7 @@ const leftDiscardStyle = computed(() => ({
   top: cropTop.value,
   bottom: cropBottom.value,
   width: cropLeft.value,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 const rightDiscardStyle = computed(() => ({
@@ -402,7 +394,7 @@ const rightDiscardStyle = computed(() => ({
   top: cropTop.value,
   bottom: cropBottom.value,
   width: cropRight.value,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 

@@ -4,6 +4,6 @@ export type { Project, FlowSchema, LayoutSchema, ColorSpecification } from './pr
 export type { OcrCommandFormat, OcrServer, OcrServerStatus, OcrSettingsUpdate, SettingsForm, SettingsStatus } from './settings';
 export type { PanelId, PanelVisibility } from './panels';
 export type { HocrBbox, HocrLevel, HocrCarea, HocrLine, HocrPage, HocrBlock, HocrWord, HocrNode, MultiSelect } from './hocr';
-export type { OverlayRole, OverlayItem, PageInteractionUpdate, PointerSettings } from './hocr_interaction';
+export type { OverlayRole, OverlayItem, PageInteractionUpdate, PointerSettings, EditorPalette } from './hocr_interaction';
 export { findItem, getChildren, bboxContainsPoint, findSiblingsAroundCursor, sortBylevel, findMultilevelById, findMultiLevelItemByPoint, sortIdsByDocumentOrder } from './hocr';
-export { getParentLevel, getChildLevel } from './hocr_interaction';
+export { getParentLevel, getChildLevel, DEFAULT_PALETTE } from './hocr_interaction';
