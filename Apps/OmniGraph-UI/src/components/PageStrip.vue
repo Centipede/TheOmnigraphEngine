@@ -15,7 +15,7 @@
       <!-- OCR Overlays -->
       <template v-if="hocrData">
         <!-- CAREAs -->
-        <template v-if="careaLayers?.flow || careaLayers?.layout">
+        <template v-if="showLayers?.flow || showLayers?.layout">
           <div v-for="carea in hocrData.careas" :key="'carea-' + carea.id" :style="getCareaStyle(carea)" />
         </template>
 
@@ -43,37 +43,31 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Page, CropEdges, FlowSchema, LayoutSchema, Hint } from '../types';
+import type { Page, CropEdges, FlowSchema, LayoutSchema, Hint, EditorPalette } from '../types';
+import { DEFAULT_PALETTE } from '../types';
 import type { HocrPage, HocrCarea, HocrBlock } from '../types/hocr';
 import { fetchHocrPage } from '../composables/useHocr';
 import { applyColorSpecs } from '../utils/colors';
 
 const props = withDefaults(defineProps<{
-  page:        Page;
-  edge:        string;
-  thumbBaseUrl: string;
-  fraction:    number;
-  showOverlay: boolean;
-  crop:        CropEdges;
-  selected?:   boolean;
-  cropColor?:  string;
-  discardColor?: string;
-  // OCR props
-  machineName?: string;
-  flows?: Record<string, FlowSchema>;
-  layouts?: Record<string, LayoutSchema>;
-  careaOverlayColor?: string;
-  blockOverlayColor?: string;
-  careaLayers?: { flow: boolean; layout: boolean };
-  showBlocks?: boolean;
-  isCurrent?: boolean;
+  page:          Page;
+  edge:          string;
+  selected?:     boolean;
+  isCurrent?:    boolean;
+  fraction:      number;
+  crop:          CropEdges;
+  palette?:      EditorPalette;
+  machineName?:  string;
+  thumbBaseUrl:  string;
+  flows?:        Record<string, FlowSchema>;
+  layouts?:      Record<string, LayoutSchema>;
   hocrSyncData?: HocrPage | null;
-  showHints?: boolean;
+  showLayers?:   { flow: boolean; layout: boolean };
+  showOverlay:   boolean;
+  showBlocks?:   boolean;
+  showHints?:    boolean;
 }>(), {
-  cropColor: 'rgba(0, 180, 0, 0.12)',
-  discardColor: 'rgba(220, 0, 0, 0.35)',
-  careaOverlayColor: 'rgba(249, 115, 22, 0.5)',
-  blockOverlayColor: 'rgba(168, 85, 247, 0.3)',
+  palette: () => DEFAULT_PALETTE,
 });
 
 const label = computed(() => props.page.name || props.page.scan);
@@ -136,8 +130,8 @@ const keepStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${iw.value}px`,
   height: `${ih.value}px`,
-  background: props.cropColor,
-  outline: `2px solid ${props.cropColor}`,
+  background: props.palette.keepColor,
+  outline: `2px solid ${props.palette.keepColor}`,
   outlineOffset: '-1px',
   pointerEvents: 'none' as const,
 }));
@@ -148,7 +142,7 @@ const topDiscardStyle = computed(() => ({
   top:    `${oy.value}px`,
   width:  `${tw.value}px`,
   height: `${tt.value}px`,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -158,7 +152,7 @@ const bottomDiscardStyle = computed(() => ({
   top:    `${oy.value + th.value - tb.value}px`,
   width:  `${tw.value}px`,
   height: `${tb.value}px`,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -168,7 +162,7 @@ const leftDiscardStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${tl.value}px`,
   height: `${ih.value}px`,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -178,7 +172,7 @@ const rightDiscardStyle = computed(() => ({
   top:    `${oy.value + tt.value}px`,
   width:  `${tr.value}px`,
   height: `${ih.value}px`,
-  background: props.discardColor,
+  background: props.palette.discardColor,
   pointerEvents: 'none' as const,
 }));
 
@@ -262,16 +256,16 @@ function getCareaStyle(carea: HocrCarea) {
   const wb = Math.round(b * sy.value);
 
   const specs = [];
-  if (props.careaLayers?.flow && carea.flow && props.flows?.[carea.flow]) {
+  if (props.showLayers?.flow && carea.flow && props.flows?.[carea.flow]) {
     const f = props.flows[carea.flow];
     if (f.color) specs.push(f.color);
   }
-  if (props.careaLayers?.layout && carea.layout && props.layouts?.[carea.layout]) {
+  if (props.showLayers?.layout && carea.layout && props.layouts?.[carea.layout]) {
     const l = props.layouts[carea.layout];
     if (l.color) specs.push(l.color);
   }
 
-  const background = applyColorSpecs(props.careaOverlayColor || 'rgba(249, 115, 22, 0.5)', specs);
+  const background = applyColorSpecs(props.palette.careaOverlayColor, specs);
 
   return {
     position: 'absolute' as const,
@@ -299,7 +293,7 @@ function getBlockStyle(block: HocrBlock) {
     top: `${oy.value + wt}px`,
     width: `${wr - wl}px`,
     height: `${wb - wt}px`,
-    outline: `2px solid ${props.blockOverlayColor}`,
+    outline: `2px solid ${props.palette.blockOverlayColor}`,
     opacity: 0.5,
     mixBlendMode: 'normal' as const,
     pointerEvents: 'none' as const,
@@ -390,5 +384,15 @@ function getHintStyle(hint: Hint) {
 .hint-overlay--image {
   background: rgba(0, 191, 255, 0.4);
   border: 1px solid rgb(0, 191, 255);
+}
+
+.hint-overlay--callout {
+  background: rgba(40, 167, 69, 0.4);
+  border: 1px solid rgb(40, 167, 69);
+}
+
+.hint-overlay--garbage {
+  background: rgba(220, 53, 69, 0.4);
+  border: 1px solid rgb(220, 53, 69);
 }
 </style>

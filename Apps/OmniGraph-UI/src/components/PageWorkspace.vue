@@ -85,6 +85,7 @@
             :show-page-strips="!isPanelVisible('page-strips')"
             :show-page-preview="!isPanelVisible('page-preview')"
             :hocr-page="hocrContext.hocrPage.value"
+            :palette="palette"
         >
           <div class="strip-grid">
             <PageStrip
@@ -97,17 +98,14 @@
                 :fraction="stripFraction ?? 1"
                 :showOverlay="showCropOverlay ?? false"
                 :crop="pageCrops?.get(page.index) ?? page.crop_edges"
-                :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
-                :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
+                :palette="palette"
                 :selected="selectedPageSet.has(page.index)"
                 :machine-name="machineName"
                 :is-current="page.index === currentPageIndex"
                 :hocr-sync-data="page.index === currentPageIndex ? hocrContext.hocrPage.value : null"
                 :flows="flowsMap"
                 :layouts="layoutsMap"
-                :carea-overlay-color="careaOverlayColor"
-                :block-overlay-color="blockOverlayColor"
-                :carea-layers="careaLayers"
+                :show-layers="showLayers"
                 :show-blocks="showBlocks"
                 :show-hints="showHints"
                 @click="handleStripClick(page.index, $event)"
@@ -136,6 +134,7 @@
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!isPanelVisible('page-strips')"
             :show-page-preview="!isPanelVisible('page-preview')"
+            :palette="palette"
             :pointer-settings="pointerSettings"
         >
           <PagePreview
@@ -144,20 +143,15 @@
               :image-base-url="scanBaseUrl"
               :crop="currentPageCrop"
               :show-crop-overlay="showCropOverlay ?? false"
-              :crop-color="cropColor ?? 'rgba(0, 0, 0, 0.0)'"
-              :discard-color="discardColor ?? 'rgba(50, 50, 50, 0.35)'"
+              :palette="palette"
               :hocr-level="hocrLevel"
-              :carea-overlay-color="careaOverlayColor"
-              :block-overlay-color="blockOverlayColor"
-              :line-overlay-color="lineOverlayColor"
-              :word-overlay-color="wordOverlayColor"
               :pointer-settings="pointerSettings"
               :interaction-update="pageInteractionUpdate"
               :interaction-click="pageInteractionClick"
               :interaction-drag="pageInteractionDrag"
               :flows="flowsMap"
               :layouts="layoutsMap"
-              :carea-layers="careaLayers"
+              :carea-layers="showLayers"
               :machine-name="machineName"
           />
         </slot>
@@ -234,10 +228,7 @@
             ref="hocrOutlineRef"
             :flows="flows"
             :layouts="layouts"
-            :carea-overlay-color="careaOverlayColor"
-            :block-overlay-color="blockOverlayColor"
-            :line-overlay-color="lineOverlayColor"
-            :word-overlay-color="wordOverlayColor"
+            :palette="palette"
         />
       </div>
     </div><!-- end workspace-right-sidebar -->
@@ -255,8 +246,9 @@ import { useHocrContext } from '../composables/useHocr';
 import { isTypingTarget } from '../utils/dom';
 import type {
   CropEdges, FlowSchema, HocrLevel,
-  LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb
+  LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette
 } from '../types';
+import { DEFAULT_PALETTE } from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
 import PagePreview from '../components/PagePreview.vue';
@@ -300,16 +292,11 @@ const props = withDefaults(defineProps<{
       stripEdge?: string;
       stripFraction?: number;
       showCropOverlay?: boolean;
-      cropColor?: string;
-      discardColor?: string;
+      palette?: EditorPalette;
       hocrLevel?: HocrLevel | null;
-      careaOverlayColor?: string;
-      blockOverlayColor?: string;
-      lineOverlayColor?: string;
-      wordOverlayColor?: string;
       flows?: FlowSchema[];
       layouts?: LayoutSchema[];
-      careaLayers?: { flow: boolean; layout: boolean };
+      showLayers?: { flow: boolean; layout: boolean };
       showBlocks?: boolean;
       showHints?: boolean;
       pointerSettings?: PointerSettings;
@@ -320,6 +307,7 @@ const props = withDefaults(defineProps<{
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
     }>(), {
       canPagesBeFiltered: true,
+      palette: () => DEFAULT_PALETTE,
     }
 );
 

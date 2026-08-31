@@ -2,6 +2,24 @@ import type {HocrBbox, HocrNode, HocrLevel} from "./hocr.ts";
 
 export type OverlayRole = 'parent' | 'active' | 'child';
 
+export interface EditorPalette {
+    keepColor: string;
+    discardColor: string;
+    careaOverlayColor: string;
+    blockOverlayColor: string;
+    lineOverlayColor: string;
+    wordOverlayColor: string;
+}
+
+export const DEFAULT_PALETTE: EditorPalette = {
+    keepColor: 'rgba(0, 180, 0, 0.12)',
+    discardColor: 'rgba(220, 0, 0, 0.35)',
+    careaOverlayColor: 'rgba(249, 115, 22, 1)',
+    blockOverlayColor: 'rgba(168, 85, 247, 1)',
+    lineOverlayColor: 'rgba(59, 130, 246, 1)',
+    wordOverlayColor: 'rgba(34, 197, 94, 1)',
+};
+
 export interface OverlayItem {
     id: string;
     level: HocrLevel;

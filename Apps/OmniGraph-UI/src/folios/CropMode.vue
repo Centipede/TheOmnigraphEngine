@@ -10,8 +10,6 @@
       :page-crops="pageCrops"
       :is-page-changed="isPageChanged"
       :keyboard-handler="handleCropKey"
-      crop-color="rgba(0, 180, 0, 0.12)"
-      discard-color="rgba(220, 0, 0, 0.35)"
       @pages-loaded="syncCropStateFromPageDb"
       @current-page-change="onPageChange"
   >

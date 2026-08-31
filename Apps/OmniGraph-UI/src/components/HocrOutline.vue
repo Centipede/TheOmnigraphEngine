@@ -87,29 +87,17 @@
 import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
-import {
-  type HocrCarea,
-  type HocrLine,
-  type HocrBlock,
-  type HocrWord,
-  type HocrLevel,
-  findMultilevelById
-} from '../types/hocr';
+import type { HocrLevel, HocrCarea, HocrBlock, HocrLine, HocrWord, EditorPalette } from '../types';
+import { DEFAULT_PALETTE, findMultilevelById } from '../types';
 import type { FlowSchema, LayoutSchema, ColorSpecification } from '../types';
 import { applyColorSpecs } from '../utils/colors';
 
 const props = withDefaults(defineProps<{
-  careaOverlayColor?: string;
-  blockOverlayColor?: string;
-  lineOverlayColor?: string;
-  wordOverlayColor?: string;
+  palette?: EditorPalette;
   flows?: FlowSchema[];
   layouts?: LayoutSchema[];
 }>(), {
-  careaOverlayColor: '#f97316',
-  blockOverlayColor: '#a855f7',
-  lineOverlayColor: '#2563eb',
-  wordOverlayColor: '#16a34a',
+  palette: () => DEFAULT_PALETTE,
   flows: () => [],
   layouts: () => [],
 });
@@ -244,7 +232,7 @@ function careaBadgeStyle(carea: HocrCarea) {
   }
 
   return {
-    backgroundColor: applyColorSpecs(props.careaOverlayColor, specs),
+    backgroundColor: applyColorSpecs(props.palette.careaOverlayColor, specs),
     color: '#fff'
   };
 }
@@ -281,7 +269,7 @@ function getBadgeDetails(type: 'flow' | 'layout', value?: string) {
   const specs: ColorSpecification[] = [];
   if (schema.color) specs.push(schema.color);
 
-  const color = applyColorSpecs(props.careaOverlayColor, specs);
+  const color = applyColorSpecs(props.palette.careaOverlayColor, specs);
 
   return {
     text: value,
