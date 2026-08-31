@@ -117,7 +117,7 @@
 
         <RouterLink
             v-if="hasProject"
-            :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
+            :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
             custom
             v-slot="{ navigate }"
         >
@@ -131,16 +131,6 @@
 
             <!-- Mode selector -->
             <sl-button-group>
-              <RouterLink
-                  :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Assist
-                </sl-button>
-              </RouterLink>
-
               <RouterLink
                   :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
                   custom
@@ -168,6 +158,16 @@
               >
                 <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
                   Recognise
+                </sl-button>
+              </RouterLink>
+
+              <RouterLink
+                  :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
+                  custom
+                  v-slot="{ navigate, isActive }"
+              >
+                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                  Assist
                 </sl-button>
               </RouterLink>
 

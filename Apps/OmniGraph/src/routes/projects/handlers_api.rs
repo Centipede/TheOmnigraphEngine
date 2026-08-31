@@ -412,16 +412,21 @@ pub async fn scan_pages_post(
         let Some(page) = page else { continue };
 
         if let Some(original_hocr) = ocr.hocr {
-            let hocr_to_save = if page.hints.iter().any(|h| matches!(h.hint_type, HintType::DropCap { .. })) {
+            let hocr_to_save = if page.hints.iter().any(|h| {
+                matches!(h.hint_type, HintType::DropCap { .. })
+                    || matches!(h.hint_type, HintType::Image)
+            }) {
                 let hints = page.hints.clone();
                 let hocr_str = original_hocr.clone();
                 let result = tokio::task::spawn_blocking(move || {
                     let mut hocr_page = crate::hocr_parser::parse(&hocr_str)?;
-                    let injections = hints
-                        .into_iter()
-                        .filter_map(|h| {
-                            if let HintType::DropCap { letter } = h.hint_type {
-                                Some(crate::hocr_parser::DropCapInjection {
+                    let mut dropcaps = Vec::new();
+                    let mut images = Vec::new();
+
+                    for h in hints {
+                        match h.hint_type {
+                            HintType::DropCap { letter } => {
+                                dropcaps.push(crate::hocr_parser::DropCapInjection {
                                     text: letter,
                                     bbox: crate::hocr_parser::HocrBbox([
                                         h.area.left as i32,
@@ -429,13 +434,27 @@ pub async fn scan_pages_post(
                                         h.area.right as i32,
                                         h.area.bottom as i32,
                                     ]),
-                                })
-                            } else {
-                                None
+                                });
                             }
-                        })
-                        .collect();
-                    hocr_page.inject_dropcaps(injections);
+                            HintType::Image => {
+                                images.push(crate::hocr_parser::HocrBbox([
+                                    h.area.left as i32,
+                                    h.area.top as i32,
+                                    h.area.right as i32,
+                                    h.area.bottom as i32,
+                                ]));
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if !dropcaps.is_empty() {
+                        hocr_page.inject_dropcaps(dropcaps);
+                    }
+                    if !images.is_empty() {
+                        hocr_page.inject_images(images);
+                    }
+
                     Some(hocr_page.to_hocr_html())
                 })
                 .await;
@@ -541,16 +560,23 @@ pub async fn auto_layout(
     Path((machine_name, stem)): Path<(String, String)>,
     Json(payload): Json<AutoAssistRequest>,
 ) -> impl IntoResponse {
+    if !payload.stems.is_empty() && payload.carea_ids.as_ref().map_or(false, |v| !v.is_empty()) {
+        return (StatusCode::BAD_REQUEST, "Cannot specify both stems and carea_ids").into_response();
+    }
 
     println!("Auto layout for project {}, page {}, selection: {:?}", machine_name, stem, payload.stems);
-    StatusCode::OK
+    StatusCode::OK.into_response()
 }
 
 pub async fn auto_flow(
     State(state): State<AppState>,
-    Path((machine_name, _stem)): Path<(String, String)>,
+    Path((machine_name, stem)): Path<(String, String)>,
     Json(payload): Json<AutoAssistRequest>,
 ) -> impl IntoResponse {
+    if !payload.stems.is_empty() && payload.carea_ids.as_ref().map_or(false, |v| !v.is_empty()) {
+        return (StatusCode::BAD_REQUEST, "Cannot specify both stems and carea_ids").into_response();
+    }
+
     let project = match storage::read_project(&state.projects_dir, &machine_name) {
         Ok(p) => p,
         Err(status) => return status.into_response(),
@@ -559,7 +585,17 @@ pub async fn auto_flow(
     let flows = project.flows.clone();
     let layouts = project.layouts.clone();
 
-    for target_stem in payload.stems {
+    let (target_stems, carea_ids) = if let Some(ref ids) = payload.carea_ids {
+        if !ids.is_empty() {
+            (vec![stem], Some(ids.clone()))
+        } else {
+            (payload.stems.clone(), None)
+        }
+    } else {
+        (payload.stems.clone(), None)
+    };
+
+    for target_stem in target_stems {
         let hocr_path = match storage::hocr_active_path(&state.projects_dir, &machine_name, &target_stem) {
             Some(path) => path,
             None => {
@@ -578,9 +614,10 @@ pub async fn auto_flow(
 
         let flows = flows.clone();
         let layouts = layouts.clone();
+        let carea_ids = carea_ids.clone();
         let result = tokio::task::spawn_blocking(move || {
             let mut page = crate::hocr_parser::parse(&html)?;
-            page.auto_flow(flows, layouts, true);
+            page.auto_flow(flows, layouts, true, carea_ids);
             Some(page.to_hocr_html())
         })
         .await;

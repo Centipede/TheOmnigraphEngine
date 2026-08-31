@@ -1,12 +1,12 @@
 <template>
-  <PageWorkspace :machine-name="machineName"
+  <PageWorkspace ref="workspaceRef"
+                 :machine-name="machineName"
                  :project-name="projectName"
                  :initial-page-stem="initialPageStem"
                  :panels="panels"
                  hocr-level="block"
-                 :page-list-columns="['name-or-scan', 'extras']"
-                 :format-page-extras="formatPageExtras"
                  :show-crop-overlay="true"
+                 :show-hints="true"
                  :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
                  :flows="flows"
                  :layouts="layouts"
@@ -97,28 +97,7 @@ const showError = inject<(msg: string) => void>('showError');
 
 provideHocrContext();
 
-// ── hOCR status ──────────────────────────────────────────────────────
-const hocrScanned = ref<Set<string>>(new Set());
-
-function formatPageExtras(pages: Page[]): Map<number, string> {
-  const map = new Map<number, string>();
-  for (const page of pages) {
-    if (hocrScanned.value.has(page.scan)) map.set(page.index, 'hOCR');
-  }
-  return map;
-}
-
-async function fetchHocrStatus(): Promise<void> {
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}/pages/hocr-status`);
-    if (resp.ok) {
-      const data = await resp.json() as { scanned: string[] };
-      hocrScanned.value = new Set(data.scanned);
-    }
-  } catch (e) {
-    console.error('Failed to fetch hOCR status:', e);
-  }
-}
+const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 
 // ── Scan state ───────────────────────────────────────────────────────
 interface ScanPageResult {
@@ -198,7 +177,7 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
 
     const data = await resp.json() as { results: ScanPageResult[] };
     scanResults.value = data.results;
-    void fetchHocrStatus();
+    void workspaceRef.value?.fetchHocrStatus();
   } catch (e) {
     console.error(e);
     scanError.value = 'Network error.';
@@ -207,20 +186,13 @@ async function scanPages(pagesToScan: Page[], force = false): Promise<void> {
   }
 }
 
-let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
-
 onMounted(async () => {
   setActivePanels(panels);
   void fetchProjectMetadata();
-  await fetchHocrStatus();
-  hocrStatusInterval = setInterval(() => {
-    void fetchHocrStatus();
-  }, 30_000);
 });
 
 onUnmounted(() => {
   setActivePanels(null);
-  if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 </script>
 

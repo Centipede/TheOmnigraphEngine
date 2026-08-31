@@ -4,6 +4,7 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :page-list-columns="['name-or-scan', 'extras']"
       :strip-edge="edge"
       :strip-fraction="viewPercent / 100"
       :show-crop-overlay="true"

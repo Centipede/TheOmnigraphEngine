@@ -488,6 +488,15 @@ impl HocrPage {
             }
         }
     }
+
+    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
+        for bbox in bboxes {
+            // Add as an image block, letting the engine find the best carea/vertical position
+            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
+        }
+        self.rebuild_bbox();
+    }
+
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
         match HocrBbox::union_all(&subboxes) {
@@ -535,7 +544,7 @@ impl HocrPage {
         }
     }
 
-    pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool) {
+    pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool, carea_ids: Option<Vec<String>>) {
         if flows.is_empty() {
             return;
         }
@@ -544,6 +553,11 @@ impl HocrPage {
 
         // 1. Assign default flow to careas with no current assignment.
         for carea in &mut self.careas {
+            if let Some(ref ids) = carea_ids {
+                if !ids.contains(&carea.id) {
+                    continue;
+                }
+            }
             if carea.flow.as_ref().map_or(true, |f| f.is_empty()) {
                 carea.flow = Some(default_flow.clone());
             }
@@ -563,7 +577,7 @@ impl HocrPage {
         for carea in old_careas {
             if carea.layout != current_layout {
                 // Process previous layout group
-                Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge);
+                Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
                 current_layout_group = Vec::new();
                 current_layout = carea.layout.clone();
             }
@@ -571,14 +585,14 @@ impl HocrPage {
         }
         // Process last group
         if !current_layout_group.is_empty() {
-            Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge);
+            Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
         }
 
         self.careas = new_careas;
         self.rebuild_bbox();
     }
 
-    fn auto_flow_for_layout(target: &mut Vec<HocrCarea>, group: Vec<HocrCarea>, merge: bool) {
+    fn auto_flow_for_layout(target: &mut Vec<HocrCarea>, group: Vec<HocrCarea>, merge: bool, carea_ids: &Option<Vec<String>>) {
         if !merge {
             target.extend(group);
             return;
@@ -588,6 +602,23 @@ impl HocrPage {
         let mut merged_careas: HashMap<String, HocrCarea> = HashMap::new();
 
         for mut carea in group {
+            let is_selected = carea_ids.as_ref().map_or(true, |ids| ids.contains(&carea.id));
+            
+            if !is_selected {
+                // Barrier! Flush current merges to maintain document order and prevent merging across unselected items.
+                for flow in flow_order {
+                    let mut merged = merged_careas.remove(&flow).unwrap();
+                    merged.rebuild_bbox();
+                    target.push(merged);
+                }
+                flow_order = Vec::new();
+                
+                // Add the unselected carea as its own item
+                carea.rebuild_bbox();
+                target.push(carea);
+                continue;
+            }
+
             let flow = carea.flow.clone().unwrap_or_default();
             if !merged_careas.contains_key(&flow) {
                 flow_order.push(flow.clone());
@@ -2723,7 +2754,7 @@ mod tests {
         };
 
         let flows = vec![FlowSchema { name: "default".to_string(), color: Some(ColorSpecification::default()) }];
-        page.auto_flow(flows, vec![], true);
+        page.auto_flow(flows, vec![], true, None);
 
         assert_eq!(page.careas[0].flow, Some("default".to_string()));
         assert_eq!(page.careas[1].flow, Some("existing".to_string()));
@@ -2792,7 +2823,7 @@ mod tests {
             FlowSchema { name: "F1".to_string(), color: Some(ColorSpecification::default()) },
             FlowSchema { name: "F2".to_string(), color: Some(ColorSpecification::default()) },
         ];
-        page.auto_flow(flows, vec![], true);
+        page.auto_flow(flows, vec![], true, None);
 
         // Result should be 2 careas in Group L1
         assert_eq!(page.careas.len(), 2);
@@ -2848,13 +2879,67 @@ mod tests {
         };
 
         let flows = vec![FlowSchema { name: "F1".to_string(), color: Some(ColorSpecification::default()) }];
-        page.auto_flow(flows, vec![], true);
+        page.auto_flow(flows, vec![], true, None);
 
         // Result should be 3 careas because L1 is interrupted by L2
         assert_eq!(page.careas.len(), 3);
         assert_eq!(page.careas[0].layout, Some("L1".to_string()));
         assert_eq!(page.careas[1].layout, Some("L2".to_string()));
         assert_eq!(page.careas[2].layout, Some("L1".to_string()));
+    }
+
+    #[test]
+    fn test_auto_flow_carea_selection() {
+        let mut page = HocrPage {
+            level: "page".to_string(),
+            page_id: "p1".to_string(),
+            bbox: HocrBbox::new(0, 0, 100, 100),
+            careas: vec![
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c1".to_string(),
+                    bbox: HocrBbox::new(0, 0, 10, 10),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c2".to_string(),
+                    bbox: HocrBbox::new(20, 20, 30, 30),
+                    flow: Some("F2".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+                HocrCarea {
+                    level: "carea".to_string(),
+                    id: "c3".to_string(),
+                    bbox: HocrBbox::new(40, 40, 50, 50),
+                    flow: Some("F1".to_string()),
+                    layout: Some("L1".to_string()),
+                    blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                    unknowns: vec![],
+                },
+            ],
+            unknowns: vec![],
+        };
+
+        let flows = vec![
+            FlowSchema { name: "F1".to_string(), color: Some(ColorSpecification::default()) },
+            FlowSchema { name: "F2".to_string(), color: Some(ColorSpecification::default()) },
+        ];
+        
+        // Only select c1 and c3. c2 should act as a barrier and NOT be merged.
+        // F1 is in c1 and c3. Normally they would merge, but c2 is in between and unselected.
+        page.auto_flow(flows, vec![], true, Some(vec!["c1".to_string(), "c3".to_string()]));
+
+        // Result should be 3 careas because c2 is not selected and acts as a barrier.
+        assert_eq!(page.careas.len(), 3);
+        assert_eq!(page.careas[0].id, "c1");
+        assert_eq!(page.careas[1].id, "c2");
+        assert_eq!(page.careas[2].id, "c3");
     }
 
     #[test]
@@ -2949,5 +3034,40 @@ mod tests {
         let word = &page.careas[0].blocks[0].lines[0].words[0];
         assert_eq!(word.dropcap, Some("W".to_string()));
         assert_eq!(word.text, "hen");
+    }
+
+    #[test]
+    fn test_inject_images() {
+        let mut page = parse(r#"
+            <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+                <div class="ocr_carea" id="carea_1" title="bbox 100 100 500 500">
+                    <p class="ocr_par" id="par_1" title="bbox 100 100 500 500">
+                        <span class="ocr_line" id="line_1" title="bbox 110 105 400 130">
+                            <span class="ocrx_word" id="word_1" title="bbox 110 105 200 130">Text</span>
+                        </span>
+                    </p>
+                </div>
+            </div>
+        "#).unwrap();
+
+        let image_bboxes = vec![HocrBbox([600, 600, 800, 800])];
+
+        page.inject_images(image_bboxes);
+
+        // Should have 2 careas now
+        assert_eq!(page.careas.len(), 2);
+        
+        // The new carea should be at index 1 because its center Y (700) is greater than carea_1 center Y (300)
+        let new_carea = &page.careas[1];
+        assert_eq!(new_carea.blocks.len(), 1);
+        assert_eq!(new_carea.blocks[0].kind, HocrBlockKind::Image);
+        assert_eq!(new_carea.blocks[0].bbox, HocrBbox([600, 600, 800, 800]));
+
+        // Verify page bbox was rebuilt
+        assert_eq!(page.bbox, HocrBbox([100, 100, 800, 800]));
+        
+        let html = page.to_hocr_html();
+        assert!(html.contains("<img class=\"ocr_photo\""));
+        assert!(html.contains("title=\"bbox 600 600 800 800\""));
     }
 }

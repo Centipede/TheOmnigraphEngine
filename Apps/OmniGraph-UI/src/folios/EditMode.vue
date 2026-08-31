@@ -4,16 +4,18 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :page-list-columns="['name-or-scan', 'extras']"
       :show-crop-overlay="false"
       :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
       :flows="flows"
       :layouts="layouts"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
       :show-layers="careaLayers"
-      :show-blocks="showBlocks"
+      :show-blocks="true"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
+      :is-no-hocr-acceptable="false"
       @current-page-change="clearSelection"
   >
     <template #tools="{ currentPage }">
@@ -238,10 +240,6 @@ const careaLayers = computed(() => ({
   flow: activeMasterTool.value === 'carea-flow' || activeMasterTool.value === 'edit',
   layout: activeMasterTool.value === 'carea-layout' || activeMasterTool.value === 'edit'
 }));
-
-const showBlocks = computed(() =>
-  ['carea-flow', 'carea-layout', 'block-type'].includes(activeMasterTool.value)
-);
 
 const ocrOperation:Ref<OcrOperation> = ref('context');
 const ocrLanguage = ref('eng');
@@ -928,10 +926,16 @@ async function autoLayout(page: Page | null) {
   if (!page) return;
   const stem = getStem(page);
   try {
+    let body = { stems: [stem], carea_ids: [] as string[] };
+    if (ocrLevel.value === 'carea' && selectedItemIds.value.size > 0) {
+      body.stems = [];
+      body.carea_ids = Array.from(selectedItemIds.value);
+    }
+
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-layout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stems: [stem] })
+      body: JSON.stringify(body)
     });
     if (resp.ok) {
       await loadHocr(props.machineName, stem);
@@ -948,10 +952,16 @@ async function autoFlow(page: Page | null) {
   if (!page) return;
   const stem = getStem(page);
   try {
+    let body = { stems: [stem], carea_ids: [] as string[] };
+    if (ocrLevel.value === 'carea' && selectedItemIds.value.size > 0) {
+      body.stems = [];
+      body.carea_ids = Array.from(selectedItemIds.value);
+    }
+
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-flow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stems: [stem] })
+      body: JSON.stringify(body)
     });
     if (resp.ok) {
       await loadHocr(props.machineName, stem);
