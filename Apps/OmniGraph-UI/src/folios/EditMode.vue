@@ -924,10 +924,16 @@ async function autoLayout(page: Page | null) {
   if (!page) return;
   const stem = getStem(page);
   try {
+    let body = { stems: [stem], carea_ids: [] as string[] };
+    if (ocrLevel.value === 'carea' && selectedItemIds.value.size > 0) {
+      body.stems = [];
+      body.carea_ids = Array.from(selectedItemIds.value);
+    }
+
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-layout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stems: [stem] })
+      body: JSON.stringify(body)
     });
     if (resp.ok) {
       await loadHocr(props.machineName, stem);
@@ -944,10 +950,16 @@ async function autoFlow(page: Page | null) {
   if (!page) return;
   const stem = getStem(page);
   try {
+    let body = { stems: [stem], carea_ids: [] as string[] };
+    if (ocrLevel.value === 'carea' && selectedItemIds.value.size > 0) {
+      body.stems = [];
+      body.carea_ids = Array.from(selectedItemIds.value);
+    }
+
     const resp = await fetch(`/api/projects/${props.machineName}/pages/${stem}/auto-flow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stems: [stem] })
+      body: JSON.stringify(body)
     });
     if (resp.ok) {
       await loadHocr(props.machineName, stem);

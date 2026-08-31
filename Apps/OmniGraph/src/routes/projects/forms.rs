@@ -135,4 +135,6 @@ pub struct MorphRequest {
 #[derive(Deserialize, Serialize)]
 pub struct AutoAssistRequest {
     pub stems: Vec<String>,
+    #[serde(default)]
+    pub carea_ids: Option<Vec<String>>,
 }
