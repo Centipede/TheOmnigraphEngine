@@ -320,7 +320,7 @@ const emit = defineEmits<{
 }>();
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
-const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan"]) as Ref<PageListColumn[]>;
+const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan", "extras"]) as Ref<PageListColumn[]>;
 const isPanelVisible = (panelId: PanelId) => {
   return props.panels ? props.panels[panelId] : false;
 };
@@ -374,8 +374,32 @@ const currentPageCrop = computed(() => {
   if (!page) return null;
   return props.pageCrops?.get(page.index) ?? page.crop_edges;
 });
+
+// ── hOCR status ──────────────────────────────────────────────────────
+const hocrScanned = ref<Set<string>>(new Set());
+let hocrStatusInterval: ReturnType<typeof setInterval> | null = null;
+
+async function fetchHocrStatus(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/hocr-status`);
+    if (resp.ok) {
+      const data = await resp.json() as { scanned: string[] };
+      hocrScanned.value = new Set(data.scanned);
+    }
+  } catch (e) {
+    console.error('Failed to fetch hOCR status:', e);
+  }
+}
+
 const pageExtras = computed(() => {
-  return props.formatPageExtras?.(pages.value) ?? new Map<number, string>();
+  if (props.formatPageExtras) {
+    return props.formatPageExtras(pages.value);
+  }
+  const map = new Map<number, string>();
+  for (const page of pages.value) {
+    if (hocrScanned.value.has(page.scan)) map.set(page.index, 'hOCR');
+  }
+  return map;
 });
 
 // ── Selection ────────────────────────────────────────────────────────
@@ -739,12 +763,20 @@ onMounted(async () => {
   document.addEventListener('keydown', onKeyDown);
   await Promise.all([
     loadPageDb(),
-    loadStructureDb()
+    loadStructureDb(),
+    fetchHocrStatus()
   ]);
+
+  if (pageListColumns.value.includes('extras')) {
+    hocrStatusInterval = setInterval(() => {
+      void fetchHocrStatus();
+    }, 30_000);
+  }
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeyDown);
+  if (hocrStatusInterval !== null) clearInterval(hocrStatusInterval);
 });
 
 defineExpose({
@@ -752,6 +784,7 @@ defineExpose({
   savePageDb,
   setStructureDb,
   saveStructureDb,
+  fetchHocrStatus,
   showError
 });
 

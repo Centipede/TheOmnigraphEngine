@@ -4,6 +4,7 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :page-list-columns="['name-or-scan', 'extras']"
       :show-crop-overlay="false"
       :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
       :flows="flows"

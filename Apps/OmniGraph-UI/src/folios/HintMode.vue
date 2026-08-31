@@ -5,6 +5,7 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :page-list-columns="['name-or-scan', 'extras']"
       :pointer-settings="pointerSettings"
       :keyboard-handler="handleKeyDown"
       :page-interaction-drag="handleInteractionDrag"
