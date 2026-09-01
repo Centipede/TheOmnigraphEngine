@@ -39,7 +39,7 @@ export interface Project {
     flows: FlowSchema[];
     layouts: LayoutSchema[];
     processing?: ProcessingSettings | null;
-    editorPalette: EditorPalette;
+    editor_palette: EditorPalette;
 }
 
 export interface ProjectCreateForm {

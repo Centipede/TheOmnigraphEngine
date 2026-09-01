@@ -177,27 +177,27 @@
             <div v-if="mode === 'view'">
               <ul class="schema-list">
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.careaOverlayColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.careaOverlayColor }"></span>
                   CAREA Overlay
                 </li>
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.blockOverlayColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.blockOverlayColor }"></span>
                   Block Overlay
                 </li>
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.lineOverlayColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.lineOverlayColor }"></span>
                   Line Overlay
                 </li>
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.wordOverlayColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.wordOverlayColor }"></span>
                   Word Overlay
                 </li>
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.keepColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.keepColor }"></span>
                   Keep Color
                 </li>
                 <li>
-                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.discardColor }"></span>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.discardColor }"></span>
                   Discard Color
                 </li>
               </ul>
@@ -206,27 +206,27 @@
               <div class="form-grid">
                 <div class="color-field">
                   <label>CAREA Overlay</label>
-                  <sl-color-picker v-model="draft.editorPalette.careaOverlayColor" label="CAREA Overlay Color"></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.careaOverlayColor" @sl-input="draft.editor_palette.careaOverlayColor = $event.target.value" label="CAREA Overlay Color"></sl-color-picker>
                 </div>
                 <div class="color-field">
                   <label>Block Overlay</label>
-                  <sl-color-picker v-model="draft.editorPalette.blockOverlayColor" label="Block Overlay Color"></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.blockOverlayColor" @sl-input="draft.editor_palette.blockOverlayColor = $event.target.value" label="Block Overlay Color"></sl-color-picker>
                 </div>
                 <div class="color-field">
                   <label>Line Overlay</label>
-                  <sl-color-picker v-model="draft.editorPalette.lineOverlayColor" label="Line Overlay Color"></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.lineOverlayColor" @sl-input="draft.editor_palette.lineOverlayColor = $event.target.value" label="Line Overlay Color"></sl-color-picker>
                 </div>
                 <div class="color-field">
                   <label>Word Overlay</label>
-                  <sl-color-picker v-model="draft.editorPalette.wordOverlayColor" label="Word Overlay Color"></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.wordOverlayColor" @sl-input="draft.editor_palette.wordOverlayColor = $event.target.value" label="Word Overlay Color"></sl-color-picker>
                 </div>
                 <div class="color-field">
                   <label>Keep Color</label>
-                  <sl-color-picker v-model="draft.editorPalette.keepColor" label="Keep Color" opacity></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.keepColor" @sl-input="draft.editor_palette.keepColor = $event.target.value" label="Keep Color" opacity></sl-color-picker>
                 </div>
                 <div class="color-field">
                   <label>Discard Color</label>
-                  <sl-color-picker v-model="draft.editorPalette.discardColor" label="Discard Color" opacity></sl-color-picker>
+                  <sl-color-picker :value="draft.editor_palette.discardColor" @sl-input="draft.editor_palette.discardColor = $event.target.value" label="Discard Color" opacity></sl-color-picker>
                 </div>
               </div>
             </div>
@@ -277,7 +277,8 @@
                     />
                     <sl-color-picker
                       v-if="layout.color"
-                      v-model="layout.color.base_color"
+                      :value="layout.color.base_color"
+                      @sl-input="layout.color.base_color = $event.target.value"
                       label="Choose base color"
                     ></sl-color-picker>
                     <button
@@ -346,7 +347,8 @@
                     />
                     <sl-color-picker
                       v-if="flow.color"
-                      v-model="flow.color.base_color"
+                      :value="flow.color.base_color"
+                      @sl-input="flow.color.base_color = $event.target.value"
                       label="Choose base color"
                     ></sl-color-picker>
                     <button
@@ -441,7 +443,7 @@ const errorMessage = ref('');
 const blockingInfo = ref<Record<string, string[]>>();
 
 function getEffectiveColor(spec: ColorSpecification | undefined): string {
-  const base = draft.value?.editorPalette?.careaOverlayColor ?? DEFAULT_PALETTE.careaOverlayColor;
+  const base = draft.value?.editor_palette?.careaOverlayColor ?? DEFAULT_PALETTE.careaOverlayColor;
   if (!spec) return base;
   return applyColorSpecs(base, [spec]);
 }
@@ -473,7 +475,7 @@ function addLayout(): void {
   if (!draft.value) {
     return;
   }
-  const base = draft.value.editorPalette.careaOverlayColor;
+  const base = draft.value.editor_palette.careaOverlayColor;
   draft.value.layouts.push({
     name: '',
     color: {
@@ -496,7 +498,7 @@ function addFlow(): void {
   if (!draft.value) {
     return;
   }
-  const base = draft.value.editorPalette.careaOverlayColor;
+  const base = draft.value.editor_palette.careaOverlayColor;
   draft.value.flows.push({
     name: '',
     color: {
@@ -516,10 +518,11 @@ function removeFlow(index: number): void {
 }
 
 function copyProject(source: Project): Project {
+  const { editorPalette, ...rest } = source as any;
   return {
-    ...source,
+    ...rest,
     authors: source.authors.map(author => ({ ...author })),
-    editorPalette: source.editorPalette ? { ...source.editorPalette } : { ...DEFAULT_PALETTE },
+    editor_palette: source.editor_palette ? { ...source.editor_palette } : { ...DEFAULT_PALETTE },
     layouts: source.layouts.map(layout => ({
       ...layout,
       color: layout.color ? {
