@@ -22,6 +22,30 @@ impl ProcessingSettings {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorPalette {
+    pub keep_color: String,
+    pub discard_color: String,
+    pub carea_overlay_color: String,
+    pub block_overlay_color: String,
+    pub line_overlay_color: String,
+    pub word_overlay_color: String,
+}
+
+impl Default for EditorPalette {
+    fn default() -> Self {
+        Self {
+            keep_color: "rgba(0, 180, 0, 0.12)".to_string(),
+            discard_color: "rgba(220, 0, 0, 0.35)".to_string(),
+            carea_overlay_color: "rgba(249, 115, 22, 1)".to_string(),
+            block_overlay_color: "rgba(168, 85, 247, 1)".to_string(),
+            line_overlay_color: "rgba(59, 130, 246, 1)".to_string(),
+            word_overlay_color: "rgba(34, 197, 94, 1)".to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
@@ -39,6 +63,8 @@ pub struct Project {
     pub layouts: Vec<crate::hocr_parser::LayoutSchema>,
     #[serde(default)]
     pub processing: Option<ProcessingSettings>,
+    #[serde(default)]
+    pub editor_palette: EditorPalette,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]

@@ -171,10 +171,72 @@
             </template>
           </section>
 
-          <!-- Middle Column: Layouts -->
+          <!-- Middle Column: Base Colors -->
           <section class="grid-column">
-            <h3>Layouts</h3>
+            <h3>Base Colors</h3>
             <div v-if="mode === 'view'">
+              <ul class="schema-list">
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.careaOverlayColor }"></span>
+                  CAREA Overlay
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.blockOverlayColor }"></span>
+                  Block Overlay
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.lineOverlayColor }"></span>
+                  Line Overlay
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.wordOverlayColor }"></span>
+                  Word Overlay
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.keepColor }"></span>
+                  Keep Color
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editorPalette.discardColor }"></span>
+                  Discard Color
+                </li>
+              </ul>
+            </div>
+            <div v-else>
+              <div class="form-grid">
+                <div class="color-field">
+                  <label>CAREA Overlay</label>
+                  <sl-color-picker v-model="draft.editorPalette.careaOverlayColor" label="CAREA Overlay Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Block Overlay</label>
+                  <sl-color-picker v-model="draft.editorPalette.blockOverlayColor" label="Block Overlay Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Line Overlay</label>
+                  <sl-color-picker v-model="draft.editorPalette.lineOverlayColor" label="Line Overlay Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Word Overlay</label>
+                  <sl-color-picker v-model="draft.editorPalette.wordOverlayColor" label="Word Overlay Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Keep Color</label>
+                  <sl-color-picker v-model="draft.editorPalette.keepColor" label="Keep Color" opacity></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Discard Color</label>
+                  <sl-color-picker v-model="draft.editorPalette.discardColor" label="Discard Color" opacity></sl-color-picker>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Right Column: Layouts and Flows -->
+          <section class="grid-column">
+            <h3>Layouts & Flows</h3>
+            <div v-if="mode === 'view'">
+              <h4 class="sub-heading">Layouts</h4>
               <ul v-if="project.layouts.length > 0" class="schema-list">
                 <li v-for="layout in project.layouts" :key="layout.name">
                   <span
@@ -184,11 +246,22 @@
                   {{ layout.name }}
                 </li>
               </ul>
-              <p v-else class="muted">
-                No layouts defined.
-              </p>
+              <p v-else class="muted">No layouts defined.</p>
+
+              <h4 class="sub-heading">Flows</h4>
+              <ul v-if="project.flows.length > 0" class="schema-list">
+                <li v-for="flow in project.flows" :key="flow.name">
+                  <span
+                    class="color-swatch"
+                    :style="{ backgroundColor: getEffectiveColor(flow.color) }"
+                  ></span>
+                  {{ flow.name }}
+                </li>
+              </ul>
+              <p v-else class="muted">No flows defined.</p>
             </div>
             <div v-else>
+              <h4 class="sub-heading">Layouts</h4>
               <div class="schema-edit-list">
                 <div v-for="(layout, index) in draft.layouts" :key="index">
                   <div class="schema-row">
@@ -202,13 +275,11 @@
                       placeholder="Layout name"
                       required
                     />
-                    <input
+                    <sl-color-picker
                       v-if="layout.color"
                       v-model="layout.color.base_color"
-                      type="color"
-                      class="color-picker"
-                      title="Choose base color"
-                    />
+                      label="Choose base color"
+                    ></sl-color-picker>
                     <button
                       type="button"
                       class="remove-btn"
@@ -258,27 +329,8 @@
               <sl-button variant="text" size="small" @click="addLayout">
                 + Add Layout
               </sl-button>
-            </div>
-          </section>
 
-          <!-- Right Column: Flows -->
-          <section class="grid-column">
-            <h3>Flows</h3>
-            <div v-if="mode === 'view'">
-              <ul v-if="project.flows.length > 0" class="schema-list">
-                <li v-for="flow in project.flows" :key="flow.name">
-                  <span
-                    class="color-swatch"
-                    :style="{ backgroundColor: getEffectiveColor(flow.color) }"
-                  ></span>
-                  {{ flow.name }}
-                </li>
-              </ul>
-              <p v-else class="muted">
-                No flows defined.
-              </p>
-            </div>
-            <div v-else>
+              <h4 class="sub-heading mt-4">Flows</h4>
               <div class="schema-edit-list">
                 <div v-for="(flow, index) in draft.flows" :key="index">
                   <div class="schema-row">
@@ -292,13 +344,11 @@
                       placeholder="Flow name"
                       required
                     />
-                    <input
+                    <sl-color-picker
                       v-if="flow.color"
                       v-model="flow.color.base_color"
-                      type="color"
-                      class="color-picker"
-                      title="Choose base color"
-                    />
+                      label="Choose base color"
+                    ></sl-color-picker>
                     <button
                       type="button"
                       class="remove-btn"
@@ -373,6 +423,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import type { Project, ColorSpecification } from "../types/project";
+import { DEFAULT_PALETTE } from "../types/hocr_interaction";
 import { applyColorSpecs } from "../utils/colors";
 
 const props = defineProps<{ machineName: string; projectName: string }>();
@@ -390,8 +441,9 @@ const errorMessage = ref('');
 const blockingInfo = ref<Record<string, string[]>>();
 
 function getEffectiveColor(spec: ColorSpecification | undefined): string {
-  if (!spec) return "#888888";
-  return applyColorSpecs("#888888", [spec]);
+  const base = draft.value?.editorPalette?.careaOverlayColor ?? DEFAULT_PALETTE.careaOverlayColor;
+  if (!spec) return base;
+  return applyColorSpecs(base, [spec]);
 }
 
 function formatDate(value: string): string {
@@ -421,10 +473,11 @@ function addLayout(): void {
   if (!draft.value) {
     return;
   }
+  const base = draft.value.editorPalette.careaOverlayColor;
   draft.value.layouts.push({
     name: '',
     color: {
-      base_color: '#888888',
+      base_color: base,
       hue_shift: 0,
       saturation_shift: 0,
       lightness_shift: 0,
@@ -443,10 +496,11 @@ function addFlow(): void {
   if (!draft.value) {
     return;
   }
+  const base = draft.value.editorPalette.careaOverlayColor;
   draft.value.flows.push({
     name: '',
     color: {
-      base_color: '#888888',
+      base_color: base,
       hue_shift: 0,
       saturation_shift: 0,
       lightness_shift: 0,
@@ -465,23 +519,24 @@ function copyProject(source: Project): Project {
   return {
     ...source,
     authors: source.authors.map(author => ({ ...author })),
+    editorPalette: source.editorPalette ? { ...source.editorPalette } : { ...DEFAULT_PALETTE },
     layouts: source.layouts.map(layout => ({
       ...layout,
       color: layout.color ? {
-        base_color: layout.color.base_color || '#888888',
+        base_color: layout.color.base_color || undefined,
         hue_shift: layout.color.hue_shift || 0,
         saturation_shift: layout.color.saturation_shift || 0,
         lightness_shift: layout.color.lightness_shift || 0,
-      } : { base_color: '#888888', hue_shift: 0, saturation_shift: 0, lightness_shift: 0 },
+      } : { base_color: undefined, hue_shift: 0, saturation_shift: 0, lightness_shift: 0 },
     })),
     flows: source.flows.map(flow => ({
       ...flow,
       color: flow.color ? {
-        base_color: flow.color.base_color || '#888888',
+        base_color: flow.color.base_color || undefined,
         hue_shift: flow.color.hue_shift || 0,
         saturation_shift: flow.color.saturation_shift || 0,
         lightness_shift: flow.color.lightness_shift || 0,
-      } : { base_color: '#888888', hue_shift: 0, saturation_shift: 0, lightness_shift: 0 },
+      } : { base_color: undefined, hue_shift: 0, saturation_shift: 0, lightness_shift: 0 },
     })),
   };
 }
@@ -567,11 +622,14 @@ onMounted(() => {
 </script>
 <style scoped>
 .project-detail-page {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   max-width: 80rem;
   box-sizing: border-box;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  overflow-y: auto;
 }
 
 .project-grid {
@@ -656,6 +714,30 @@ h2 {
 
 .error-message {
   color: #dc2626;
+}
+
+.sub-heading {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: var(--color-text-muted);
+  margin: 1.5rem 0 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+.color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.color-field label {
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .form-grid {

@@ -30,6 +30,7 @@ pub fn create_project_on_disk(state: &AppState, name: &str, machine_name: &str) 
         flows: vec![],
         layouts: vec![],
         processing: None,
+        editor_palette: crate::routes::projects::models::EditorPalette::default(),
     };
 
     let toml_str = toml::to_string(&project)

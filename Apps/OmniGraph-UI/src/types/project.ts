@@ -1,3 +1,5 @@
+import type {EditorPalette} from "./hocr_interaction.ts";
+
 export interface Author {
     full_name: string;
     abbrev: string | null;
@@ -37,6 +39,7 @@ export interface Project {
     flows: FlowSchema[];
     layouts: LayoutSchema[];
     processing?: ProcessingSettings | null;
+    editorPalette: EditorPalette;
 }
 
 export interface ProjectCreateForm {
