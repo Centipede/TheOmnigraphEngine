@@ -85,7 +85,7 @@
             :show-page-strips="!isPanelVisible('page-strips')"
             :show-page-preview="!isPanelVisible('page-preview')"
             :hocr-page="hocrContext.hocrPage.value"
-            :palette="palette"
+            :palette="effectivePalette"
         >
           <div class="strip-grid">
             <PageStrip
@@ -98,7 +98,7 @@
                 :fraction="stripFraction ?? 1"
                 :showOverlay="showCropOverlay ?? false"
                 :crop="pageCrops?.get(page.index) ?? page.crop_edges"
-                :palette="palette"
+                :palette="effectivePalette"
                 :selected="selectedPageSet.has(page.index)"
                 :machine-name="machineName"
                 :is-current="page.index === currentPageIndex"
@@ -134,7 +134,7 @@
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!isPanelVisible('page-strips')"
             :show-page-preview="!isPanelVisible('page-preview')"
-            :palette="palette"
+            :palette="effectivePalette"
             :pointer-settings="pointerSettings"
         >
           <PagePreview
@@ -143,7 +143,7 @@
               :image-base-url="scanBaseUrl"
               :crop="currentPageCrop"
               :show-crop-overlay="showCropOverlay ?? false"
-              :palette="palette"
+              :palette="effectivePalette"
               :hocr-level="hocrLevel"
               :pointer-settings="pointerSettings"
               :interaction-update="pageInteractionUpdate"
@@ -170,29 +170,6 @@
            :class="{ 'workspace-pane-hidden': !isPanelVisible('tools') }">
 
         <div class="sidebar-content">
-
-          <!-- Selection info -->
-<!--          <template v-if="selectionInfo">-->
-<!--            <br>-->
-<!--            <div class="info-panel">-->
-<!--              <div class="info-row">-->
-<!--                <span class="info-label">Range</span>-->
-<!--                <span class="info-value">{{ selectionInfo.firstName }} – {{ selectionInfo.lastName }}</span>-->
-<!--                <span class="info-count">({{ selectionInfo.count }})</span>-->
-<!--              </div>-->
-<!--              <div class="info-row">-->
-<!--                <span class="info-label">Center</span>-->
-<!--                <span class="info-value">{{ selectionInfo.centerName }}</span>-->
-<!--              </div>-->
-<!--              <sl-button-group>-->
-<!--                <sl-button size="small" @click="focusPage(selectionInfo.firstIdx)">First</sl-button>-->
-<!--                <sl-button size="small" @click="focusPage(selectionInfo.centerIdx)">Center</sl-button>-->
-<!--                <sl-button size="small" @click="focusPage(selectionInfo.lastIdx)">Last</sl-button>-->
-<!--              </sl-button-group>-->
-<!--            </div>-->
-<!--          </template>-->
-
-<!--          <br>-->
 
           <!-- Tools -->
 
@@ -228,7 +205,7 @@
             ref="hocrOutlineRef"
             :flows="flows"
             :layouts="layouts"
-            :palette="palette"
+            :palette="effectivePalette"
         />
       </div>
     </div><!-- end workspace-right-sidebar -->
@@ -246,7 +223,8 @@ import { useHocrContext } from '../composables/useHocr';
 import { isTypingTarget } from '../utils/dom';
 import type {
   CropEdges, FlowSchema, HocrLevel,
-  LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette
+  LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette,
+  Project
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import type {PanelVisibility} from '../types';
@@ -292,7 +270,8 @@ const props = withDefaults(defineProps<{
       stripEdge?: string;
       stripFraction?: number;
       showCropOverlay?: boolean;
-      palette?: EditorPalette;
+      palette?: EditorPalette | null;
+      project?: Project | null;
       hocrLevel?: HocrLevel | null;
       flows?: FlowSchema[];
       layouts?: LayoutSchema[];
@@ -308,7 +287,8 @@ const props = withDefaults(defineProps<{
       isNoHocrAcceptable?: boolean;
     }>(), {
       canPagesBeFiltered: true,
-      palette: () => DEFAULT_PALETTE,
+      palette: null,
+      project: null,
       isNoHocrAcceptable: true,
     }
 );
@@ -318,6 +298,10 @@ const emit = defineEmits<{
   structureLoaded: [data: StructureDb];
   currentPageChange: [page: Page | null];
 }>();
+
+const effectivePalette = computed(() => {
+  return props.palette || props.project?.editor_palette || DEFAULT_PALETTE;
+});
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);
 const pageListColumns = computed(() => props.pageListColumns ?? ["name-or-scan", "extras"]) as Ref<PageListColumn[]>;

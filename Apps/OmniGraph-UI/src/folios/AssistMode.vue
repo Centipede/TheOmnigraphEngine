@@ -11,7 +11,7 @@
       :hocr-level="'carea'"
       :show-layers="{ flow: true, layout: true }"
       :show-blocks="true"
-      :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
+      :palette="{ ...project?.editor_palette || DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
   >
     <template #tools="{ selectedPages, currentPage }">
       <sl-button-group>

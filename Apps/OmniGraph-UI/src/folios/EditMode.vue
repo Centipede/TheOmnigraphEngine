@@ -9,6 +9,7 @@
       :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
       :flows="flows"
       :layouts="layouts"
+      :project="project"
       :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
       :show-layers="careaLayers"
       :show-blocks="true"
