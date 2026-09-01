@@ -137,6 +137,7 @@ function randomBetween(min: number, max: number): number {
 function fadeBetween(min: number, max: number, weight: number): number {
     return min + (max - min) * weight;
 }
+
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }

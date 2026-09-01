@@ -94,6 +94,80 @@ pub async fn put_project_metadata(
     Path(machine_name): Path<String>,
     Json(project): Json<crate::routes::projects::models::Project>,
 ) -> impl IntoResponse {
+    let current_project = match storage::read_project(&state.projects_dir, &machine_name) {
+        Ok(p) => p,
+        Err(status) => return status.into_response(),
+    };
+
+    let current_flows: std::collections::HashSet<&String> =
+        current_project.flows.iter().map(|f| &f.name).collect();
+    let new_flows: std::collections::HashSet<&String> =
+        project.flows.iter().map(|f| &f.name).collect();
+    let removed_flows: std::collections::HashSet<&String> =
+        current_flows.difference(&new_flows).cloned().collect();
+
+    let current_layouts: std::collections::HashSet<&String> =
+        current_project.layouts.iter().map(|l| &l.name).collect();
+    let new_layouts: std::collections::HashSet<&String> =
+        project.layouts.iter().map(|l| &l.name).collect();
+    let removed_layouts: std::collections::HashSet<&String> =
+        current_layouts.difference(&new_layouts).cloned().collect();
+
+    if !removed_flows.is_empty() || !removed_layouts.is_empty() {
+        let pagedb = storage::load_page_db(&state.project_pagesdb_path(&machine_name));
+        let mut blocking: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+
+        for page in &pagedb.pages {
+            if let Some(hocr_path) =
+                storage::hocr_active_path(&state.projects_dir, &machine_name, &page.scan)
+            {
+                if let Ok(html) = std::fs::read_to_string(&hocr_path) {
+                    if let Some(hocr_page) = crate::hocr_parser::parse(&html) {
+                        let page_label = if page.name.is_empty() {
+                            page.scan.clone()
+                        } else {
+                            page.name.clone()
+                        };
+                        for carea in &hocr_page.careas {
+                            if let Some(ref flow) = carea.flow {
+                                if removed_flows.contains(flow) {
+                                    blocking
+                                        .entry(flow.clone())
+                                        .or_default()
+                                        .push(page_label.clone());
+                                }
+                            }
+                            if let Some(ref layout) = carea.layout {
+                                if removed_layouts.contains(layout) {
+                                    blocking
+                                        .entry(layout.clone())
+                                        .or_default()
+                                        .push(page_label.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if !blocking.is_empty() {
+            for pages in blocking.values_mut() {
+                pages.sort();
+                pages.dedup();
+            }
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({
+                    "error": "Cannot remove items currently in use",
+                    "blocking": blocking
+                })),
+            )
+                .into_response();
+        }
+    }
+
     match storage::write_project(&state.projects_dir, &machine_name, &project) {
         Ok(_) => (StatusCode::OK, Json(project)).into_response(),
         Err(status) => status.into_response(),
