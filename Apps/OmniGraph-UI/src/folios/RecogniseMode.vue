@@ -7,7 +7,7 @@
                  hocr-level="block"
                  :show-crop-overlay="true"
                  :show-hints="true"
-                 :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
+                 :palette="{ ...project?.editor_palette || DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
                  :flows="flows"
                  :layouts="layouts"
   >
