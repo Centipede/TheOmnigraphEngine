@@ -31,6 +31,28 @@ pub struct EditorPalette {
     pub block_overlay_color: String,
     pub line_overlay_color: String,
     pub word_overlay_color: String,
+    #[serde(default)]
+    pub part_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h1_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h2_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h3_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h4_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h5_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub h6_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub p_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub img_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub lst_color: crate::hocr_parser::ColorSpecification,
+    #[serde(default)]
+    pub tbl_color: crate::hocr_parser::ColorSpecification,
 }
 
 impl Default for EditorPalette {
@@ -42,6 +64,50 @@ impl Default for EditorPalette {
             block_overlay_color: "rgba(168, 85, 247, 1)".to_string(),
             line_overlay_color: "rgba(59, 130, 246, 1)".to_string(),
             word_overlay_color: "rgba(34, 197, 94, 1)".to_string(),
+            part_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(0.0),
+                ..Default::default()
+            },
+            h1_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(30.0),
+                ..Default::default()
+            },
+            h2_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(60.0),
+                ..Default::default()
+            },
+            h3_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(90.0),
+                ..Default::default()
+            },
+            h4_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(120.0),
+                ..Default::default()
+            },
+            h5_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(150.0),
+                ..Default::default()
+            },
+            h6_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(180.0),
+                ..Default::default()
+            },
+            p_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(210.0),
+                ..Default::default()
+            },
+            img_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(240.0),
+                ..Default::default()
+            },
+            lst_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(270.0),
+                ..Default::default()
+            },
+            tbl_color: crate::hocr_parser::ColorSpecification {
+                hue_shift: Some(300.0),
+                ..Default::default()
+            },
         }
     }
 }

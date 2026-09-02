@@ -53,7 +53,9 @@
           <sl-button
               v-for="(flow, index) in flows"
               :key="flow.name"
+              variant="primary"
               size="small"
+              :style="getFlowButtonStyle(flow.name)"
               :disabled="!selectedItemId || ocrLevel !== 'carea'"
               @click="changeCareaOperation('change-flow', flow.name)"
           >
@@ -68,7 +70,9 @@
           <sl-button
               v-for="(layout, index) in layouts"
               :key="layout.name"
+              variant="primary"
               size="small"
+              :style="getLayoutButtonStyle(layout.name)"
               :disabled="!selectedItemId || ocrLevel !== 'carea'"
               @click="changeCareaOperation('change-layout', layout.name)"
           >
@@ -85,15 +89,41 @@
           <sl-button :variant="ocrLevel==='word' ? 'primary' : 'default'" size="small"  @click="setOcrLevel('word')">Word <span class="kind-key">4</span></sl-button>
         </sl-button-group>
 
-        <sl-button-group v-if="activeMasterTool === 'block-type' && ocrLevel === 'block'">
-          <sl-button
-              v-for="bk in BLOCK_KINDS"
-              :key="bk.kind"
-              size="small"
-              :disabled="!selectedItemId"
-              @click="changeBlockType(bk.kind)"
-          >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
-        </sl-button-group>
+        <div v-if="activeMasterTool === 'block-type' && ocrLevel === 'block'" class="vertical-tool-list">
+          <sl-button-group>
+            <sl-button
+                v-for="bk in BLOCK_KINDS.slice(0, 1)"
+                :key="bk.kind"
+                variant="primary"
+                size="small"
+                :disabled="!selectedItemId || bk.disabled"
+                :style="getBlockButtonStyle(bk.kind)"
+                @click="changeBlockType(bk.kind)"
+            >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
+          </sl-button-group>
+          <sl-button-group>
+            <sl-button
+                v-for="bk in BLOCK_KINDS.slice(1, 7)"
+                :key="bk.kind"
+                variant="primary"
+                size="small"
+                :disabled="!selectedItemId || bk.disabled"
+                :style="getBlockButtonStyle(bk.kind)"
+                @click="changeBlockType(bk.kind)"
+            >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
+          </sl-button-group>
+          <sl-button-group>
+            <sl-button
+                v-for="bk in BLOCK_KINDS.slice(7)"
+                :key="bk.kind"
+                variant="primary"
+                size="small"
+                :disabled="!selectedItemId || bk.disabled"
+                :style="getBlockButtonStyle(bk.kind)"
+                @click="changeBlockType(bk.kind)"
+            >{{ bk.label }} <span class="kind-key">{{ bk.key }}</span></sl-button>
+          </sl-button-group>
+        </div>
 
         <sl-button-group v-if="activeMasterTool === 'edit' && ocrLevel!=='multi'">
           <sl-button :variant="effectiveOcrOperation==='add' ? (ocrOperation!=='context' ? 'primary' : 'secondary') : 'default'" size="small" @click="setOcrOperation('add')">Add <span class="kind-key">A</span></sl-button>
@@ -183,13 +213,14 @@ import PageWorkspace from '../components/PageWorkspace.vue';
 import {
   type Page, type Project, type OverlayItem, type HocrNode,
   findMultiLevelItemByPoint, type MultiSelect,
-  sortIdsByDocumentOrder, findMultilevelById
+  sortIdsByDocumentOrder, findMultilevelById, DEFAULT_PALETTE
 } from '../types';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { provideHocrContext } from '../composables/useHocr';
 import { isTypingTarget } from '../utils/dom';
 import {type HocrPage} from '../types';
+import { applyColorSpecs } from '../utils/colors';
 
 interface AddRequest {
   to_carea?: string | null; to_block?: string | null; to_line?: string | null;
@@ -568,20 +599,67 @@ const BLOCK_KIND_KEYS: Record<string, string> = {
   'l': 'list',                // LST
 };
 
-// Ordered list for the button palette, including paragraph.
+// ordered list for the button palette, including paragraph.
 const BLOCK_KINDS = [
-  { key: '0', kind: 'part',                 label: 'Part' },
-  { key: '1', kind: 'chapter',              label: 'H1' },
-  { key: '2', kind: 'section',              label: 'H2' },
-  { key: '3', kind: 'subsection',           label: 'H3' },
-  { key: '4', kind: 'subsubsection',        label: 'H4' },
-  { key: '5', kind: 'subsubsubsection',     label: 'H5' },
-  { key: '6', kind: 'subsubsubsubsection',  label: 'H6' },
-  { key: '7', kind: 'paragraph',            label: 'P'  },
-  { key: '8', kind: 'image',                label: 'IMG' },
-  { key: '9', kind: 'table',                label: 'TBL' },
-  { key: 'L', kind: 'list',                 label: 'LST' },
+  { key: '0', kind: 'part',                 label: 'Part', disabled: false },
+  { key: '1', kind: 'chapter',              label: 'H1',   disabled: false },
+  { key: '2', kind: 'section',              label: 'H2',   disabled: false },
+  { key: '3', kind: 'subsection',           label: 'H3',   disabled: false },
+  { key: '4', kind: 'subsubsection',        label: 'H4',   disabled: false },
+  { key: '5', kind: 'subsubsubsection',     label: 'H5',   disabled: false },
+  { key: '6', kind: 'subsubsubsubsection',  label: 'H6',   disabled: false },
+  { key: '7', kind: 'paragraph',            label: 'P',    disabled: false },
+  { key: '8', kind: 'image',                label: 'IMG',  disabled: false },
+  { key: '9', kind: 'table',                label: 'TBL',  disabled: true  },
+  { key: 'L', kind: 'list',                 label: 'LST',  disabled: true  },
 ] as const;
+
+const KIND_TO_PALETTE_KEY: Record<string, string> = {
+  'part': 'partColor',
+  'chapter': 'h1Color',
+  'section': 'h2Color',
+  'subsection': 'h3Color',
+  'subsubsection': 'h4Color',
+  'subsubsubsection': 'h5Color',
+  'subsubsubsubsection': 'h6Color',
+  'paragraph': 'pColor',
+  'image': 'imgColor',
+  'table': 'tblColor',
+  'list': 'lstColor',
+};
+
+function getBlockButtonStyle(kind: string) {
+  const palette = project.value?.editor_palette ?? DEFAULT_PALETTE;
+  const paletteKey = KIND_TO_PALETTE_KEY[kind] || 'pColor';
+  const spec = (palette as any)[paletteKey];
+  const color = applyColorSpecs(palette.blockOverlayColor, [spec]);
+  return {
+    '--sl-color-primary-600': color,
+    '--sl-color-primary-500': color,
+  };
+}
+
+function getFlowButtonStyle(flowName: string) {
+  const palette = project.value?.editor_palette ?? DEFAULT_PALETTE;
+  const flow = flows.value.find(f => f.name === flowName);
+  if (!flow || !flow.color) return {};
+  const color = applyColorSpecs(palette.careaOverlayColor, [flow.color]);
+  return {
+    '--sl-color-primary-600': color,
+    '--sl-color-primary-500': color,
+  };
+}
+
+function getLayoutButtonStyle(layoutName: string) {
+  const palette = project.value?.editor_palette ?? DEFAULT_PALETTE;
+  const layout = layouts.value.find(l => l.name === layoutName);
+  if (!layout || !layout.color) return {};
+  const color = applyColorSpecs(palette.careaOverlayColor, [layout.color]);
+  return {
+    '--sl-color-primary-600': color,
+    '--sl-color-primary-500': color,
+  };
+}
 
 async function changeBlockType(turn_into: string): Promise<void> {
   if (selectedItemIds.value.size === 0 || ocrLevel.value !== 'block') return;

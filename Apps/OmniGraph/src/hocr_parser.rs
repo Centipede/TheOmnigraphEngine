@@ -156,6 +156,8 @@ pub enum HocrBlockKind {
     Subsubsubsection,
     Subsubsubsubsection,
     Image,
+    Table,
+    List,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug, Clone, Copy)]
@@ -1529,6 +1531,8 @@ impl Display for HocrBlockKind {
             HocrBlockKind::Subsubsection => "H4",
             HocrBlockKind::Subsubsubsection => "H5",
             HocrBlockKind::Subsubsubsubsection => "H6",
+            HocrBlockKind::Table => "TBL",
+            HocrBlockKind::List => "LST",
         };
         write!(f, "{}", code)
     }
@@ -1547,6 +1551,8 @@ impl HocrBlockKind {
             HocrBlockKind::Subsubsection => "h4",
             HocrBlockKind::Subsubsubsection => "h5",
             HocrBlockKind::Subsubsubsubsection => "h6",
+            HocrBlockKind::Table => "div",
+            HocrBlockKind::List => "div",
         }
     }
     pub fn class_name(self) -> &'static str {
@@ -1560,6 +1566,8 @@ impl HocrBlockKind {
             HocrBlockKind::Subsubsection => "ocr_subsubsection",
             HocrBlockKind::Subsubsubsection => "ocr_subsubsubsection",
             HocrBlockKind::Subsubsubsubsection => "ocr_subsubsubsubsection",
+            HocrBlockKind::Table => "ocr_table",
+            HocrBlockKind::List => "ocr_list",
         }
     }
     pub fn from_class_name(class_name: &str) -> Option<Self> {
@@ -1573,6 +1581,8 @@ impl HocrBlockKind {
             "ocr_subsubsection" => Some(HocrBlockKind::Subsubsection),
             "ocr_subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
             "ocr_subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
+            "ocr_table" => Some(HocrBlockKind::Table),
+            "ocr_list" => Some(HocrBlockKind::List),
             _ => None,
         }
     }
@@ -1587,6 +1597,8 @@ impl HocrBlockKind {
             "subsubsection" => Some(HocrBlockKind::Subsubsection),
             "subsubsubsection" => Some(HocrBlockKind::Subsubsubsection),
             "subsubsubsubsection" => Some(HocrBlockKind::Subsubsubsubsection),
+            "table" => Some(HocrBlockKind::Table),
+            "list" => Some(HocrBlockKind::List),
             _ => None,
         }
     }

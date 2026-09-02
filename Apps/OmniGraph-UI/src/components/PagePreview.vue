@@ -230,6 +230,20 @@ const colorByLevel = computed(() => [
   props.palette.wordOverlayColor,
 ]);
 
+const KIND_TO_PALETTE_KEY: Record<string, string> = {
+  'part': 'partColor',
+  'chapter': 'h1Color',
+  'section': 'h2Color',
+  'subsection': 'h3Color',
+  'subsubsection': 'h4Color',
+  'subsubsubsection': 'h5Color',
+  'subsubsubsubsection': 'h6Color',
+  'paragraph': 'pColor',
+  'image': 'imgColor',
+  'table': 'tblColor',
+  'list': 'lstColor',
+};
+
 const overlayItems = computed((): OverlayItem[] => {
   const page = hocrPage?.value;
   if (!page || !props.hocrLevel) return [];
@@ -300,16 +314,25 @@ const overlayItems = computed((): OverlayItem[] => {
 
     for (const [j, block] of carea.blocks.entries()) {
       const br = roleFor(2);
-      if (br) items.push({
-        id: block.id,
-        level: 'block',
-        index: j,
-        bbox: block.bbox,
-        role: br,
-        color: colorFor(1, j, br),
-        kind: blockKindFor(block),
-        wconf: getMinWconf(block),
-      });
+      if (br) {
+        let blockColor = colorFor(1, j, br);
+        const paletteKey = KIND_TO_PALETTE_KEY[block.kind] || 'pColor';
+        const spec = (props.palette as any)[paletteKey];
+        if (spec) {
+          blockColor = applyColorSpecs(blockColor, [spec]);
+        }
+
+        items.push({
+          id: block.id,
+          level: 'block',
+          index: j,
+          bbox: block.bbox,
+          role: br,
+          color: blockColor,
+          kind: blockKindFor(block),
+          wconf: getMinWconf(block),
+        });
+      }
 
       for (const [k, line] of block.lines.entries()) {
         const lr = roleFor(3);
