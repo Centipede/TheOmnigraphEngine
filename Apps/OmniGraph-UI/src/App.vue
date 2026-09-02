@@ -30,12 +30,14 @@ import {RouterView, useRoute} from 'vue-router';
 import NavBar from "./components/NavBar.vue";
 import type {PanelId} from './types';
 import { providePanelVisibilityContext } from './composables/usePanelVisibility';
+import { provideActiveProjectContext } from './composables/useActiveProject';
 import { isTypingElement } from './utils/dom';
 
 const route = useRoute();
 
 const machineName = computed(() => String(route.params.machineName ?? ''));
-const projectName = computed(() => machineName.value);
+const { activeProjectName } = provideActiveProjectContext(machineName);
+const projectName = activeProjectName;
 
 const { activePanels } = providePanelVisibilityContext();
 

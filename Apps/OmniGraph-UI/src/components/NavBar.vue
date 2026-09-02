@@ -6,6 +6,11 @@
           <sl-icon src="/icons/omnigraph-small.svg" label="Home" class="nav-brand-icon"></sl-icon>
         </RouterLink>
 
+        <div class="project-info">
+          <div v-if="hasProject" class="project-name">{{ projectName }}</div>
+          <div v-if="hasProject" class="project-machine-name">{{ machineName }}</div>
+        </div>
+
         <template v-if="hasProject">
           <RouterLink
               :to="{ name: 'project-detail', params: { machineName } }"
@@ -436,6 +441,32 @@ nav {
   height: 20px;
   background: var(--color-border);
   margin: 0 4px;
+}
+
+.project-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 8rem;
+  overflow: hidden;
+  height: 100%;
+  padding: 0 0.5rem;
+  white-space: nowrap;
+}
+
+.project-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.project-machine-name {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-dimmed);
 }
 
 sl-icon-button::part(base) {

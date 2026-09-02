@@ -497,8 +497,11 @@ import { onMounted, ref } from "vue";
 import type { Project, ColorSpecification } from "../types/project";
 import { DEFAULT_PALETTE } from "../types/hocr_interaction";
 import { applyColorSpecs } from "../utils/colors";
+import { useActiveProjectContext } from "../composables/useActiveProject";
 
 const props = defineProps<{ machineName: string; projectName: string }>();
+
+const { activeProject } = useActiveProjectContext();
 
 // ── Mode ─────────────────────────────────────────────────────────────
 type Mode = 'view' | 'edit';
@@ -645,6 +648,14 @@ function copyProject(source: Project): Project {
 }
 
 async function loadProject(): Promise<void> {
+  // Optimization: use already fetched project from context if available
+  if (activeProject.value?.machine_name === props.machineName) {
+    project.value = copyProject(activeProject.value);
+    draft.value = copyProject(activeProject.value);
+    mode.value = 'view';
+    return;
+  }
+
   isLoading.value = true;
   errorMessage.value = '';
 
@@ -699,6 +710,9 @@ async function acceptEdit(): Promise<void> {
 
     const savedProject = await res.json() as Project;
 
+    // Sync with global state
+    activeProject.value = savedProject;
+
     project.value = copyProject(savedProject);
     draft.value = copyProject(savedProject);
     mode.value = 'view';
@@ -722,7 +736,9 @@ function cancelEdit(): void {
 onMounted(() => {
   void loadProject();
 });
+
 </script>
+
 <style scoped>
 .project-detail-page {
   flex: 1 1 auto;
