@@ -22,26 +22,28 @@
             >
               <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
             </RouterLink>
-            <sl-button-group v-if="isIngestorRoute" size="small">
-              <RouterLink
-                  :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Assemble
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'ingestor-process', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Process
-                </sl-button>
-              </RouterLink>
-            </sl-button-group>
+            <Transition name="subsection">
+              <sl-button-group v-if="isIngestorRoute" size="small">
+                <RouterLink
+                    :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Assemble
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'ingestor-process', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Process
+                  </sl-button>
+                </RouterLink>
+              </sl-button-group>
+            </Transition>
           </div>
 
           <div class="nav-group">
@@ -52,53 +54,55 @@
             >
               <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
             </RouterLink>
-            <sl-button-group v-if="isFoliosRoute" size="small">
-              <RouterLink
-                  :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Crop
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'folios-hint', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Hint
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Recognise
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Assist
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'folios-edit', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Edit
-                </sl-button>
-              </RouterLink>
-            </sl-button-group>
+            <Transition name="subsection">
+              <sl-button-group v-if="isFoliosRoute" size="small">
+                <RouterLink
+                    :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Crop
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'folios-hint', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Hint
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Recognise
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Assist
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'folios-edit', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Edit
+                  </sl-button>
+                </RouterLink>
+              </sl-button-group>
+            </Transition>
           </div>
 
           <div class="nav-group">
@@ -109,26 +113,28 @@
             >
               <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
             </RouterLink>
-            <sl-button-group v-if="isCodexRoute" size="small">
-              <RouterLink
-                  :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Edit
-                </sl-button>
-              </RouterLink>
-              <RouterLink
-                  :to="{ name: 'codex-script', params: { machineName, page: currentPageParam } }"
-                  custom
-                  v-slot="{ navigate, isActive }"
-              >
-                <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                  Script
-                </sl-button>
-              </RouterLink>
-            </sl-button-group>
+            <Transition name="subsection">
+              <sl-button-group v-if="isCodexRoute" size="small">
+                <RouterLink
+                    :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Edit
+                  </sl-button>
+                </RouterLink>
+                <RouterLink
+                    :to="{ name: 'codex-script', params: { machineName, page: currentPageParam } }"
+                    custom
+                    v-slot="{ navigate, isActive }"
+                >
+                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
+                    Script
+                  </sl-button>
+                </RouterLink>
+              </sl-button-group>
+            </Transition>
           </div>
         </template>
 
@@ -385,5 +391,27 @@ sl-icon-button.active::part(base) {
 
 .nav-link sl-icon {
   font-size: 20px;
+}
+
+/* Animation for subsections expansion */
+.subsection-enter-active,
+.subsection-leave-active {
+  transition: all 0.3s ease-in-out;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.subsection-enter-from,
+.subsection-leave-to {
+  max-width: 0;
+  opacity: 0;
+  margin-left: -0.5rem; /* Offsets the flex gap during transition */
+}
+
+.subsection-enter-to,
+.subsection-leave-from {
+  max-width: 500px; /* Large enough to accommodate all buttons */
+  opacity: 1;
+  margin-left: 0;
 }
 </style>
