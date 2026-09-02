@@ -3,7 +3,7 @@
     <nav>
       <div class="nav-start">
         <RouterLink to="/projects" class="nav-link">
-          <img src="/icons/omnigraph-small.png" alt="Home" class="nav-brand-icon" />
+          <sl-icon src="/icons/omnigraph-small.svg" label="Home" class="nav-brand-icon"></sl-icon>
         </RouterLink>
 
         <template v-if="hasProject">
@@ -11,7 +11,7 @@
               :to="{ name: 'project-detail', params: { machineName } }"
               class="nav-link"
           >
-            <img src="/icons/overview.png" alt="Overview" class="nav-icon" />
+            <sl-icon src="/icons/overview.svg" label="Overview" class="nav-icon"></sl-icon>
             <span class="nav-label">Overview</span>
           </RouterLink>
 
@@ -21,7 +21,7 @@
                 class="nav-link"
                 :class="{ active: isIngestorRoute }"
             >
-              <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
+              <sl-icon src="/icons/ingestor.svg" label="Ingestor" class="nav-icon"></sl-icon>
               <span class="nav-label">Ingestor</span>
             </RouterLink>
             <Transition name="subsection">
@@ -48,7 +48,7 @@
                 class="nav-link"
                 :class="{ active: isFoliosRoute }"
             >
-              <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
+              <sl-icon src="/icons/folios.svg" label="Folios" class="nav-icon"></sl-icon>
               <span class="nav-label">Folios</span>
             </RouterLink>
             <Transition name="subsection">
@@ -93,7 +93,7 @@
                 class="nav-link"
                 :class="{ active: isCodexRoute }"
             >
-              <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
+              <sl-icon src="/icons/codex.svg" label="Codex" class="nav-icon"></sl-icon>
               <span class="nav-label">Codex</span>
             </RouterLink>
             <Transition name="subsection">
@@ -117,19 +117,19 @@
 
         <template v-else>
           <div class="nav-link disabled">
-            <img src="/icons/overview.png" alt="Overview" class="nav-icon" />
+            <sl-icon src="/icons/overview.svg" label="Overview" class="nav-icon"></sl-icon>
             <span class="nav-label">Overview</span>
           </div>
           <div class="nav-link disabled">
-            <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
+            <sl-icon src="/icons/ingestor.svg" label="Ingestor" class="nav-icon"></sl-icon>
             <span class="nav-label">Ingestor</span>
           </div>
           <div class="nav-link disabled">
-            <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
+            <sl-icon src="/icons/folios.svg" label="Folios" class="nav-icon"></sl-icon>
             <span class="nav-label">Folios</span>
           </div>
           <div class="nav-link disabled">
-            <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
+            <sl-icon src="/icons/codex.svg" label="Codex" class="nav-icon"></sl-icon>
             <span class="nav-label">Codex</span>
           </div>
         </template>
@@ -330,9 +330,7 @@ nav {
 }
 
 .nav-icon {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
+  font-size: 28px;
 }
 
 .nav-label {
@@ -372,9 +370,7 @@ nav {
 }
 
 .nav-brand-icon {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
+  font-size: 36px;
 }
 
 .nav-mid-title-portal {
@@ -416,9 +412,6 @@ sl-icon-button.active::part(base) {
   color: var(--color-accent);
 }
 
-.nav-link sl-icon {
-  font-size: 20px;
-}
 
 /* Animation for subsections expansion */
 .subsection-enter-active,
