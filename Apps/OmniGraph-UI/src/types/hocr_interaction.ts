@@ -1,4 +1,5 @@
 import type {HocrBbox, HocrNode, HocrLevel} from "./hocr.ts";
+import type {ColorSpecification} from "./project.ts";
 
 export type OverlayRole = 'parent' | 'active' | 'child';
 
@@ -9,6 +10,17 @@ export interface EditorPalette {
     blockOverlayColor: string;
     lineOverlayColor: string;
     wordOverlayColor: string;
+    partColor: ColorSpecification;
+    h1Color: ColorSpecification;
+    h2Color: ColorSpecification;
+    h3Color: ColorSpecification;
+    h4Color: ColorSpecification;
+    h5Color: ColorSpecification;
+    h6Color: ColorSpecification;
+    pColor: ColorSpecification;
+    imgColor: ColorSpecification;
+    lstColor: ColorSpecification;
+    tblColor: ColorSpecification;
 }
 
 export const DEFAULT_PALETTE: EditorPalette = {
@@ -18,6 +30,17 @@ export const DEFAULT_PALETTE: EditorPalette = {
     blockOverlayColor: 'rgba(168, 85, 247, 1)',
     lineOverlayColor: 'rgba(59, 130, 246, 1)',
     wordOverlayColor: 'rgba(34, 197, 94, 1)',
+    partColor: { hue_shift: 0 },
+    h1Color: { hue_shift: 30 },
+    h2Color: { hue_shift: 60 },
+    h3Color: { hue_shift: 90 },
+    h4Color: { hue_shift: 120 },
+    h5Color: { hue_shift: 150 },
+    h6Color: { hue_shift: 180 },
+    pColor: { hue_shift: 210 },
+    imgColor: { hue_shift: 240 },
+    lstColor: { hue_shift: 270 },
+    tblColor: { hue_shift: 300 },
 };
 
 export interface OverlayItem {

@@ -232,6 +232,76 @@
             </div>
           </section>
 
+          <!-- Column 3: Block Colors -->
+          <section class="grid-column">
+            <h3>Block Colors</h3>
+            <div v-if="mode === 'view'">
+              <ul class="schema-list">
+                <li v-for="item in blockTypeItems" :key="item.key">
+                  <span
+                    class="color-swatch"
+                    :style="{ backgroundColor: getEffectiveColor((project.editor_palette as any)[item.key], true) }"
+                  ></span>
+                  {{ item.label }}
+                </li>
+              </ul>
+            </div>
+            <div v-else>
+              <div class="schema-edit-list">
+                <div v-for="item in blockTypeItems" :key="item.key">
+                  <div class="schema-row">
+                    <span
+                      class="color-swatch"
+                      :style="{ backgroundColor: getEffectiveColor((draft.editor_palette as any)[item.key], true) }"
+                    ></span>
+                    <span class="flex-grow">{{ item.label }}</span>
+                    <sl-color-picker
+                      v-if="(draft.editor_palette as any)[item.key]"
+                      :value="(draft.editor_palette as any)[item.key].base_color"
+                      @sl-input="(draft.editor_palette as any)[item.key].base_color = $event.target.value"
+                      label="Choose base color"
+                    ></sl-color-picker>
+                  </div>
+                  <div v-if="(draft.editor_palette as any)[item.key]" class="color-details">
+                    <div class="shift-group">
+                      <label>Hue</label>
+                      <input
+                        type="range"
+                        v-model.number="(draft.editor_palette as any)[item.key].hue_shift"
+                        min="-50"
+                        max="50"
+                        step="5"
+                      />
+                      <div class="shift-value">{{ (draft.editor_palette as any)[item.key].hue_shift }}°</div>
+                    </div>
+                    <div class="shift-group">
+                      <label>Sat</label>
+                      <input
+                        type="range"
+                        v-model.number="(draft.editor_palette as any)[item.key].saturation_shift"
+                        min="-50"
+                        max="50"
+                        step="10"
+                      />
+                      <div class="shift-value">{{ (draft.editor_palette as any)[item.key].saturation_shift }}%</div>
+                    </div>
+                    <div class="shift-group">
+                      <label>Light</label>
+                      <input
+                        type="range"
+                        v-model.number="(draft.editor_palette as any)[item.key].lightness_shift"
+                        min="-50"
+                        max="50"
+                        step="10"
+                      />
+                      <div class="shift-value">{{ (draft.editor_palette as any)[item.key].lightness_shift }}%</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <!-- Right Column: Layouts and Flows -->
           <section class="grid-column">
             <h3>Layouts & Flows</h3>
@@ -437,13 +507,29 @@ const mode = ref<Mode>('view');
 const project = ref<Project>();
 const draft = ref<Project>();
 
+const blockTypeItems = [
+  { key: 'partColor', label: 'Part' },
+  { key: 'h1Color', label: 'Heading 1' },
+  { key: 'h2Color', label: 'Heading 2' },
+  { key: 'h3Color', label: 'Heading 3' },
+  { key: 'h4Color', label: 'Heading 4' },
+  { key: 'h5Color', label: 'Heading 5' },
+  { key: 'h6Color', label: 'Heading 6' },
+  { key: 'pColor', label: 'Paragraph' },
+  { key: 'imgColor', label: 'Image' },
+  { key: 'lstColor', label: 'List' },
+  { key: 'tblColor', label: 'Table' },
+] as const;
+
 const isLoading = ref(false);
 const isSaving = ref(false);
 const errorMessage = ref('');
 const blockingInfo = ref<Record<string, string[]>>();
 
-function getEffectiveColor(spec: ColorSpecification | undefined): string {
-  const base = draft.value?.editor_palette?.careaOverlayColor ?? DEFAULT_PALETTE.careaOverlayColor;
+function getEffectiveColor(spec: ColorSpecification | undefined, isBlock = false): string {
+  const base = isBlock
+    ? (draft.value?.editor_palette?.blockOverlayColor ?? DEFAULT_PALETTE.blockOverlayColor)
+    : (draft.value?.editor_palette?.careaOverlayColor ?? DEFAULT_PALETTE.careaOverlayColor);
   if (!spec) return base;
   return applyColorSpecs(base, [spec]);
 }
@@ -518,11 +604,25 @@ function removeFlow(index: number): void {
 }
 
 function copyProject(source: Project): Project {
-  const { editorPalette, ...rest } = source as any;
+  const { editor_palette, ...rest } = source;
+  const palette = editor_palette ? { ...editor_palette } : { ...DEFAULT_PALETTE };
+
+  // Ensure all block color fields are copied/initialized properly as objects
+  for (const item of blockTypeItems) {
+    const key = item.key;
+    const spec = (palette as any)[key];
+    (palette as any)[key] = spec ? {
+      base_color: spec.base_color || undefined,
+      hue_shift: spec.hue_shift || 0,
+      saturation_shift: spec.saturation_shift || 0,
+      lightness_shift: spec.lightness_shift || 0,
+    } : { hue_shift: 0, saturation_shift: 0, lightness_shift: 0 };
+  }
+
   return {
     ...rest,
     authors: source.authors.map(author => ({ ...author })),
-    editor_palette: source.editor_palette ? { ...source.editor_palette } : { ...DEFAULT_PALETTE },
+    editor_palette: palette,
     layouts: source.layouts.map(layout => ({
       ...layout,
       color: layout.color ? {
@@ -628,7 +728,7 @@ onMounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  max-width: 80rem;
+  max-width: 90rem;
   box-sizing: border-box;
   margin: 0 auto;
   padding: 2rem 1rem;
@@ -637,7 +737,7 @@ onMounted(() => {
 
 .project-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 3fr 3fr 5fr 5fr;
   gap: 2.5rem;
   margin-top: 2rem;
 }
@@ -783,6 +883,10 @@ h2 {
 }
 
 .author-abbrev-input {
+  flex: 1;
+}
+
+.flex-grow {
   flex: 1;
 }
 
