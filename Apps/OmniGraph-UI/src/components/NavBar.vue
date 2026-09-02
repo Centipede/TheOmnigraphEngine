@@ -189,7 +189,10 @@
           <sl-icon name="gear" label="Settings"></sl-icon>
         </RouterLink>
 
-        <sl-dropdown @sl-select="(e: Event) => setTheme((e as CustomEvent).detail.item.value)">
+        <sl-dropdown
+            class="nav-dropdown"
+            @sl-select="(e: Event) => setTheme((e as CustomEvent).detail.item.value)"
+        >
           <sl-icon-button slot="trigger" :name="themeIcon" label="Theme"></sl-icon-button>
           <sl-menu>
             <sl-menu-item value="light">
@@ -278,7 +281,7 @@ onUnmounted(() => {
 
 nav {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   padding: 0 1rem;
   height: 100%;
@@ -287,23 +290,23 @@ nav {
 .nav-start,
 .nav-end {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.4rem;
 }
 
 .nav-group {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.3rem;
 }
 
 .nav-link {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.2rem 0.4rem;
-  gap: 2px;
+  padding: 0 0.4rem;
+  height: 100%;
+  position: relative;
   border-radius: 6px;
   color: var(--color-text-muted);
   text-decoration: none;
@@ -313,13 +316,11 @@ nav {
 }
 
 .nav-link:hover {
-  background-color: var(--color-bg-muted);
   color: var(--color-text);
 }
 
 .nav-link.active,
 .nav-link.router-link-active {
-  background-color: var(--color-bg-selected);
   color: var(--color-accent);
 }
 
@@ -330,14 +331,32 @@ nav {
 }
 
 .nav-icon {
-  font-size: 28px;
+  font-size: 34px;
+  color: inherit;
 }
 
 .nav-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-bg);
+  padding: 2px 6px;
   font-size: 10px;
   text-transform: uppercase;
   font-weight: 600;
   line-height: 1;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.nav-link:hover .nav-label,
+.nav-link.active .nav-label,
+.nav-link.router-link-active .nav-label {
+  opacity: 1;
 }
 
 .subpage-links {
@@ -371,6 +390,22 @@ nav {
 
 .nav-brand-icon {
   font-size: 36px;
+  color: inherit;
+}
+
+.nav-link sl-icon {
+  color: inherit;
+}
+
+.nav-dropdown {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.nav-dropdown sl-icon-button {
+  display: flex;
+  align-items: center;
 }
 
 .nav-mid-title-portal {
