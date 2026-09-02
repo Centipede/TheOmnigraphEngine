@@ -1,94 +1,28 @@
 <template>
   <header class="vue-header">
     <nav>
-      <RouterLink to="/projects" custom v-slot="{ navigate, isExactActive }">
-        <sl-button
-            class="nav-brand"
-            :variant="isExactActive ? 'primary' : 'text'"
-            @click="navigate"
-        >
-          Home
-        </sl-button>
-      </RouterLink>
-
-      <div v-if="panels" class="panel-toggle-group">
-        <sl-icon-button
-            name="list"
-            label="Toggle page selector"
-            :class="{ active: panels['page-list'] }"
-            @click="emit('togglePanel', 'page-list')"
-        />
-        <sl-icon-button
-            name="list-nested"
-            label="Toggle sections"
-            :class="{ active: panels['section-structure'] }"
-            @click="emit('togglePanel', 'section-structure')"
-        />
-
-        <span class="nav-separator" aria-hidden="true"></span>
-
-        <sl-icon-button
-            name="grid"
-            label="Toggle page icons"
-            :class="{ active: panels['page-strips'] }"
-            @click="emit('togglePanel', 'page-strips')"
-        />
-        <sl-icon-button
-            name="file-earmark-image"
-            label="Toggle page preview"
-            :class="{ active: panels['page-preview'] }"
-            @click="emit('togglePanel', 'page-preview')"
-        />
-
-        <span class="nav-separator" aria-hidden="true"></span>
-
-        <sl-icon-button
-            name="wrench-adjustable"
-            label="Toggle tools"
-            :class="{ active: panels['tools'] }"
-            @click="emit('togglePanel', 'tools')"
-        />
-        <sl-icon-button
-            name="columns-gap"
-            label="Toggle hOCR outline"
-            :class="{ active: panels['ocr-structure'] }"
-            @click="emit('togglePanel', 'ocr-structure')"
-        />
-      </div>
-
       <div class="nav-start">
-        <RouterLink
-            v-if="hasProject"
-            :to="{ name: 'project-detail', params: { machineName } }"
-            custom
-            v-slot="{ navigate, isExactActive }"
-        >
-          <sl-button
-              :variant="isExactActive ? 'primary' : 'text'"
-              @click="navigate"
-          >
-            Overview
-          </sl-button>
+        <RouterLink to="/projects" class="nav-link">
+          <img src="/icons/omnigraph-small.png" alt="Home" class="nav-brand-icon" />
         </RouterLink>
-        <sl-button v-else variant="text" disabled>
-          Overview
-        </sl-button>
 
-        <RouterLink
-            v-if="hasProject"
-            :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
-            custom
-            v-slot="{ navigate }"
-        >
-          <sl-button
-              :variant="isIngestorRoute ? 'primary' : 'text'"
-              @click="navigate"
+        <template v-if="hasProject">
+          <RouterLink
+              :to="{ name: 'project-detail', params: { machineName } }"
+              class="nav-link"
           >
-            Ingestor
-          </sl-button>
-          <template v-if="isIngestorRoute">
-            <!-- Mode selector -->
-            <sl-button-group>
+            <img src="/icons/overview.png" alt="Overview" class="nav-icon" />
+          </RouterLink>
+
+          <div class="nav-group">
+            <RouterLink
+                :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
+                class="nav-link"
+                :class="{ active: isIngestorRoute }"
+            >
+              <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
+            </RouterLink>
+            <sl-button-group v-if="isIngestorRoute" size="small">
               <RouterLink
                   :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
                   custom
@@ -98,7 +32,6 @@
                   Assemble
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'ingestor-process', params: { machineName, page: currentPageParam } }"
                   custom
@@ -109,28 +42,17 @@
                 </sl-button>
               </RouterLink>
             </sl-button-group>
-          </template>
-        </RouterLink>
-        <sl-button v-else variant="text" disabled>
-          Ingestor
-        </sl-button>
+          </div>
 
-        <RouterLink
-            v-if="hasProject"
-            :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
-            custom
-            v-slot="{ navigate }"
-        >
-          <sl-button
-              :variant="isFoliosRoute ? 'primary' : 'text'"
-              @click="navigate"
-          >
-            Folios
-          </sl-button>
-          <template v-if="isFoliosRoute">
-
-            <!-- Mode selector -->
-            <sl-button-group>
+          <div class="nav-group">
+            <RouterLink
+                :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
+                class="nav-link"
+                :class="{ active: isFoliosRoute }"
+            >
+              <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
+            </RouterLink>
+            <sl-button-group v-if="isFoliosRoute" size="small">
               <RouterLink
                   :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
                   custom
@@ -140,7 +62,6 @@
                   Crop
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'folios-hint', params: { machineName, page: currentPageParam } }"
                   custom
@@ -150,7 +71,6 @@
                   Hint
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
                   custom
@@ -160,7 +80,6 @@
                   Recognise
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
                   custom
@@ -170,7 +89,6 @@
                   Assist
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'folios-edit', params: { machineName, page: currentPageParam } }"
                   custom
@@ -181,29 +99,17 @@
                 </sl-button>
               </RouterLink>
             </sl-button-group>
+          </div>
 
-          </template>
-        </RouterLink>
-        <sl-button v-else variant="text" disabled>
-          Folios
-        </sl-button>
-
-        <RouterLink
-            v-if="hasProject"
-            :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
-            custom
-            v-slot="{ navigate }"
-        >
-          <sl-button
-              :variant="isCodexRoute ? 'primary' : 'text'"
-              @click="navigate"
-          >
-            Codex
-          </sl-button>
-          <template v-if="isCodexRoute">
-
-            <!-- Mode selector -->
-            <sl-button-group>
+          <div class="nav-group">
+            <RouterLink
+                :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
+                class="nav-link"
+                :class="{ active: isCodexRoute }"
+            >
+              <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
+            </RouterLink>
+            <sl-button-group v-if="isCodexRoute" size="small">
               <RouterLink
                   :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
                   custom
@@ -213,7 +119,6 @@
                   Edit
                 </sl-button>
               </RouterLink>
-
               <RouterLink
                   :to="{ name: 'codex-script', params: { machineName, page: currentPageParam } }"
                   custom
@@ -224,22 +129,69 @@
                 </sl-button>
               </RouterLink>
             </sl-button-group>
+          </div>
+        </template>
 
-          </template>
-        </RouterLink>
-        <sl-button v-else variant="text" disabled>
-          Codex
-        </sl-button>
+        <template v-else>
+          <div class="nav-link disabled"><img src="/icons/overview.png" alt="Overview" class="nav-icon" /></div>
+          <div class="nav-link disabled"><img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" /></div>
+          <div class="nav-link disabled"><img src="/icons/folios.png" alt="Folios" class="nav-icon" /></div>
+          <div class="nav-link disabled"><img src="/icons/codex.png" alt="Codex" class="nav-icon" /></div>
+        </template>
+      </div>
+
+      <div class="nav-mid-title-portal"></div>
+
+      <div class="nav-end-tools-portal">
+        <div v-if="panels" class="panel-toggle-group">
+          <sl-icon-button
+              name="list"
+              label="Toggle page selector"
+              :class="{ active: panels['page-list'] }"
+              @click="emit('togglePanel', 'page-list')"
+          />
+          <sl-icon-button
+              name="list-nested"
+              label="Toggle sections"
+              :class="{ active: panels['section-structure'] }"
+              @click="emit('togglePanel', 'section-structure')"
+          />
+
+          <span class="nav-separator" aria-hidden="true"></span>
+
+          <sl-icon-button
+              name="grid"
+              label="Toggle page icons"
+              :class="{ active: panels['page-strips'] }"
+              @click="emit('togglePanel', 'page-strips')"
+          />
+          <sl-icon-button
+              name="file-earmark-image"
+              label="Toggle page preview"
+              :class="{ active: panels['page-preview'] }"
+              @click="emit('togglePanel', 'page-preview')"
+          />
+
+          <span class="nav-separator" aria-hidden="true"></span>
+
+          <sl-icon-button
+              name="wrench-adjustable"
+              label="Toggle tools"
+              :class="{ active: panels['tools'] }"
+              @click="emit('togglePanel', 'tools')"
+          />
+          <sl-icon-button
+              name="columns-gap"
+              label="Toggle hOCR outline"
+              :class="{ active: panels['ocr-structure'] }"
+              @click="emit('togglePanel', 'ocr-structure')"
+          />
+        </div>
       </div>
 
       <div class="nav-end">
-        <RouterLink to="/settings" custom v-slot="{ navigate, isActive }">
-          <sl-button
-              :variant="isActive ? 'primary' : 'text'"
-              @click="navigate"
-          >
-            Settings
-          </sl-button>
+        <RouterLink to="/settings" class="nav-link">
+          <sl-icon name="gear" label="Settings"></sl-icon>
         </RouterLink>
 
         <sl-dropdown @sl-select="(e: Event) => setTheme((e as CustomEvent).detail.item.value)">
@@ -333,44 +285,105 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  padding: 0 1rem;
   height: 100%;
-}
-
-.nav-brand {
-  font-weight: 600;
-}
-
-.nav-separator {
-  align-self: stretch;
-  width: 1px;
-  margin: 0.15rem 0.55rem;
-  border-radius: 999px;
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      var(--color-border, #dee2e6) 18%,
-      var(--color-border, #dee2e6) 82%,
-      transparent
-  );
 }
 
 .nav-start,
 .nav-end {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.75rem;
+}
+
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.nav-link:hover {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.nav-link.active,
+.nav-link.router-link-active {
+  background-color: var(--color-bg-selected);
+  color: var(--color-accent);
+}
+
+.nav-link.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.nav-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.nav-brand-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.nav-mid-title-portal {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.nav-end-tools-portal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 1rem;
 }
 
 .panel-toggle-group {
-  align-self: stretch;
   display: flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.25rem;
+  background: var(--color-bg-muted);
+  padding: 2px;
+  border-radius: 8px;
+}
+
+.nav-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+  margin: 0 4px;
+}
+
+sl-icon-button::part(base) {
+  transition: all 0.2s ease;
 }
 
 sl-icon-button.active::part(base) {
-  background: var(--sl-color-primary-200);
+  background: var(--color-bg-selected);
+  color: var(--color-accent);
 }
 
+.nav-link sl-icon {
+  font-size: 20px;
+}
 </style>
