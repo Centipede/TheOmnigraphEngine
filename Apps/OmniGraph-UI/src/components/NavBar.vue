@@ -12,6 +12,7 @@
               class="nav-link"
           >
             <img src="/icons/overview.png" alt="Overview" class="nav-icon" />
+            <span class="nav-label">Overview</span>
           </RouterLink>
 
           <div class="nav-group">
@@ -21,28 +22,23 @@
                 :class="{ active: isIngestorRoute }"
             >
               <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
+              <span class="nav-label">Ingestor</span>
             </RouterLink>
             <Transition name="subsection">
-              <sl-button-group v-if="isIngestorRoute" size="small">
+              <div v-if="isIngestorRoute" class="subpage-links">
                 <RouterLink
                     :to="{ name: 'ingestor-assemble', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Assemble
-                  </sl-button>
+                  Assemble
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'ingestor-process', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Process
-                  </sl-button>
+                  Process
                 </RouterLink>
-              </sl-button-group>
+              </div>
             </Transition>
           </div>
 
@@ -53,55 +49,41 @@
                 :class="{ active: isFoliosRoute }"
             >
               <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
+              <span class="nav-label">Folios</span>
             </RouterLink>
             <Transition name="subsection">
-              <sl-button-group v-if="isFoliosRoute" size="small">
+              <div v-if="isFoliosRoute" class="subpage-links">
                 <RouterLink
                     :to="{ name: 'folios-crop', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Crop
-                  </sl-button>
+                  Crop
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'folios-hint', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Hint
-                  </sl-button>
+                  Hint
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'folios-recognise', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Recognise
-                  </sl-button>
+                  Recognise
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'folios-assist', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Assist
-                  </sl-button>
+                  Assist
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'folios-edit', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Edit
-                  </sl-button>
+                  Edit
                 </RouterLink>
-              </sl-button-group>
+              </div>
             </Transition>
           </div>
 
@@ -112,37 +94,44 @@
                 :class="{ active: isCodexRoute }"
             >
               <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
+              <span class="nav-label">Codex</span>
             </RouterLink>
             <Transition name="subsection">
-              <sl-button-group v-if="isCodexRoute" size="small">
+              <div v-if="isCodexRoute" class="subpage-links">
                 <RouterLink
                     :to="{ name: 'codex-edit', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Edit
-                  </sl-button>
+                  Edit
                 </RouterLink>
                 <RouterLink
                     :to="{ name: 'codex-script', params: { machineName, page: currentPageParam } }"
-                    custom
-                    v-slot="{ navigate, isActive }"
+                    class="subpage-link"
                 >
-                  <sl-button :variant="isActive ? 'primary' : 'text'" @click="navigate" size="small">
-                    Script
-                  </sl-button>
+                  Script
                 </RouterLink>
-              </sl-button-group>
+              </div>
             </Transition>
           </div>
         </template>
 
         <template v-else>
-          <div class="nav-link disabled"><img src="/icons/overview.png" alt="Overview" class="nav-icon" /></div>
-          <div class="nav-link disabled"><img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" /></div>
-          <div class="nav-link disabled"><img src="/icons/folios.png" alt="Folios" class="nav-icon" /></div>
-          <div class="nav-link disabled"><img src="/icons/codex.png" alt="Codex" class="nav-icon" /></div>
+          <div class="nav-link disabled">
+            <img src="/icons/overview.png" alt="Overview" class="nav-icon" />
+            <span class="nav-label">Overview</span>
+          </div>
+          <div class="nav-link disabled">
+            <img src="/icons/ingestor.png" alt="Ingestor" class="nav-icon" />
+            <span class="nav-label">Ingestor</span>
+          </div>
+          <div class="nav-link disabled">
+            <img src="/icons/folios.png" alt="Folios" class="nav-icon" />
+            <span class="nav-label">Folios</span>
+          </div>
+          <div class="nav-link disabled">
+            <img src="/icons/codex.png" alt="Codex" class="nav-icon" />
+            <span class="nav-label">Codex</span>
+          </div>
         </template>
       </div>
 
@@ -299,20 +288,22 @@ nav {
 .nav-end {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.4rem;
 }
 
 .nav-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
 }
 
 .nav-link {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  gap: 2px;
   border-radius: 6px;
   color: var(--color-text-muted);
   text-decoration: none;
@@ -342,6 +333,42 @@ nav {
   width: 28px;
   height: 28px;
   object-fit: contain;
+}
+
+.nav-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.subpage-links {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding-left: 0.4rem;
+  margin-left: 0.1rem;
+  border-left: 1px solid var(--color-border);
+}
+
+.subpage-link {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.subpage-link:hover {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.subpage-link.router-link-active {
+  color: var(--color-accent);
+  font-weight: 600;
 }
 
 .nav-brand-icon {
