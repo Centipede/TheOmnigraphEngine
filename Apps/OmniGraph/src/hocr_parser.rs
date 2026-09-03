@@ -1507,7 +1507,7 @@ impl HocrCarea {
             html.push_str(&block.to_hocr_html());
         }
 
-        html.push_str("</div>");
+        html.push_str("</div>\n");
         html
     }
     pub fn rebuild_bbox(&mut self) {
@@ -1646,7 +1646,7 @@ impl HocrBlock {
             html.push_str(&line.to_hocr_html());
         }
 
-        html.push_str(&format!("</{tag}>"));
+        html.push_str(&format!("</{tag}>\n"));
         html
     }
     pub fn rebuild_bbox(&mut self) {
@@ -1705,7 +1705,7 @@ impl HocrLine {
             html.push_str(&word.to_hocr_html());
         }
 
-        html.push_str("</span>");
+        html.push_str("</span>\n");
         html
     }
     pub fn rebuild_bbox(&mut self) {
@@ -1734,11 +1734,11 @@ impl HocrWord {
             None => "".to_string(),
         };
         let dropcap_html = match &self.dropcap {
-            Some(d) => format!("<span class=\"dropcap\">{}</span>", escape_text(d)),
+            Some(d) => format!("<span class=\"dropcap\">{}</span>\n", escape_text(d)),
             None => "".to_string(),
         };
         format!(
-            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}{}</span>",
+            "<span class=\"ocrx_word\" id=\"{}\" title=\"bbox {} {} {} {}; x_wconf {}\"{}>{}{}</span>\n",
             escape_attr(&self.id),
             self.bbox.left(),
             self.bbox.top(),
@@ -1754,7 +1754,7 @@ impl HocrWord {
 
 impl HocrUnknown {
     pub fn to_hocr_html(&self) -> String {
-        self.string.clone()
+        format!("{}\n", self.string)
     }
 }
 
