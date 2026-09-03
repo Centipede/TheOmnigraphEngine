@@ -608,6 +608,42 @@ pub async fn put_project_pagesdb(
     }
 }
 
+pub async fn save_all_pages(
+    State(state): State<AppState>,
+    Path(machine_name): Path<String>,
+) -> impl IntoResponse {
+    let pagedb_path = state.project_pagesdb_path(&machine_name);
+    let pagedb = storage::load_page_db(&pagedb_path);
+
+    let mut success_count = 0;
+    let mut failure_count = 0;
+
+    for page in &pagedb.pages {
+        if let Some(active_path) = storage::hocr_active_path(&state.projects_dir, &machine_name, &page.scan) {
+            match fs::read_to_string(&active_path).await {
+                Ok(html) => {
+                    if let Some(hocr_page) = crate::hocr_parser::parse(&html) {
+                        let normalized_html = hocr_page.to_hocr_html();
+                        match storage::save_hocr_edited(&state.projects_dir, &machine_name, &page.scan, &normalized_html) {
+                            Ok(_) => success_count += 1,
+                            Err(_) => failure_count += 1,
+                        }
+                    } else {
+                        failure_count += 1;
+                    }
+                }
+                Err(_) => failure_count += 1,
+            }
+        }
+    }
+
+    Json(serde_json::json!({
+        "success": true,
+        "success_count": success_count,
+        "failure_count": failure_count,
+    }))
+}
+
 pub async fn get_project_structure(
     State(state): State<AppState>,
     Path(machine_name): Path<String>,
