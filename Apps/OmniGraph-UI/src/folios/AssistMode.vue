@@ -29,6 +29,13 @@
         >
           Auto flow
         </sl-button>
+        <sl-button
+            size="small"
+            :loading="isSavingAll"
+            @click="saveAllPages"
+        >
+          Save all
+        </sl-button>
       </sl-button-group>
     </template>
 
@@ -66,6 +73,7 @@ const { setActivePanels } = usePanelVisibilityContext();
 const project = ref<Project | null>(null);
 const flows = computed(() => project.value?.flows || []);
 const layouts = computed(() => project.value?.layouts || []);
+const isSavingAll = ref(false);
 
 async function fetchProjectMetadata(): Promise<void> {
   try {
@@ -107,6 +115,28 @@ async function autoFlow(selectedPages: Page[], currentPage: Page | null) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stems })
   });
+}
+
+async function saveAllPages() {
+  isSavingAll.value = true;
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}/pages/save-all`, {
+      method: 'POST'
+    });
+    if (resp.ok) {
+      const result = await resp.json();
+      console.log('Save all pages result:', result);
+      alert(`Successfully saved all pages.\nSuccess: ${result.success_count}\nFailures: ${result.failure_count}`);
+    } else {
+      console.error('Failed to save all pages');
+      alert('Failed to save all pages');
+    }
+  } catch (e) {
+    console.error('Error saving all pages:', e);
+    alert('Error saving all pages');
+  } finally {
+    isSavingAll.value = false;
+  }
 }
 </script>
 

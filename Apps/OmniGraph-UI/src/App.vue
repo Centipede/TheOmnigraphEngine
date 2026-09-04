@@ -27,15 +27,25 @@
 <script setup lang="ts">
 import {computed, ref, provide, nextTick, onMounted, onUnmounted} from 'vue';
 import {RouterView, useRoute} from 'vue-router';
+import { useHead } from '@unhead/vue';
 import NavBar from "./components/NavBar.vue";
 import type {PanelId} from './types';
 import { providePanelVisibilityContext } from './composables/usePanelVisibility';
+import { provideActiveProjectContext } from './composables/useActiveProject';
 import { isTypingElement } from './utils/dom';
 
 const route = useRoute();
 
+useHead({
+  titleTemplate: '%s | OmniGraph',
+  link: [
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+  ]
+});
+
 const machineName = computed(() => String(route.params.machineName ?? ''));
-const projectName = computed(() => machineName.value);
+const { activeProjectName } = provideActiveProjectContext(machineName);
+const projectName = activeProjectName;
 
 const { activePanels } = providePanelVisibilityContext();
 

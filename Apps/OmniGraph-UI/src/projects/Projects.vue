@@ -84,7 +84,21 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { useHead } from '@unhead/vue';
 import type { Project, ProjectCreateForm } from '../types/project';
+
+useHead({
+  title: 'Projects',
+  /*
+  // Example: Dynamically changing the favicon based on application state
+  link: [
+    {
+      rel: 'icon',
+      href: () => isLoading.value ? '/favicon-loading.svg' : '/favicon.svg'
+    }
+  ]
+  */
+});
 
 const projects = ref<Project[]>([]);
 const isLoading = ref(false);

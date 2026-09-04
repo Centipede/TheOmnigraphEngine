@@ -119,7 +119,12 @@
 
 <script setup lang="ts">
 import {onMounted, onUnmounted, reactive, ref} from 'vue';
+import { useHead } from '@unhead/vue';
 import type {OcrCommandFormat, OcrServerStatus, ServiceStatus, SettingsStatus} from '../types/settings';
+
+useHead({
+  title: 'Settings',
+});
 
 const SETTINGS_ENDPOINT = '/api/settings';
 
