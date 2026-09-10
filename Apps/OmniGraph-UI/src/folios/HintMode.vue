@@ -11,7 +11,7 @@
       :page-interaction-drag="handleInteractionDrag"
       :show-crop-overlay="true"
       :show-hints="true"
-      :palette="{ ...DEFAULT_PALETTE, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
+      :palette="{ ...effectivePalette, keepColor: 'rgba(0, 0, 0, 0.0)', discardColor: 'rgba(50, 50, 50, 0.35)'}"
       @current-page-change="currentPage = $event"
       @pages-loaded="onPagesLoaded"
   >
@@ -95,7 +95,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
-import {type Page, type Hint, type HintType, type PointerSettings, DEFAULT_PALETTE} from '../types';
+import {type Page, type Hint, type HintType, type PointerSettings, type Project, DEFAULT_PALETTE} from '../types';
 import {provideHocrContext} from "../composables/useHocr.ts";
 
 const props = defineProps<{
@@ -107,6 +107,23 @@ const props = defineProps<{
 const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 const currentPage = ref<Page | null>(null);
 const activeTool = ref<HintType | null>(null);
+const project = ref<Project | null>(null);
+
+async function fetchProject() {
+  if (!props.machineName) return;
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      project.value = await resp.json();
+    }
+  } catch (e) {
+    console.error('Failed to fetch project in HintMode', e);
+  }
+}
+
+const effectivePalette = computed(() => {
+  return { ...DEFAULT_PALETTE, ...(project.value?.editor_palette || {}) };
+});
 
 const panels = usePersistentPanels('panels.hint', {
   'page-list': true,
@@ -122,17 +139,22 @@ const { setActivePanels } = usePanelVisibilityContext();
 
 provideHocrContext();
 
-onMounted(() => setActivePanels(panels));
+onMounted(() => {
+  setActivePanels(panels);
+  fetchProject();
+});
 onUnmounted(() => setActivePanels(null));
 
 const pointerSettings = computed((): PointerSettings => {
   if (!activeTool.value) return { enabled: false, color: '#808080', icon: 'crosshair', label: '' };
-  
+
+  const palette = effectivePalette.value;
+
   const settings: Record<string, { label: string, color: string }> = {
-    dropcap: { label: 'Dropcap', color: 'rgba(255, 140, 0, 1)' },
-    image: { label: 'Image', color: 'rgba(0, 191, 255, 1)' },
-    callout: { label: 'Callout', color: 'rgba(40, 167, 69, 1)' },
-    garbage: { label: 'Garbage', color: 'rgba(220, 53, 69, 1)' },
+    dropcap: { label: 'Dropcap', color: palette.hintDropcapColor },
+    image: { label: 'Image', color: palette.hintImageColor },
+    callout: { label: 'Callout', color: palette.hintCalloutColor },
+    garbage: { label: 'Garbage', color: palette.hintGarbageColor },
   };
 
   const current = settings[activeTool.value] || { label: '', color: 'rgba(128, 128, 128, 1)' };

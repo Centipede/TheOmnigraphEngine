@@ -23,7 +23,7 @@ impl ProcessingSettings {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct EditorPalette {
     pub keep_color: String,
     pub discard_color: String,
@@ -31,6 +31,10 @@ pub struct EditorPalette {
     pub block_overlay_color: String,
     pub line_overlay_color: String,
     pub word_overlay_color: String,
+    pub hint_dropcap_color: String,
+    pub hint_image_color: String,
+    pub hint_callout_color: String,
+    pub hint_garbage_color: String,
     #[serde(default)]
     pub part_color: crate::hocr_parser::ColorSpecification,
     #[serde(default)]
@@ -125,6 +129,10 @@ impl Default for EditorPalette {
                 lightness_shift: Some(-15.0),
                 ..Default::default()
             },
+            hint_dropcap_color: "rgba(255, 140, 0, 1)".to_string(),
+            hint_image_color: "rgba(0, 191, 255, 1)".to_string(),
+            hint_callout_color: "rgba(40, 167, 69, 1)".to_string(),
+            hint_garbage_color: "rgba(220, 53, 69, 1)".to_string(),
         }
     }
 }

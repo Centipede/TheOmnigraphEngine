@@ -200,6 +200,22 @@
                   <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.discardColor }"></span>
                   Discard Color
                 </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.hintDropcapColor }"></span>
+                  Dropcap Hint
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.hintImageColor }"></span>
+                  Image Hint
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.hintCalloutColor }"></span>
+                  Callout Hint
+                </li>
+                <li>
+                  <span class="color-swatch" :style="{ backgroundColor: project.editor_palette.hintGarbageColor }"></span>
+                  Garbage Hint
+                </li>
               </ul>
             </div>
             <div v-else>
@@ -227,6 +243,22 @@
                 <div class="color-field">
                   <label>Discard Color</label>
                   <sl-color-picker :value="draft.editor_palette.discardColor" @sl-input="draft.editor_palette.discardColor = $event.target.value" label="Discard Color" opacity></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Dropcap Hint</label>
+                  <sl-color-picker :value="draft.editor_palette.hintDropcapColor" @sl-input="draft.editor_palette.hintDropcapColor = $event.target.value" label="Dropcap Hint Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Image Hint</label>
+                  <sl-color-picker :value="draft.editor_palette.hintImageColor" @sl-input="draft.editor_palette.hintImageColor = $event.target.value" label="Image Hint Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Callout Hint</label>
+                  <sl-color-picker :value="draft.editor_palette.hintCalloutColor" @sl-input="draft.editor_palette.hintCalloutColor = $event.target.value" label="Callout Hint Color"></sl-color-picker>
+                </div>
+                <div class="color-field">
+                  <label>Garbage Hint</label>
+                  <sl-color-picker :value="draft.editor_palette.hintGarbageColor" @sl-input="draft.editor_palette.hintGarbageColor = $event.target.value" label="Garbage Hint Color"></sl-color-picker>
                 </div>
               </div>
             </div>
@@ -608,7 +640,7 @@ function removeFlow(index: number): void {
 
 function copyProject(source: Project): Project {
   const { editor_palette, ...rest } = source;
-  const palette = editor_palette ? { ...editor_palette } : { ...DEFAULT_PALETTE };
+  const palette = { ...DEFAULT_PALETTE, ...(editor_palette || {}) };
 
   // Ensure all block color fields are copied/initialized properly as objects
   for (const item of blockTypeItems) {
