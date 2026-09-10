@@ -60,39 +60,12 @@ fn word_level() -> String {
     "word".to_string()
 }
 
-
-fn signature_word(word: &HocrWord) -> String {
-    word.id.clone()
-}
-
-fn signature_line(line: &HocrLine) -> String {
-    let word_sigs = line.words.iter().map(signature_word).collect::<Vec<String>>();
-    format!("{}({})", line.id.clone(), word_sigs.join(","))
-}
-
-fn signature_block(block: &HocrBlock) -> String {
-    let line_sigs = block.lines.iter().map(signature_line).collect::<Vec<String>>();
-    format!("{}:{}({})", block.id.clone(), block.kind, line_sigs.join(","))
-}
-
-fn signature_carea(carea: &HocrCarea) -> String {
-    let block_sigs = carea.blocks.iter().map(signature_block).collect::<Vec<String>>();
-    format!("{}({})", carea.id.clone(), block_sigs.join(","))
-}
-
-fn signature(page: &HocrPage) -> String {
-    let carea_sigs = page.careas.iter().map(signature_carea).collect::<Vec<String>>();
-    format!("{}({})", page.page_id, carea_sigs.join(","))
-}
-
-fn to_sig(s: &str) -> String {
-    s.replace(' ', "").replace('\n', "").replace('\r', "")
-}
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct HocrBbox(pub [i32; 4]);
 
+#[allow(dead_code)]
 pub struct Overlap {
     pub overlapping_self_pct: f32,
     pub overlapping_other_pct: f32,
@@ -249,6 +222,7 @@ impl HocrBbox {
         Self([0, 0, 0, 0])
     }
 
+    #[allow(dead_code)]
     pub fn new(left: i32, top: i32, right: i32, bottom: i32) -> Self {
         Self([left, top, right, bottom])
     }
@@ -295,6 +269,7 @@ impl HocrBbox {
         self.0[3] += dy;
     }
 
+    #[allow(dead_code)]
     pub fn aspect_ratio(self) -> f32 {
         self.width() as f32 / self.height() as f32
     }
@@ -375,6 +350,8 @@ impl HocrPath {
 }
 
 impl HocrPage {
+
+    #[allow(dead_code)]
     pub fn shift(&mut self, dx: i32, dy: i32) {
         self.bbox.shift(dx, dy);
         for carea in &mut self.careas {
@@ -1778,23 +1755,25 @@ pub fn parse(html: &str) -> Option<HocrPage> {
 
     let page_el = document.select(&sel_page).next()?;
     let page_id = page_el.attr("id").unwrap_or("page_1").to_string();
-    let page_bbox = bbox(page_el.attr("title").unwrap_or(""))?;
+    let page_title_map = split_title(page_el.attr("title").unwrap_or(""));
+    let page_bbox = page_title_map.get("bbox").and_then(|s| to_bbox_opt(s))?;
 
     let careas = page_el
         .select(&sel_carea)
         .filter_map(|carea_el| {
             let title_str = carea_el.attr("title").unwrap_or("");
-            let carea_bbox = bbox(title_str)?;
+            let title_keyvals = split_title(title_str);
+            let carea_bbox = title_keyvals.get("bbox").and_then(|s| to_bbox_opt(s))?;
             let carea_id = carea_el.attr("id").unwrap_or("").to_string();
 
-            let title_keyvals = split_title(title_str);
             let flow = title_keyvals.get("flow").cloned();
             let layout = title_keyvals.get("layout").cloned();
 
             let blocks = carea_el
                 .select(&sel_block)
                 .filter_map(|block_el| {
-                    let block_bbox = bbox(block_el.attr("title").unwrap_or(""))?;
+                    let block_title_map = split_title(block_el.attr("title").unwrap_or(""));
+                    let block_bbox = block_title_map.get("bbox").and_then(|s| to_bbox_opt(s))?;
                     let block_id = block_el.attr("id").unwrap_or("").to_string();
                     let block_lang = block_el.attr("lang").map(str::to_string);
 
@@ -1802,7 +1781,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                         .select(&sel_line)
                         .filter_map(|line_el| {
                             let title_keyvals = split_title(line_el.attr("title").unwrap_or(""));
-                            let line_bbox = title_keyvals.get("bbox").map(|s| to_bbox(s)).unwrap_or(HocrBbox::empty());
+                            let line_bbox = title_keyvals.get("bbox").and_then(|s| to_bbox_opt(s)).unwrap_or(HocrBbox::empty());
                             let line_baseline = title_keyvals.get("baseline").and_then(|s| to_baseline(s));
                             let line_x_size = title_keyvals.get("x_size").and_then(|s| s.parse::<f32>().ok());
                             let line_x_ascenders = title_keyvals.get("x_ascenders").and_then(|s| s.parse::<f32>().ok());
@@ -1813,8 +1792,9 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             let words = line_el
                                 .select(&sel_word)
                                 .filter_map(|word_el| {
-                                    let title = word_el.attr("title").unwrap_or("");
-                                    let word_bbox = bbox(title)?;
+                                    let title_str = word_el.attr("title").unwrap_or("");
+                                    let title_map = split_title(title_str);
+                                    let word_bbox = title_map.get("bbox").and_then(|s| to_bbox_opt(s))?;
                                     let dropcap = word_el.select(&sel_dropcap).next().map(|el| el.text().collect::<String>());
                                     let full_text = word_el.text().collect::<String>();
                                     let text = if let Some(ref d) = dropcap {
@@ -1832,7 +1812,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                                         bbox: word_bbox,
                                         lang: word_el.attr("lang").map(str::to_string),
                                         text,
-                                        wconf: wconf(title),
+                                        wconf: title_map.get("x_wconf").and_then(|s| to_wconf(s)).unwrap_or(0),
                                         dropcap,
                                     })
                                 })
@@ -1909,15 +1889,15 @@ fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
 
 #[allow(dead_code)]
 fn split_title(title: &str) -> HashMap<String, String> {
+    let mut keyvals: HashMap<String, String> = HashMap::new();
 
-    let mut keyvals : HashMap<String, String> = HashMap::new();
-
-    for part in title.split(";").map(|s| s.trim()) {
-        let mut parts = part.split(" ");
-        let key = parts.next().unwrap();
-        let value = parts.collect::<Vec<_>>().join(" ");
-        keyvals.insert(key.to_string(), value);
-    };
+    for part in title.split(';').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        let mut parts = part.split_whitespace();
+        if let Some(key) = parts.next() {
+            let value = parts.collect::<Vec<_>>().join(" ");
+            keyvals.insert(key.to_string(), value);
+        }
+    }
     keyvals
 }
 
@@ -1930,17 +1910,18 @@ fn join_title(keyvals: &HashMap<String, String>) -> String {
 }
 
 
-fn to_bbox(bbox_str: &str) -> HocrBbox {
+fn to_bbox_opt(bbox_str: &str) -> Option<HocrBbox> {
     let v: Vec<i32> = bbox_str
         .split_whitespace()
         .filter_map(|s| s.parse().ok())
         .collect();
     if v.len() >= 4 {
-        HocrBbox([v[0], v[1], v[2], v[3]])
+        Some(HocrBbox([v[0], v[1], v[2], v[3]]))
     } else {
-        HocrBbox::empty()
+        None
     }
 }
+
 
 fn to_baseline(baseline_str: &str) -> Option<(f32, f32)> {
     let v: Vec<f32> = baseline_str
@@ -1958,31 +1939,6 @@ fn to_wconf(wconf_str: &str) -> Option<i32> {
     wconf_str.trim().parse().ok()
 }
 
-fn bbox(title: &str) -> Option<HocrBbox> {
-    for part in title.split(';') {
-        if let Some(rest) = part.trim().strip_prefix("bbox ") {
-            let v: Vec<i32> = rest
-                .split_whitespace()
-                .filter_map(|s| s.parse().ok())
-                .collect();
-            if v.len() >= 4 {
-                return Some(HocrBbox([v[0], v[1], v[2], v[3]]));
-            }
-        }
-    }
-    None
-}
-
-fn wconf(title: &str) -> i32 {
-    for part in title.split(';') {
-        if let Some(rest) = part.trim().strip_prefix("x_wconf ") {
-            if let Ok(n) = rest.trim().parse() {
-                return n;
-            }
-        }
-    }
-    0
-}
 
 fn escape_text(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -2164,6 +2120,35 @@ mod tests {
                 </body>
             </html>
     "#;
+
+
+    fn signature_word(word: &HocrWord) -> String {
+        word.id.clone()
+    }
+
+    fn signature_line(line: &HocrLine) -> String {
+        let word_sigs = line.words.iter().map(signature_word).collect::<Vec<String>>();
+        format!("{}({})", line.id.clone(), word_sigs.join(","))
+    }
+
+    fn signature_block(block: &HocrBlock) -> String {
+        let line_sigs = block.lines.iter().map(signature_line).collect::<Vec<String>>();
+        format!("{}:{}({})", block.id.clone(), block.kind, line_sigs.join(","))
+    }
+
+    fn signature_carea(carea: &HocrCarea) -> String {
+        let block_sigs = carea.blocks.iter().map(signature_block).collect::<Vec<String>>();
+        format!("{}({})", carea.id.clone(), block_sigs.join(","))
+    }
+
+    fn signature(page: &HocrPage) -> String {
+        let carea_sigs = page.careas.iter().map(signature_carea).collect::<Vec<String>>();
+        format!("{}({})", page.page_id, carea_sigs.join(","))
+    }
+
+    fn to_sig(s: &str) -> String {
+        s.replace(' ', "").replace('\n', "").replace('\r', "")
+    }
 
 
     #[test]

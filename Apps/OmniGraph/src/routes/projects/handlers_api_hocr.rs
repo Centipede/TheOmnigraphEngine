@@ -45,8 +45,8 @@ pub async fn carea_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap(); // TODO: No unwrap!
+    let Some(path1) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(path2) = hocr_parser::find_node(&page, &payload.other_id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Carea { carea: carea1 } = path1 else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -95,9 +95,9 @@ pub async fn carea_split(
     };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
-    let carea_path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
-    let before = hocr_parser::find_node(&page, &before_id).unwrap(); // TODO: No unwrap!
-    let after = hocr_parser::find_node(&page, &after_id).unwrap(); // TODO: No unwrap!
+    let Some(carea_path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(before) = hocr_parser::find_node(&page, &before_id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(after) = hocr_parser::find_node(&page, &after_id) else { return StatusCode::NOT_FOUND.into_response() };
 
     let HocrPath::Carea { carea } = carea_path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -146,7 +146,7 @@ pub async fn carea_move_up(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Carea { carea } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -164,7 +164,7 @@ pub async fn carea_move_down(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Carea { carea } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -200,7 +200,7 @@ pub async fn carea_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Carea { carea } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -513,8 +513,8 @@ pub async fn block_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap(); // TODO: No unwrap!
+    let Some(path1) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(path2) = hocr_parser::find_node(&page, &payload.other_id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Block {
         carea: carea1,
         block: block1,
@@ -574,9 +574,9 @@ pub async fn block_split(
     };
     let before_id = payload.before_id.clone();
     let after_id = payload.after_id.clone();
-    let block_path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
-    let before = hocr_parser::find_node(&page, &before_id).unwrap(); // TODO: No unwrap!
-    let after = hocr_parser::find_node(&page, &after_id).unwrap(); // TODO: No unwrap!
+    let Some(block_path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(before) = hocr_parser::find_node(&page, &before_id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(after) = hocr_parser::find_node(&page, &after_id) else { return StatusCode::NOT_FOUND.into_response() };
 
     let HocrPath::Block { carea, block } = block_path else {
         return StatusCode::NOT_FOUND.into_response();
@@ -626,7 +626,7 @@ pub async fn block_move_up(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -644,7 +644,7 @@ pub async fn block_move_down(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -692,7 +692,7 @@ pub async fn block_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Block { carea, block } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -798,8 +798,8 @@ pub async fn line_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap();
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let Some(path1) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(path2) = hocr_parser::find_node(&page, &payload.other_id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Line {
         carea: carea1,
         block: block1,
@@ -879,7 +879,7 @@ pub async fn line_move_up(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -897,7 +897,7 @@ pub async fn line_move_down(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap();
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -936,7 +936,7 @@ pub async fn line_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Line { carea, block, line } = path else {
         return StatusCode::NOT_FOUND.into_response();
     };
@@ -957,8 +957,8 @@ pub async fn word_merge(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path1 = hocr_parser::find_node(&page, &id).unwrap();
-    let path2 = hocr_parser::find_node(&page, &payload.other_id).unwrap();
+    let Some(path1) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
+    let Some(path2) = hocr_parser::find_node(&page, &payload.other_id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Word {
         carea: carea1,
         block: block1,
@@ -1077,7 +1077,7 @@ pub async fn word_remove(
         Ok(page) => page,
         Err(status_code) => return status_code.into_response(),
     };
-    let path = hocr_parser::find_node(&page, &id).unwrap(); // TODO: No unwrap!
+    let Some(path) = hocr_parser::find_node(&page, &id) else { return StatusCode::NOT_FOUND.into_response() };
     let HocrPath::Word {
         carea,
         block,
