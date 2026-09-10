@@ -23,17 +23,17 @@
 
       <div class="tool-palette">
         <sl-button-group>
-          <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
-            Flow <span class="master-key">Q</span>
-          </sl-button>
           <sl-button :variant="activeMasterTool === 'carea-layout' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-layout'">
-            Layout <span class="master-key">W</span>
+            Layout <span class="master-key">Q</span>
+          </sl-button>
+          <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
+            Flow <span class="master-key">W</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'edit' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'edit'">
             Edit <span class="master-key">E</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'block-type' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'block-type'">
-            Type <span class="master-key">R</span>
+            Block <span class="master-key">R</span>
           </sl-button>
         </sl-button-group>
 
@@ -763,11 +763,11 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
 
   // Master tools (Row 2)
   if (e.key === 'q') {
-    activeMasterTool.value = 'carea-flow';
+    activeMasterTool.value = 'carea-layout';
     return;
   }
   if (e.key === 'w') {
-    activeMasterTool.value = 'carea-layout';
+    activeMasterTool.value = 'carea-flow';
     return;
   }
   if (e.key === 'e') {

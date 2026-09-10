@@ -39,7 +39,7 @@ const route = useRoute();
 useHead({
   titleTemplate: '%s | OmniGraph',
   link: [
-    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+    { rel: 'icon', type: 'image/svg+xml', href: '/icons/omnigraph-small.svg' }
   ]
 });
 
