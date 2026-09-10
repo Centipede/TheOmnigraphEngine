@@ -96,7 +96,7 @@
 import {computed, inject, ref, type Ref, onMounted} from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import {
-  type CropEdges,
+  type PixelRegion,
   findItem,
   getChildren,
   getParentLevel,
@@ -135,7 +135,7 @@ function getMinWconf(node: HocrNode): number {
 const props = withDefaults(defineProps<{
   page: Page;
   imageBaseUrl: string;
-  crop?: CropEdges;
+  crop?: PixelRegion;
   showCropOverlay?: boolean;
   palette?: EditorPalette;
   hocrLevel?: HocrLevel | null;

@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Page, CropEdges, FlowSchema, LayoutSchema, Hint, EditorPalette } from '../types';
+import type { Page, PixelRegion, FlowSchema, LayoutSchema, Hint, EditorPalette } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import type { HocrPage, HocrCarea, HocrBlock } from '../types/hocr';
 import { fetchHocrPage } from '../composables/useHocr';
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
   selected?:     boolean;
   isCurrent?:    boolean;
   fraction:      number;
-  crop:          CropEdges;
+  crop:          PixelRegion;
   palette?:      EditorPalette;
   machineName?:  string;
   thumbBaseUrl:  string;
