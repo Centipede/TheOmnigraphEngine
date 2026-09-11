@@ -185,12 +185,27 @@ export function findSiblingsAroundCursor(
     for (const sibling of siblings) {
         const [left, top, right, bottom] = sibling.bbox;
 
+        /**
+         * Intentionally do not filter by horizontal relevance here.
+         *
+         * This function is used to find adjacent siblings around a vertical
+         * split/join position. Adjacent OCR lines may be ragged or oppositely
+         * indented, so their bounding boxes might not overlap horizontally:
+         *
+         *   ***
+         *           *****
+         *
+         * Requiring the cursor x-position to overlap both boxes would make it
+         * impossible to split between such lines. The adjacency check below is
+         * the important safety condition.
+         */
+
         const horizontallyRelevant =
             x >= left - tolerance &&
             x <= right + tolerance;
 
         if (!horizontallyRelevant) {
-            continue;
+            // continue;
         }
 
         /**
