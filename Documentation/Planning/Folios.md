@@ -118,6 +118,18 @@ Good for a rough ballpark starting point.
 On PC use ^ instead of ⎇
 ⌘ currently not used
 
+### Mode: Hint areas
+
+Hinting before OCR scanning is worth the trouble (like cropping). 
+
+**Dropcaps** will almost certainly throw Tesseract off its track.
+**Images**, especially non-page-wide images, will usually also cause problems.
+**Callouts** should also be marked and ignored during OCR scanning. They hold little intellectual value.
+**Garbage** should typically also be removed to avoid the trouble later.
+
+All these areas will be whited out before sending the page to the scanner. 
+Dropcaps and images are then reinserted as best as possible after receiving the OCR scan.
+
 ### Mode: Recognise regions
 
 Select pages and send to Tesseract.
@@ -136,24 +148,20 @@ These are essential to get out of the way before manually editing single pages.
 Go to Overview to set up the book's layouts and flows.
 Note: These have not been planned yet.
 
-
 ### Mode: Edit - manual editing
 
 A toolset for working on one page at a time.
 
 This mode will be documented later. It has already evolved substantially and further development
-happens live.
+happens continually, often without updating this document.
 
 Tools available:
 Add/remove/join/split CAREAS, BLOCKS (paragraphs, images), LINES, WORDS.
-Change block type: Part, H1, ... H6, P
+Change carea layout: Layouts must be set up in the project Overview.
+Change carea flow: Flows must be set up in the project Overview.
+Change block type: Part, H1, ... H6, P, IMG, TBL, LST (table and list are for the future)
 
-
-
-#### Roadmap for the immediate future:
-
-As a more comprehensive picture is formed, I can better see where the pieces fit in.
-This is a suggestion:
+#### Main tools:
 
 Master tools and keyboard:
 
@@ -200,8 +208,6 @@ If merging is desired, the backend will first merge them together into one and t
 whatever changes are required in hOCR and databases to accomplish the result.
 
 
-
-
 #### Section workflow
 
 The project contains a single section database like it contains a page database (both json files).
@@ -214,3 +220,22 @@ should indicate that existing subsections should be removed from the database.
 Section interaction on a per-page workflow should be limited. Go to Codex to work on sections.
 
 
+### Mode: Bridge
+
+Bridge mode is for bridging together paragraphs that have been split over two or more pages.
+To do that effectively, you need to be able to see the current page up against the previous and next page.
+
+Initially this will be more like a hinting mode. The hints are applied during the building process into a whole.
+
+Select a block and hit ⇧↑ to toggle continuation with previous block in the flow.
+Select a block and hit ⇧↓ to toggle continuation with next block in the flow.
+
+In both cases a clear visual indicator should make it clear that this is a continuation.
+
+The mode must have multi-page intelligence. It should look in the previous/next page with a block in the same flow and mark the visual indicator red or green depending on the existence of a matching counter-block.
+
+### Mode: Correct
+
+Correct mode is a text-centric page for correcting OCR errors by hand or by clever tools.
+
+To be planned...

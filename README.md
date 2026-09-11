@@ -1,7 +1,6 @@
 # The OmniGraph Engine
 
-**Status June 18th 2026: Not ready for use yet! WIP**
-
+**Status September 9th 2026: latest 'main' is usable as a per-page hOCR editor**
 
 An automatic system for the ingestion, transcription, and indexing of printed works.
 
