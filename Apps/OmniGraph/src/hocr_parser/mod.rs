@@ -351,270 +351,7 @@ impl HocrPath {
 
 impl HocrPage {
 
-    #[allow(dead_code)]
-    pub fn shift(&mut self, dx: i32, dy: i32) {
-        self.bbox.shift(dx, dy);
-        for carea in &mut self.careas {
-            carea.shift(dx, dy);
-        }
-    }
-
-    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
-        for carea in &mut self.careas {
-            carea.cascade_lang(default_lang);
-        }
-    }
-
-    pub fn replace_or_merge_carea(&mut self, carea_index: usize, mut new_careas: Vec<HocrCarea>) {
-        // 1. Assign unique IDs recursively
-        self.assign_unique_ids_to_careas(&mut new_careas);
-
-        // 2. Merge or Insert logic
-        if new_careas.len() == 1 {
-            let new_carea = new_careas.pop().unwrap();
-            self.careas[carea_index].blocks.extend(new_carea.blocks);
-            self.careas[carea_index].rebuild_bbox();
-        } else if new_careas.len() > 1 {
-            self.insert_careas_after(carea_index, new_careas);
-        }
-    }
-
-    pub fn insert_careas_after(&mut self, index: usize, new_careas: Vec<HocrCarea>) {
-        if index < self.careas.len() {
-            let mut tail = self.careas.split_off(index + 1);
-            self.careas.extend(new_careas);
-            self.careas.append(&mut tail);
-        } else {
-            self.careas.extend(new_careas);
-        }
-    }
-
-    pub fn change_carea_flow(&mut self, carea_index: usize, flow: Option<String>) {
-        if carea_index < self.careas.len() {
-            self.careas[carea_index].flow = flow;
-        }
-    }
-
-    pub fn change_carea_layout(&mut self, carea_index: usize, layout: Option<String>) {
-        if carea_index < self.careas.len() {
-            self.careas[carea_index].layout = layout;
-        }
-    }
-
-    pub fn to_hocr_html(&self) -> String {
-        let mut html = String::new();
-
-        html.push_str("<!DOCTYPE html>\n");
-        html.push_str("<html>\n");
-        html.push_str("<body>\n");
-        html.push_str(&format!(
-            "<div class=\"ocr_page\" id=\"{}\" title=\"bbox {} {} {} {}\">",
-            escape_attr(&self.page_id),
-            self.bbox.left(),
-            self.bbox.top(),
-            self.bbox.right(),
-            self.bbox.bottom(),
-        ));
-
-        for carea in &self.careas {
-            html.push_str(&carea.to_hocr_html());
-        }
-
-        for unknown in &self.unknowns {
-            html.push_str(&unknown.to_hocr_html());
-        }
-
-        html.push_str("</div>\n");
-        html.push_str("</body>\n");
-        html.push_str("</html>\n");
-
-        html
-    }
-
-    pub fn inject_dropcaps(&mut self, injections: Vec<DropCapInjection>) {
-        for injection in injections {
-            let mut best_match: Option<(usize, usize, usize, i32)> = None;
-
-            for (c_idx, carea) in self.careas.iter().enumerate() {
-                for (b_idx, block) in carea.blocks.iter().enumerate() {
-                    for (l_idx, line) in block.lines.iter().enumerate() {
-                        if line.words.is_empty() {
-                            continue;
-                        }
-
-                        let v_diff = (line.bbox.top() - injection.bbox.top()).abs();
-                        let h_dist = (line.bbox.left() - injection.bbox.right()).abs();
-
-                        if v_diff <= 50 && h_dist <= 100 {
-                            match best_match {
-                                Some((_, _, _, best_v_diff)) if v_diff < best_v_diff => {
-                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
-                                }
-                                None => {
-                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-
-            if let Some((c_idx, b_idx, l_idx, _)) = best_match {
-                if let Some(word) = self.careas[c_idx].blocks[b_idx].lines[l_idx].words.get_mut(0) {
-                    word.dropcap = Some(injection.text);
-                }
-            }
-        }
-    }
-
-    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
-        for bbox in bboxes {
-            // Add as an image block, letting the engine find the best carea/vertical position
-            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
-        }
-        self.rebuild_bbox();
-    }
-
-    pub fn rebuild_bbox(&mut self) {
-        let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
-        match HocrBbox::union_all(&subboxes) {
-            Some(union) => self.bbox = union,
-            None => self.bbox = HocrBbox::empty(),
-        }
-    }
-
-    pub fn collect_all_words(&self) -> Vec<HocrWord> {
-        self.careas
-            .iter()
-            .flat_map(|c| c.blocks.iter())
-            .flat_map(|b| b.lines.iter())
-            .flat_map(|l| l.words.iter())
-            .cloned()
-            .collect()
-    }
-
-    pub fn replace_words(&mut self, word_id: &str, mut with_words: Vec<HocrWord>) {
-        if let Some(HocrPath::Word {
-            carea,
-            block,
-            line,
-            word,
-        }) = find_node(self, word_id)
-        {
-            // Assign unique IDs to new words
-            let preferred_stem = stem_from_id(word_id);
-            let mut next_number = self
-                .get_next_number_with_stem(preferred_stem.as_str())
-                .unwrap_or(1);
-
-            for new_word in &mut with_words {
-                new_word.id = format!("{}_{}", preferred_stem, next_number);
-                next_number += 1;
-            }
-
-            // Remove the original word and insert new words at its position
-            self.careas[carea].blocks[block].lines[line]
-                .words
-                .splice(word..word + 1, with_words);
-
-            // Rebuild the bounding box of the containing line
-            self.cleanup_line(carea, block, line);
-        }
-    }
-
-    pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool, carea_ids: Option<Vec<String>>) {
-        if flows.is_empty() {
-            return;
-        }
-
-        let default_flow = flows[0].name.clone();
-
-        // 1. Assign default flow to careas with no current assignment.
-        for carea in &mut self.careas {
-            if let Some(ref ids) = carea_ids {
-                if !ids.contains(&carea.id) {
-                    continue;
-                }
-            }
-            if carea.flow.as_ref().map_or(true, |f| f.is_empty()) {
-                carea.flow = Some(default_flow.clone());
-            }
-        }
-
-        if self.careas.is_empty() {
-            return;
-        }
-
-        // 2. Group consecutive careas by layout.
-        let mut new_careas: Vec<HocrCarea> = Vec::new();
-        let old_careas = std::mem::take(&mut self.careas);
-
-        let mut current_layout_group: Vec<HocrCarea> = Vec::new();
-        let mut current_layout = old_careas[0].layout.clone();
-
-        for carea in old_careas {
-            if carea.layout != current_layout {
-                // Process previous layout group
-                Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
-                current_layout_group = Vec::new();
-                current_layout = carea.layout.clone();
-            }
-            current_layout_group.push(carea);
-        }
-        // Process last group
-        if !current_layout_group.is_empty() {
-            Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
-        }
-
-        self.careas = new_careas;
-        self.rebuild_bbox();
-    }
-
-    fn auto_flow_for_layout(target: &mut Vec<HocrCarea>, group: Vec<HocrCarea>, merge: bool, carea_ids: &Option<Vec<String>>) {
-        if !merge {
-            target.extend(group);
-            return;
-        }
-
-        let mut flow_order: Vec<String> = Vec::new();
-        let mut merged_careas: HashMap<String, HocrCarea> = HashMap::new();
-
-        for mut carea in group {
-            let is_selected = carea_ids.as_ref().map_or(true, |ids| ids.contains(&carea.id));
-            
-            if !is_selected {
-                // Barrier! Flush current merges to maintain document order and prevent merging across unselected items.
-                for flow in flow_order {
-                    let mut merged = merged_careas.remove(&flow).unwrap();
-                    merged.rebuild_bbox();
-                    target.push(merged);
-                }
-                flow_order = Vec::new();
-                
-                // Add the unselected carea as its own item
-                carea.rebuild_bbox();
-                target.push(carea);
-                continue;
-            }
-
-            let flow = carea.flow.clone().unwrap_or_default();
-            if !merged_careas.contains_key(&flow) {
-                flow_order.push(flow.clone());
-                merged_careas.insert(flow, carea);
-            } else {
-                let existing = merged_careas.get_mut(&flow).unwrap();
-                existing.blocks.append(&mut carea.blocks);
-                existing.unknowns.append(&mut carea.unknowns);
-            }
-        }
-
-        for flow in flow_order {
-            let mut merged = merged_careas.remove(&flow).unwrap();
-            merged.rebuild_bbox();
-            target.push(merged);
-        }
-    }
+    // -- UTILITIES --
 
     pub fn get_next_number_with_stem(&self, preferred_stem: &str) -> Option<usize> {
         let mut numbers: Vec<usize> = Vec::new();
@@ -691,7 +428,6 @@ impl HocrPage {
             }
         }
     }
-
     pub fn get_unique_id(&self, from_id: &str, next_numbers: &mut HashMap<String, usize>) -> String {
         let stem = stem_from_id(from_id);
         let next = next_numbers.entry(stem.clone()).or_insert_with(|| {
@@ -701,6 +437,186 @@ impl HocrPage {
         *next += 1;
         id
     }
+    pub fn rebuild_bbox(&mut self) {
+        let subboxes = self.careas.iter().map(|c| c.bbox).collect::<Vec<_>>();
+        match HocrBbox::union_all(&subboxes) {
+            Some(union) => self.bbox = union,
+            None => self.bbox = HocrBbox::empty(),
+        }
+    }
+    pub fn to_hocr_html(&self) -> String {
+        let mut html = String::new();
+
+        html.push_str("<!DOCTYPE html>\n");
+        html.push_str("<html>\n");
+        html.push_str("<body>\n");
+        html.push_str(&format!(
+            "<div class=\"ocr_page\" id=\"{}\" title=\"bbox {} {} {} {}\">",
+            escape_attr(&self.page_id),
+            self.bbox.left(),
+            self.bbox.top(),
+            self.bbox.right(),
+            self.bbox.bottom(),
+        ));
+
+        for carea in &self.careas {
+            html.push_str(&carea.to_hocr_html());
+        }
+
+        for unknown in &self.unknowns {
+            html.push_str(&unknown.to_hocr_html());
+        }
+
+        html.push_str("</div>\n");
+        html.push_str("</body>\n");
+        html.push_str("</html>\n");
+
+        html
+    }
+
+    // -- HIGHER ORDER OPERATIONS --
+
+    pub fn cascade_lang(&mut self, default_lang: Option<&str>) {
+        for carea in &mut self.careas {
+            carea.cascade_lang(default_lang);
+        }
+    }
+    pub fn inject_dropcaps(&mut self, injections: Vec<DropCapInjection>) {
+        for injection in injections {
+            let mut best_match: Option<(usize, usize, usize, i32)> = None;
+
+            for (c_idx, carea) in self.careas.iter().enumerate() {
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    for (l_idx, line) in block.lines.iter().enumerate() {
+                        if line.words.is_empty() {
+                            continue;
+                        }
+
+                        let v_diff = (line.bbox.top() - injection.bbox.top()).abs();
+                        let h_dist = (line.bbox.left() - injection.bbox.right()).abs();
+
+                        if v_diff <= 50 && h_dist <= 100 {
+                            match best_match {
+                                Some((_, _, _, best_v_diff)) if v_diff < best_v_diff => {
+                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
+                                }
+                                None => {
+                                    best_match = Some((c_idx, b_idx, l_idx, v_diff));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some((c_idx, b_idx, l_idx, _)) = best_match {
+                if let Some(word) = self.careas[c_idx].blocks[b_idx].lines[l_idx].words.get_mut(0) {
+                    word.dropcap = Some(injection.text);
+                }
+            }
+        }
+    }
+    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
+        for bbox in bboxes {
+            // Add as an image block, letting the engine find the best carea/vertical position
+            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
+        }
+        self.rebuild_bbox();
+    }
+    pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool, carea_ids: Option<Vec<String>>) {
+        if flows.is_empty() {
+            return;
+        }
+
+        let default_flow = flows[0].name.clone();
+
+        // 1. Assign default flow to careas with no current assignment.
+        for carea in &mut self.careas {
+            if let Some(ref ids) = carea_ids {
+                if !ids.contains(&carea.id) {
+                    continue;
+                }
+            }
+            if carea.flow.as_ref().map_or(true, |f| f.is_empty()) {
+                carea.flow = Some(default_flow.clone());
+            }
+        }
+
+        if self.careas.is_empty() {
+            return;
+        }
+
+        // 2. Group consecutive careas by layout.
+        let mut new_careas: Vec<HocrCarea> = Vec::new();
+        let old_careas = std::mem::take(&mut self.careas);
+
+        let mut current_layout_group: Vec<HocrCarea> = Vec::new();
+        let mut current_layout = old_careas[0].layout.clone();
+
+        for carea in old_careas {
+            if carea.layout != current_layout {
+                // Process previous layout group
+                Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
+                current_layout_group = Vec::new();
+                current_layout = carea.layout.clone();
+            }
+            current_layout_group.push(carea);
+        }
+        // Process last group
+        if !current_layout_group.is_empty() {
+            Self::auto_flow_for_layout(&mut new_careas, current_layout_group, merge, &carea_ids);
+        }
+
+        self.careas = new_careas;
+        self.rebuild_bbox();
+    }
+    fn auto_flow_for_layout(target: &mut Vec<HocrCarea>, group: Vec<HocrCarea>, merge: bool, carea_ids: &Option<Vec<String>>) {
+        if !merge {
+            target.extend(group);
+            return;
+        }
+
+        let mut flow_order: Vec<String> = Vec::new();
+        let mut merged_careas: HashMap<String, HocrCarea> = HashMap::new();
+
+        for mut carea in group {
+            let is_selected = carea_ids.as_ref().map_or(true, |ids| ids.contains(&carea.id));
+            
+            if !is_selected {
+                // Barrier! Flush current merges to maintain document order and prevent merging across unselected items.
+                for flow in flow_order {
+                    let mut merged = merged_careas.remove(&flow).unwrap();
+                    merged.rebuild_bbox();
+                    target.push(merged);
+                }
+                flow_order = Vec::new();
+                
+                // Add the unselected carea as its own item
+                carea.rebuild_bbox();
+                target.push(carea);
+                continue;
+            }
+
+            let flow = carea.flow.clone().unwrap_or_default();
+            if !merged_careas.contains_key(&flow) {
+                flow_order.push(flow.clone());
+                merged_careas.insert(flow, carea);
+            } else {
+                let existing = merged_careas.get_mut(&flow).unwrap();
+                existing.blocks.append(&mut carea.blocks);
+                existing.unknowns.append(&mut carea.unknowns);
+            }
+        }
+
+        for flow in flow_order {
+            let mut merged = merged_careas.remove(&flow).unwrap();
+            merged.rebuild_bbox();
+            target.push(merged);
+        }
+    }
+
+    // -- CLEANUP --
 
     pub fn cleanup_carea(&mut self, carea: usize) {
         if self.careas[carea].blocks.is_empty() {
@@ -727,6 +643,8 @@ impl HocrPage {
             self.careas[carea].blocks[block].lines[line].rebuild_bbox();
         }
     }
+
+    // -- NAVIGATION --
 
     pub fn next_carea_path(&self, path: HocrPath) -> Option<HocrPath> {
         if let HocrPath::Carea { carea } = path {
@@ -797,6 +715,8 @@ impl HocrPage {
             None
         }
     }
+
+    // -- MOVING --
 
     pub fn move_carea_up(&mut self, carea: usize) {
         if carea > 0 {
@@ -927,6 +847,8 @@ impl HocrPage {
         }
     }
 
+    // -- MERGES --
+
     pub fn merge_carea(&mut self, carea1: usize, carea2: usize) {
         // Thought: Optionally, we could complain if the careas were not consecutive. But the algorithm is robust enough to handle that, so why?
         if carea1 != carea2 {
@@ -1042,7 +964,6 @@ impl HocrPage {
             self.remove_line(carea, block, line2);
         }
     }
-
     pub fn merge_lines(&mut self, lines: &mut Vec<(usize, usize, usize)>) -> Result<(), String> {
         if lines.len() < 2 {
             return Err(format!("merge_lines: not enough lines: {:?}", lines));
@@ -1098,7 +1019,6 @@ impl HocrPage {
 
         Ok(())
     }
-
     pub fn merge_word(
         &mut self,
         carea: usize,
@@ -1119,7 +1039,6 @@ impl HocrPage {
             self.careas[carea].blocks[block].lines[line].rebuild_bbox();
         }
     }
-
     pub fn merge_words(
         &mut self,
         words: &mut Vec<(usize, usize, usize, usize)>,
@@ -1189,6 +1108,8 @@ impl HocrPage {
         Ok(())
     }
 
+    // -- COMPLEX OPERATIONS --
+
     pub fn split_carea(&mut self, carea: usize, block_before: usize, block_after: usize) {
         if block_before == block_after {
             return;
@@ -1236,6 +1157,67 @@ impl HocrPage {
         carea.blocks[block].rebuild_bbox();
         carea.blocks[block + 1].rebuild_bbox();
     }
+    pub fn replace_or_merge_carea(&mut self, carea_index: usize, mut new_careas: Vec<HocrCarea>) {
+        // 1. Assign unique IDs recursively
+        self.assign_unique_ids_to_careas(&mut new_careas);
+
+        // 2. Merge or Insert logic
+        if new_careas.len() == 1 {
+            let new_carea = new_careas.pop().unwrap();
+            self.careas[carea_index].blocks.extend(new_carea.blocks);
+            self.careas[carea_index].rebuild_bbox();
+        } else if new_careas.len() > 1 {
+            self.insert_careas_after(carea_index, new_careas);
+        }
+    }
+    pub fn insert_careas_after(&mut self, index: usize, new_careas: Vec<HocrCarea>) {
+        if index < self.careas.len() {
+            let mut tail = self.careas.split_off(index + 1);
+            self.careas.extend(new_careas);
+            self.careas.append(&mut tail);
+        } else {
+            self.careas.extend(new_careas);
+        }
+    }
+    pub fn collect_all_words(&self) -> Vec<HocrWord> {
+        self.careas
+            .iter()
+            .flat_map(|c| c.blocks.iter())
+            .flat_map(|b| b.lines.iter())
+            .flat_map(|l| l.words.iter())
+            .cloned()
+            .collect()
+    }
+    pub fn replace_words(&mut self, word_id: &str, mut with_words: Vec<HocrWord>) {
+        if let Some(HocrPath::Word {
+                        carea,
+                        block,
+                        line,
+                        word,
+                    }) = find_node(self, word_id)
+        {
+            // Assign unique IDs to new words
+            let preferred_stem = stem_from_id(word_id);
+            let mut next_number = self
+                .get_next_number_with_stem(preferred_stem.as_str())
+                .unwrap_or(1);
+
+            for new_word in &mut with_words {
+                new_word.id = format!("{}_{}", preferred_stem, next_number);
+                next_number += 1;
+            }
+
+            // Remove the original word and insert new words at its position
+            self.careas[carea].blocks[block].lines[line]
+                .words
+                .splice(word..word + 1, with_words);
+
+            // Rebuild the bounding box of the containing line
+            self.cleanup_line(carea, block, line);
+        }
+    }
+
+    // -- ADDITIONS --
 
     pub fn add_carea(&mut self, bbox: HocrBbox, erase_underneath: Option<bool>, erase_overlap: Option<u8>) -> Result<String, String> {
 
@@ -1407,6 +1389,8 @@ impl HocrPage {
         // Not implemented yet
     }
 
+    // -- REMOVALS --
+
     pub fn remove_carea(&mut self, carea: usize) {
         self.careas.remove(carea);
         self.rebuild_bbox();
@@ -1426,6 +1410,25 @@ impl HocrPage {
         self.cleanup_line(carea, block, line);
     }
 
+    // -- CHANGES --
+
+    #[allow(dead_code)]
+    pub fn shift(&mut self, dx: i32, dy: i32) {
+        self.bbox.shift(dx, dy);
+        for carea in &mut self.careas {
+            carea.shift(dx, dy);
+        }
+    }
+    pub fn change_carea_flow(&mut self, carea_index: usize, flow: Option<String>) {
+        if carea_index < self.careas.len() {
+            self.careas[carea_index].flow = flow;
+        }
+    }
+    pub fn change_carea_layout(&mut self, carea_index: usize, layout: Option<String>) {
+        if carea_index < self.careas.len() {
+            self.careas[carea_index].layout = layout;
+        }
+    }
     pub fn change_block_kind(&mut self, carea: usize, block: usize, kind: HocrBlockKind) {
         self.careas[carea].blocks[block].kind = kind;
         self.careas[carea].blocks[block].rebuild_bbox();
@@ -1487,6 +1490,7 @@ impl HocrCarea {
         html.push_str("</div>\n");
         html
     }
+
     pub fn rebuild_bbox(&mut self) {
         let subboxes = self.blocks.iter().map(|b| b.bbox).collect::<Vec<_>>();
         match HocrBbox::union_all(&subboxes) {
