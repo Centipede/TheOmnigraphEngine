@@ -5,41 +5,6 @@ use std::fmt::Display;
 use scraper::{ElementRef, Html, Selector};
 use serde::{Deserialize, Serialize};
 
-pub fn stem_from_id(id: &str) -> String {
-
-    let stem = id.chars()
-        .rev()
-        .skip_while(|c| c.is_numeric() )
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect::<String>();
-
-    if stem.ends_with('_') {
-        stem.chars()
-            .rev()
-            .skip_while(|c| *c == '_' )
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>()
-    } else {
-        stem
-    }
-}
-
-pub fn count_from_id(id: &str) -> Result<usize, std::num::ParseIntError> {
-    let counter = id
-        .chars()
-        .rev()
-        .take_while(|c| c.is_numeric())
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect::<String>();
-    counter.parse::<usize>()
-}
-
 fn page_level() -> String {
     "page".to_string()
 }
@@ -1739,6 +1704,41 @@ impl HocrUnknown {
     }
 }
 
+pub fn stem_from_id(id: &str) -> String {
+
+    let stem = id.chars()
+        .rev()
+        .skip_while(|c| c.is_numeric() )
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    if stem.ends_with('_') {
+        stem.chars()
+            .rev()
+            .skip_while(|c| *c == '_' )
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    } else {
+        stem
+    }
+}
+
+pub fn count_from_id(id: &str) -> Result<usize, std::num::ParseIntError> {
+    let counter = id
+        .chars()
+        .rev()
+        .take_while(|c| c.is_numeric())
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+    counter.parse::<usize>()
+}
+
 pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown> {
     el.child_elements()
         .filter(|el| !selector.matches(el))
@@ -1891,7 +1891,6 @@ fn has_class(el: &scraper::ElementRef<'_>, class_name: &str) -> bool {
         .any(|c| c == class_name)
 }
 
-#[allow(dead_code)]
 fn split_title(title: &str) -> HashMap<String, String> {
     let mut keyvals: HashMap<String, String> = HashMap::new();
 
@@ -1913,7 +1912,6 @@ fn join_title(keyvals: &HashMap<String, String>) -> String {
         .join("; ")
 }
 
-
 fn to_bbox_opt(bbox_str: &str) -> Option<HocrBbox> {
     let v: Vec<i32> = bbox_str
         .split_whitespace()
@@ -1925,7 +1923,6 @@ fn to_bbox_opt(bbox_str: &str) -> Option<HocrBbox> {
         None
     }
 }
-
 
 fn to_baseline(baseline_str: &str) -> Option<(f32, f32)> {
     let v: Vec<f32> = baseline_str
@@ -1942,7 +1939,6 @@ fn to_baseline(baseline_str: &str) -> Option<(f32, f32)> {
 fn to_wconf(wconf_str: &str) -> Option<i32> {
     wconf_str.trim().parse().ok()
 }
-
 
 fn escape_text(s: &str) -> String {
     s.replace('&', "&amp;")
