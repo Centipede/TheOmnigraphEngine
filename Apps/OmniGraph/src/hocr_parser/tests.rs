@@ -1,3 +1,5 @@
+pub use std::collections::HashMap;
+
 use super::*;
 
 const SAMPLE1: &str = r#"
@@ -364,7 +366,7 @@ fn test_merge_careas_failures() {
 fn test_merge_blocks_success() {
     // Test 2 blocks in same carea
     let mut page = parse(SAMPLE_COMPLEX).unwrap();
-    let orig_sig = signature(&page);
+    let _orig_sig = signature(&page);
     page.merge_blocks(&mut vec![(0, 0), (0, 1)]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
         carea_1(par_1:P(line_1(word_1),line_2(word_2))),
@@ -417,7 +419,7 @@ fn test_merge_blocks_cleanup() {
 fn add_block_none_carea_no_erase() {
     let mut page = parse(SAMPLE1).unwrap();
     let bbox = HocrBbox([483, 500, 1645, 600]);
-    page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(false), None);
+    let _ = page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(false), None);
 
     // Should have 2 careas now
     assert_eq!(page.careas.len(), 2);
@@ -432,7 +434,7 @@ fn add_block_none_carea_with_erase() {
     let mut page = parse(SAMPLE1).unwrap();
     // This bbox overlaps with both lines of block_1_1
     let bbox = HocrBbox([483, 280, 1645, 430]);
-    page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(true), Some(50));
+    let _ = page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(true), Some(50));
 
     // block_1_1 should have been erased because its blocks overlap with the new bbox
     // Since all blocks in block_1_1 are erased, block_1_1 itself should be removed
@@ -447,11 +449,11 @@ fn add_block_none_carea_vertical_positioning() {
     let mut page = parse(SAMPLE1).unwrap();
     // Add one above
     let bbox_above = HocrBbox([483, 100, 1645, 200]);
-    page.add_block(None, bbox_above, None, None, None, None);
+    let _ = page.add_block(None, bbox_above, None, None, None, None);
 
     // Add one below
     let bbox_below = HocrBbox([483, 500, 1645, 600]);
-    page.add_block(None, bbox_below, None, None, None, None);
+    let _ = page.add_block(None, bbox_below, None, None, None, None);
 
     assert_eq!(page.careas.len(), 3);
     assert_eq!(page.careas[0].bbox, bbox_above);
@@ -467,7 +469,7 @@ fn add_block_with_shrink_wrap_false() {
     let new_block_bbox = HocrBbox([original_carea_bbox.0[2] + 10, original_carea_bbox.0[1], original_carea_bbox.0[2] + 100, original_carea_bbox.0[3]]);
 
     // Add to carea 0 with shrink_wrap_carea = false
-    page.add_block(Some(0), new_block_bbox, None, Some(false), None, None);
+    let _ = page.add_block(Some(0), new_block_bbox, None, Some(false), None, None);
 
     // Carea bbox should remain the same
     assert_eq!(page.careas[0].bbox, original_carea_bbox);
@@ -484,7 +486,7 @@ fn add_block_with_shrink_wrap_true() {
     let new_block_bbox = HocrBbox([original_carea_bbox.0[2] + 10, original_carea_bbox.0[1], original_carea_bbox.0[2] + 100, original_carea_bbox.0[3]]);
 
     // Add to carea 0 with shrink_wrap_carea = true (default)
-    page.add_block(Some(0), new_block_bbox, None, Some(true), None, None);
+    let _ = page.add_block(Some(0), new_block_bbox, None, Some(true), None, None);
 
     // Carea bbox should have changed (it should now include the new block)
     assert_ne!(page.careas[0].bbox, original_carea_bbox);
@@ -953,7 +955,7 @@ fn test_replace_or_merge_carea_uniqueness() {
     // Words: word_1, word_2, word_3.
 
     // Create a new carea that has overlapping IDs.
-    let mut new_carea = page.careas[0].clone();
+    let new_carea = page.careas[0].clone();
     // new_carea has id 'carea_1', block 'par_1', line 'line_1', word 'word_1'.
 
     let original_carea_count = page.careas.len();
