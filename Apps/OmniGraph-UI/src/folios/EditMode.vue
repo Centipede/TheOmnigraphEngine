@@ -5,35 +5,36 @@
       :initial-page-stem="initialPageStem"
       :panels="panels"
       :page-list-columns="['name-or-scan', 'extras']"
-      :show-crop-overlay="false"
       :hocr-level="ocrLevel=='multi' ? null : ocrLevel"
       :flows="flows"
       :layouts="layouts"
       :project="project"
-      :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
+      :palette="grayHintPalette"
       :show-layers="careaLayers"
+      :show-crop-overlay="false"
       :show-blocks="true"
+      :is-no-hocr-acceptable="false"
+      :pointer-settings="{ color: pointerColor, label: pointerLabel, icon: pointerIcon, enabled: pointerEnabled }"
       :page-interaction-update="pageInteractionUpdate"
       :page-interaction-click="pageInteractionClick"
       :page-interaction-drag="pageInteractionDrag"
-      :is-no-hocr-acceptable="false"
       @current-page-change="clearSelection"
   >
     <template #tools="{ currentPage }">
 
       <div class="tool-palette">
         <sl-button-group>
-          <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
-            Flow <span class="master-key">Q</span>
-          </sl-button>
           <sl-button :variant="activeMasterTool === 'carea-layout' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-layout'">
-            Layout <span class="master-key">W</span>
+            Layout <span class="master-key">Q</span>
+          </sl-button>
+          <sl-button :variant="activeMasterTool === 'carea-flow' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'carea-flow'">
+            Flow <span class="master-key">W</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'edit' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'edit'">
             Edit <span class="master-key">E</span>
           </sl-button>
           <sl-button :variant="activeMasterTool === 'block-type' ? 'primary' : 'default'" size="small" @click="activeMasterTool = 'block-type'">
-            Type <span class="master-key">R</span>
+            Block <span class="master-key">R</span>
           </sl-button>
         </sl-button-group>
 
@@ -278,6 +279,17 @@ const ocrLanguage = ref('eng');
 const project = ref<Project | null>(null);
 const flows = computed(() => project.value?.flows || []);
 const layouts = computed(() => project.value?.layouts || []);
+
+const grayHintPalette = computed(() => {
+  const basePalette = project.value?.editor_palette || DEFAULT_PALETTE;
+  return {
+    ...basePalette,
+    hintDropcapColor: 'rgba(150, 150, 150, 1)',
+    hintImageColor: 'rgba(150, 150, 150, 1)',
+    hintCalloutColor: 'rgba(150, 150, 150, 1)',
+    hintGarbageColor: 'rgba(150, 150, 150, 1)',
+  };
+});
 
 async function fetchProjectMetadata(): Promise<void> {
   try {
@@ -763,11 +775,11 @@ async function handleKeyboardAction(e: KeyboardEvent): Promise<void> {
 
   // Master tools (Row 2)
   if (e.key === 'q') {
-    activeMasterTool.value = 'carea-flow';
+    activeMasterTool.value = 'carea-layout';
     return;
   }
   if (e.key === 'w') {
-    activeMasterTool.value = 'carea-layout';
+    activeMasterTool.value = 'carea-flow';
     return;
   }
   if (e.key === 'e') {

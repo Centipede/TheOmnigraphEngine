@@ -39,7 +39,7 @@ Contains information about page names, scanned image, dimensions etc.
 
 ### Structure database
 
-Though the documentation uses the term 'section', it is really meant to cover a mix of two concepts: **Flow** and **sections**.
+Though the documentation uses the term 'section', it is really meant to cover a mix of two concepts: **Flows** and **sections**.
 
 This is best illustrated with an example:
 
@@ -57,12 +57,12 @@ This is best illustrated with an example:
 This is a book with two chapters and a similar top-level structure for each chapter: A _main_ flow and an _infoboxes_ flow.
 What is a flow? Flows are _treated_ as sections but act as parallel sections or containers for subsections and content.
 
-I.e. a section can contain text and optionally one of two subsection strategies:
+I.e., a section can contain text and optionally one of two subsection strategies:
 
 - Child **sections**: Sequential collection of containers of content
 - Child **flows**: Parallel collection of containers of content
 
-Either/or. No mixing.
+👉 Either/or, no mixing! 👈
 
 In many textbooks you see this system where you have a main flow of content and a lot of margin boxes and inserted boxes with extra information.
 Originally I simply discarded all those boxes which were not a strict part of the main flow. Later I moved them to top level flows.
@@ -75,29 +75,31 @@ The structure database really consists of two parts:
 
 The reason one would want to maintain a list of headlines is to avoid having to parse hOCR for all pages on each operation.
 
-### Sections & flows
+#### Sections & flows
 
 Curated list of sections / flows across the whole project.
 
 Organised as a tree of section objects where each section object have these properties:
-- path_id: Like machine name... unique within the scope of its parent
-- level: Part, section... etc.
-- title: Pure text, cleaned up... can be different from the OCR text in the associated headline
-- is_linked: If yes, this is a free-floating section
-- is_orphaned: If yes, the headline is no longer valid. Only retained  for survival's sake
-- headline: The associated hOCR block element that causes this to exist
+- **path_id**: like machine name... unique within the scope of its parent
+- **level**: part, section, subsection ...
+- **type**: section or flow
+- **title**: pure text, cleaned up... can be different from the OCR text in the associated headline
+- **is_floating**: if yes, this section is not attached to a concrete headline. Usually, flows are not linked to headlines, sections are.
+- **is_orphaned**: if yes, the headline is no longer valid. They are only retained for survival's sake
+- **linked_headline**: the associated hOCR block element that causes this to exist
   - page
   - block id (hOCR block id)
-- subsection_type (section or flow): How subsections are organised. Either they come in sequence (sections) or they are parallel (flows), which basically means there is no concept of a first or last subsection. Use parallel sections for footnotes, boxes etc.
+- **subsection_principle** (section or flow): how subsections are organised. Either they come in _sequence (sections)_ or they are _parallel (flows)_, which basically means there is no concept of a first or last subsection. Use parallel sections for footnotes, boxes etc.
   - A parent cannot have a mix of child sections and child flows. 
-- subsections: Nested array of section objects.
+- **subsections**: nested array of section objects.
 
-### Headlines
+#### Headlines
 
 Curated list of headlines:
-- page
-- block id
-- is_linked
+- **page**: page name
+- **block_id**: as always, one block must constitute the entire headline. Merge them if necessary.
+- **linked_section**: fully qualified path... ch1.sec1.mainflow.point1
+- **is_orphaned**: if yes, the linked section no longer exists. 
 
 All operations that can cause changes to potentially involved (page, block-id) for these sections must load the structure database and update both sections and headlines.
 

@@ -21,6 +21,10 @@ export interface EditorPalette {
     imgColor: ColorSpecification;
     lstColor: ColorSpecification;
     tblColor: ColorSpecification;
+    hintDropcapColor: string;
+    hintImageColor: string;
+    hintCalloutColor: string;
+    hintGarbageColor: string;
 }
 
 export const DEFAULT_PALETTE: EditorPalette = {
@@ -41,6 +45,10 @@ export const DEFAULT_PALETTE: EditorPalette = {
     imgColor: { hue_shift: 240 },
     lstColor: { hue_shift: 270 },
     tblColor: { hue_shift: 300 },
+    hintDropcapColor: 'rgba(255, 140, 0, 1)',
+    hintImageColor: 'rgba(0, 191, 255, 1)',
+    hintCalloutColor: 'rgba(40, 167, 69, 1)',
+    hintGarbageColor: 'rgba(220, 53, 69, 1)',
 };
 
 export interface OverlayItem {

@@ -222,7 +222,7 @@ import {usePageFilterNavigation} from "../composables/usePageFilterNavigation";
 import { useHocrContext } from '../composables/useHocr';
 import { isTypingTarget } from '../utils/dom';
 import type {
-  CropEdges, FlowSchema, HocrLevel,
+  PixelRegion, FlowSchema, HocrLevel,
   LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette,
   Project
 } from '../types';
@@ -264,9 +264,8 @@ const props = withDefaults(defineProps<{
       canPagesBeFiltered?: boolean;
       formatPageExtras?: (pages: Page[]) => Map<number, string>;
       pageListColumns?: PageListColumn[];
-      pageCrops?: Map<number, CropEdges>;
+      pageCrops?: Map<number, PixelRegion>;
       isPageChanged?: (page: Page) => boolean;
-      keyboardHandler?: PageWorkspaceKeyboardHandler;
       stripEdge?: string;
       stripFraction?: number;
       showCropOverlay?: boolean;
@@ -281,6 +280,7 @@ const props = withDefaults(defineProps<{
       pointerSettings?: PointerSettings;
       panels: PanelVisibility | null;
       initialPageStem?: string;
+      keyboardHandler?: PageWorkspaceKeyboardHandler;
       pageInteractionUpdate?: PageInteractionUpdate;
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
@@ -300,7 +300,7 @@ const emit = defineEmits<{
 }>();
 
 const effectivePalette = computed(() => {
-  return props.palette || props.project?.editor_palette || DEFAULT_PALETTE;
+  return { ...DEFAULT_PALETTE, ...(props.palette || props.project?.editor_palette || {}) };
 });
 
 const canPagesBeFiltered = computed(() => props.canPagesBeFiltered ?? true);

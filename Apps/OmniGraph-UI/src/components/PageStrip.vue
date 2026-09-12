@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Page, CropEdges, FlowSchema, LayoutSchema, Hint, EditorPalette } from '../types';
+import type {Page, PixelRegion, FlowSchema, LayoutSchema, Hint, EditorPalette, HintType} from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import type { HocrPage, HocrCarea, HocrBlock } from '../types/hocr';
 import { fetchHocrPage } from '../composables/useHocr';
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
   selected?:     boolean;
   isCurrent?:    boolean;
   fraction:      number;
-  crop:          CropEdges;
+  crop:          PixelRegion;
   palette?:      EditorPalette;
   machineName?:  string;
   thumbBaseUrl:  string;
@@ -300,11 +300,21 @@ function getBlockStyle(block: HocrBlock) {
   };
 }
 
+function getHintColor(type: HintType) {
+  if (type === 'dropcap') return props.palette.hintDropcapColor;
+  if (type === 'image') return props.palette.hintImageColor;
+  if (type === 'callout') return props.palette.hintCalloutColor;
+  if (type === 'garbage') return props.palette.hintGarbageColor;
+  return '#000000';
+}
+
 function getHintStyle(hint: Hint) {
   const wl = Math.round(hint.area.left * sx.value);
   const wt = Math.round(hint.area.top * sy.value);
   const wr = Math.round(hint.area.right * sx.value);
   const wb = Math.round(hint.area.bottom * sy.value);
+
+  const color = getHintColor(hint.type);
 
   return {
     position: 'absolute' as const,
@@ -313,6 +323,8 @@ function getHintStyle(hint: Hint) {
     width: `${wr - wl}px`,
     height: `${wb - wt}px`,
     pointerEvents: 'none' as const,
+    border: `1px solid ${color}`,
+    background: `color-mix(in srgb, ${color} 40%, transparent)`
   };
 }
 </script>
@@ -374,25 +386,5 @@ function getHintStyle(hint: Hint) {
 
 .hint-overlay {
   box-sizing: border-box;
-}
-
-.hint-overlay--dropcap {
-  background: rgba(255, 140, 0, 0.4);
-  border: 1px solid rgb(255, 140, 0);
-}
-
-.hint-overlay--image {
-  background: rgba(0, 191, 255, 0.4);
-  border: 1px solid rgb(0, 191, 255);
-}
-
-.hint-overlay--callout {
-  background: rgba(40, 167, 69, 0.4);
-  border: 1px solid rgb(40, 167, 69);
-}
-
-.hint-overlay--garbage {
-  background: rgba(220, 53, 69, 0.4);
-  border: 1px solid rgb(220, 53, 69);
 }
 </style>

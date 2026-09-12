@@ -23,7 +23,7 @@ impl ProcessingSettings {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct EditorPalette {
     pub keep_color: String,
     pub discard_color: String,
@@ -31,6 +31,10 @@ pub struct EditorPalette {
     pub block_overlay_color: String,
     pub line_overlay_color: String,
     pub word_overlay_color: String,
+    pub hint_dropcap_color: String,
+    pub hint_image_color: String,
+    pub hint_callout_color: String,
+    pub hint_garbage_color: String,
     #[serde(default)]
     pub part_color: crate::hocr_parser::ColorSpecification,
     #[serde(default)]
@@ -65,49 +69,70 @@ impl Default for EditorPalette {
             line_overlay_color: "rgba(59, 130, 246, 1)".to_string(),
             word_overlay_color: "rgba(34, 197, 94, 1)".to_string(),
             part_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(0.0),
+                hue_shift: Some(50.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(20.0),
                 ..Default::default()
             },
             h1_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(30.0),
+                hue_shift: Some(40.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(10.0),
                 ..Default::default()
             },
             h2_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(60.0),
+                hue_shift: Some(30.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(0.0),
                 ..Default::default()
             },
             h3_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(90.0),
+                hue_shift: Some(20.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(-10.0),
                 ..Default::default()
             },
             h4_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(120.0),
+                hue_shift: Some(10.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(-20.0),
                 ..Default::default()
             },
             h5_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(150.0),
+                hue_shift: Some(0.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(-20.0),
                 ..Default::default()
             },
             h6_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(180.0),
+                hue_shift: Some(0.0),
+                lightness_shift: Some(15.0),
+                saturation_shift: Some(-20.0),
                 ..Default::default()
             },
             p_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(210.0),
+                hue_shift: Some(0.0),
                 ..Default::default()
             },
             img_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(240.0),
+                hue_shift: Some(-20.0),
+                lightness_shift: Some(-15.0),
                 ..Default::default()
             },
             lst_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(270.0),
+                hue_shift: Some(-40.0),
+                lightness_shift: Some(-15.0),
                 ..Default::default()
             },
             tbl_color: crate::hocr_parser::ColorSpecification {
-                hue_shift: Some(300.0),
+                hue_shift: Some(-60.0),
+                lightness_shift: Some(-15.0),
                 ..Default::default()
             },
+            hint_dropcap_color: "rgba(255, 140, 0, 1)".to_string(),
+            hint_image_color: "rgba(0, 191, 255, 1)".to_string(),
+            hint_callout_color: "rgba(40, 167, 69, 1)".to_string(),
+            hint_garbage_color: "rgba(220, 53, 69, 1)".to_string(),
         }
     }
 }

@@ -4,6 +4,7 @@
       :project-name="projectName"
       :initial-page-stem="initialPageStem"
       :panels="panels"
+      :palette="grayHintPalette"
       :is-no-hocr-acceptable="false"
   >
     <template #tools="{ currentPage }">
@@ -21,7 +22,8 @@ import PageWorkspace from '../components/PageWorkspace.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';
-import { onMounted, onUnmounted } from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
+import {DEFAULT_PALETTE, type Project} from "../types";
 
 const props = defineProps<{
   machineName: string;
@@ -30,6 +32,31 @@ const props = defineProps<{
 }>();
 
 provideHocrContext();
+
+const project = ref<Project | null>(null);
+
+async function fetchProject() {
+  if (!props.machineName) return;
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      project.value = await resp.json();
+    }
+  } catch (e) {
+    console.error('Failed to fetch project in Codex EditMode', e);
+  }
+}
+
+const grayHintPalette = computed(() => {
+  const basePalette = project.value?.editor_palette || DEFAULT_PALETTE;
+  return {
+    ...basePalette,
+    hintDropcapColor: 'rgba(150, 150, 150, 1)',
+    hintImageColor: 'rgba(150, 150, 150, 1)',
+    hintCalloutColor: 'rgba(150, 150, 150, 1)',
+    hintGarbageColor: 'rgba(150, 150, 150, 1)',
+  };
+});
 
 const panels = usePersistentPanels('panels.codex-edit', {
   'page-list': true,
@@ -45,6 +72,7 @@ const { setActivePanels } = usePanelVisibilityContext();
 
 onMounted(() => {
   setActivePanels(panels);
+  fetchProject();
 });
 
 onUnmounted(() => {

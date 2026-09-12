@@ -96,7 +96,7 @@
 import {computed, inject, ref, type Ref, onMounted} from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import {
-  type CropEdges,
+  type PixelRegion,
   findItem,
   getChildren,
   getParentLevel,
@@ -112,7 +112,7 @@ import {
   type HocrNode,
   type FlowSchema,
   type LayoutSchema,
-  type EditorPalette
+  type EditorPalette, type HintType
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
@@ -134,8 +134,9 @@ function getMinWconf(node: HocrNode): number {
 
 const props = withDefaults(defineProps<{
   page: Page;
+  machineName: string;
   imageBaseUrl: string;
-  crop?: CropEdges;
+  crop?: PixelRegion;
   showCropOverlay?: boolean;
   palette?: EditorPalette;
   hocrLevel?: HocrLevel | null;
@@ -146,7 +147,6 @@ const props = withDefaults(defineProps<{
   flows?: Record<string, FlowSchema>;
   layouts?: Record<string, LayoutSchema>;
   careaLayers?: { flow: boolean; layout: boolean };
-  machineName: string;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
@@ -601,7 +601,16 @@ function scanYPct(value: number): string {
       : '0%';
 }
 
+function getHintColor(type: HintType) {
+  if (type === 'dropcap') return props.palette.hintDropcapColor;
+  if (type === 'image') return props.palette.hintImageColor;
+  if (type === 'callout') return props.palette.hintCalloutColor;
+  if (type === 'garbage') return props.palette.hintGarbageColor;
+  return '#000000';
+}
+
 function hintStyle(hint: Hint) {
+  const color = getHintColor(hint.type);
   return {
     position: 'absolute' as const,
     left: scanXPct(hint.area.left),
@@ -609,6 +618,8 @@ function hintStyle(hint: Hint) {
     width: scanXPct(hint.area.right - hint.area.left),
     height: scanYPct(hint.area.bottom - hint.area.top),
     pointerEvents: 'none' as const,
+    border: `1px solid ${color}`,
+    background: `color-mix(in srgb, ${color} 40%, transparent)`
   };
 }
 
@@ -754,26 +765,6 @@ function overlayItemStyle(item: OverlayItem) {
 .preview-crop-area,
 .hint-overlay {
   box-sizing: border-box;
-}
-
-.hint-overlay--dropcap {
-  background: rgba(255, 140, 0, 0.4);
-  border: 1px solid rgb(255, 140, 0);
-}
-
-.hint-overlay--image {
-  background: rgba(0, 191, 255, 0.4);
-  border: 1px solid rgb(0, 191, 255);
-}
-
-.hint-overlay--callout {
-  background: rgba(40, 167, 69, 0.4);
-  border: 1px solid rgb(40, 167, 69);
-}
-
-.hint-overlay--garbage {
-  background: rgba(220, 53, 69, 0.4);
-  border: 1px solid rgb(220, 53, 69);
 }
 
 .hocr-overlay {

@@ -11,6 +11,7 @@ use std::{
 
 #[derive(RustEmbed)]
 #[folder = "templates/"]
+#[allow(dead_code)]
 struct EmbeddedTemplates;
 
 #[derive(Clone)]
