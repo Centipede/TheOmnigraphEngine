@@ -86,7 +86,7 @@ provideHocrContext();
 const panels = usePersistentPanels('panels.process', {
   'page-list': true,
   'page-strips': true,
-  'page-preview': true,
+  'page-canvas': true,
   'section-structure': false,
   'ocr-structure': false,
   tools: true,

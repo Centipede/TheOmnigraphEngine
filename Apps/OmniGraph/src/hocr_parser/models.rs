@@ -47,6 +47,14 @@ pub struct HocrLine {
     pub x_ascenders: Option<f32>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HocrBlockHints {
+    #[serde(default)]
+    pub continue_from_previous: bool,
+    #[serde(default)]
+    pub continue_to_following: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrBlock {
     #[serde(default = "block_level", skip_deserializing)]
@@ -55,6 +63,8 @@ pub struct HocrBlock {
     pub bbox: HocrBbox,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
+    #[serde(default)]
+    pub hints: HocrBlockHints,
     pub kind: HocrBlockKind,
     pub lines: Vec<HocrLine>,
 }

@@ -128,7 +128,7 @@ const effectivePalette = computed(() => {
 const panels = usePersistentPanels('panels.hint', {
   'page-list': true,
   'page-strips': false,
-  'page-preview': true,
+  'page-canvas': true,
   'section-structure': false,
   'ocr-structure': false,
   tools: true,

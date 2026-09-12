@@ -242,7 +242,7 @@ const props = defineProps<{
 const panels = usePersistentPanels('panels.edit', {
   'page-list': true,
   'page-strips': true,
-  'page-preview': false,
+  'page-canvas': false,
   'section-structure': false,
   'ocr-structure': false,
   tools: true,
@@ -751,7 +751,7 @@ async function pageInteractionClick(): Promise<void> {
 function pageInteractionUpdate(
     x: number,
     y: number,
-    _: OverlayItem[],
+    _overlappingOverlayItems: OverlayItem[],
     _activeItem: HocrNode | null,
     betweenOverlayItems: [HocrNode | null, HocrNode | null],
     betweenOverlaySubItems: [HocrNode | null, HocrNode | null],

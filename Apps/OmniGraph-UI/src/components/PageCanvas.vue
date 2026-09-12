@@ -1,12 +1,12 @@
 <template>
-  <div class="page-preview">
-    <div class="page-preview-toolbar">
+  <div class="page-canvas">
+    <div class="page-canvas-toolbar" v-if="!minimal">
       <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
       <sl-checkbox size="small" :checked="applyProcessing" @sl-change="applyProcessing = $event.target.checked">Processing</sl-checkbox>
     </div>
     <div
         class="interactive-area"
-        :class="pointerVisible ? 'cursor-mode-off' : ''"
+        :class="[pointerVisible ? 'cursor-mode-off' : '', minimal ? 'interactive-area--minimal' : '']"
         @mousemove="updatePointerAction"
         @mouseenter="changePointerState(true)"
         @mouseleave="changePointerState(false)"
@@ -17,15 +17,15 @@
       <!-- page / overlays / workspace content -->
       <div
           ref="imageFrameRef"
-          class="page-preview-image-frame"
+          class="page-canvas-image-frame"
       >
         <div
             ref="imageWrapRef"
-            class="page-preview-image-wrap"
+            class="page-canvas-image-wrap"
         >
           <img id="scan-image"
                :src="src"
-               class="page-preview-image"
+               class="page-canvas-image"
                :style="imageStyle"
                :alt="label"
                :title="label"
@@ -44,7 +44,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': selectedItemIds?.has(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': isItemSelected(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -56,6 +56,11 @@
               <span class="hocr-overlay-item-index">#{{ item.index }}</span>
               <span class="hocr-overlay-item-wconf" v-if="item.wconf != null">{{ item.wconf }}%</span>
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
+            </div>
+
+            <div v-if="showBlockHints && item.level === 'block' && item.hints" class="hocr-block-hints">
+              <div v-if="item.hints.continue_from_previous" class="hocr-block-hint hocr-block-hint--up">↑</div>
+              <div v-if="item.hints.continue_to_following" class="hocr-block-hint hocr-block-hint--down">↓</div>
             </div>
           </div>
 
@@ -74,6 +79,7 @@
       </div>
 
       <CustomPointer
+          v-if="!minimal"
           :visible="pointerVisible"
           :enabled="pointerSettings?.enabled ?? true"
           :x="pointerX"
@@ -84,10 +90,10 @@
       />
     </div>
 
-    <div class="page-preview-info">
-      <span class="page-preview-hint">(Index: {{ page.index }})</span>
-      <span :class="{ 'page-preview-unnamed': !page.name }">p. {{ label }}</span>
-      <span class="page-preview-hint">(Scan: {{ page.scan }})</span>
+    <div class="page-canvas-info" v-if="!minimal">
+      <span class="page-canvas-hint">(Index: {{ page.index }})</span>
+      <span :class="{ 'page-canvas-unnamed': !page.name }">p. {{ label }}</span>
+      <span class="page-canvas-hint">(Scan: {{ page.scan }})</span>
     </div>
   </div>
 </template>
@@ -112,7 +118,7 @@ import {
   type HocrNode,
   type FlowSchema,
   type LayoutSchema,
-  type EditorPalette, type HintType
+  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
@@ -142,20 +148,31 @@ const props = withDefaults(defineProps<{
   hocrLevel?: HocrLevel | null;
   pointerSettings?: PointerSettings;
   interactionUpdate?: PageInteractionUpdate;
-  interactionClick?: () => void;
-  interactionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
+  interactionClick?: PageInteractionClick;
+  interactionDrag?: PageInteractionDrag;
   flows?: Record<string, FlowSchema>;
   layouts?: Record<string, LayoutSchema>;
   careaLayers?: { flow: boolean; layout: boolean };
+  minimal?: boolean;
+  showBlockHints?: boolean;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
+  minimal: false,
+  showBlockHints: false,
 });
 
 const { hocrPage } = useHocrContext();
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
+const selectedPageScan = inject<Ref<string | null>>('selectedPageScan', ref(null));
+
+function isItemSelected(id: string) {
+  if (!selectedItemIds.value.has(id)) return false;
+  if (selectedPageScan.value && selectedPageScan.value !== props.page.scan) return false;
+  return true;
+}
 
 const project = ref<any>(null);
 
@@ -167,7 +184,7 @@ async function fetchProject() {
       project.value = await resp.json();
     }
   } catch (e) {
-    console.error('Failed to fetch project in PagePreview', e);
+    console.error('Failed to fetch project in PageCanvas', e);
   }
 }
 
@@ -331,6 +348,7 @@ const overlayItems = computed((): OverlayItem[] => {
           color: blockColor,
           kind: blockKindFor(block),
           wconf: getMinWconf(block),
+          hints: block.hints,
         });
       }
 
@@ -422,6 +440,7 @@ const rightDiscardStyle = computed(() => ({
 }));
 
 function changePointerState(inside: boolean) {
+  if (props.minimal) return;
   pointerVisible.value = props.pointerSettings ? inside : false;
   if (!inside) {
     dragStart.value = null;
@@ -431,7 +450,7 @@ function changePointerState(inside: boolean) {
 }
 
 function handleMouseDown(e: MouseEvent) {
-  if (!props.interactionDrag) return;
+  if (props.minimal || !props.interactionDrag) return;
   const point = getScanPointForEvent(e);
   if (point) {
     dragStart.value = point;
@@ -441,6 +460,7 @@ function handleMouseDown(e: MouseEvent) {
 }
 
 function handleMouseUp(e: MouseEvent) {
+  if (props.minimal) return;
   if (isDragging.value && dragStart.value && props.interactionDrag) {
     const point = getScanPointForEvent(e);
     if (point) {
@@ -467,6 +487,7 @@ function updateDragState(event: MouseEvent) {
 }
 
 function updatePointerAction(event: MouseEvent) {
+  if (props.minimal) return;
 
   pointerX.value = event.clientX;
   pointerY.value = event.clientY;
@@ -548,6 +569,7 @@ function updatePointerAction(event: MouseEvent) {
 }
 
 function performPendingAction() {
+  if (props.minimal) return;
   if (wasJustDragging.value) {
     wasJustDragging.value = false;
     return;
@@ -691,7 +713,11 @@ function overlayItemStyle(item: OverlayItem) {
   cursor: none;
 }
 
-.page-preview-toolbar {
+.interactive-area--minimal {
+  pointer-events: none;
+}
+
+.page-canvas-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -702,7 +728,7 @@ function overlayItemStyle(item: OverlayItem) {
   min-height: 1.5rem;
 }
 
-.page-preview {
+.page-canvas {
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -711,7 +737,7 @@ function overlayItemStyle(item: OverlayItem) {
   background: var(--color-bg, #f8f9fa);
 }
 
-.page-preview-image-frame {
+.page-canvas-image-frame {
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
@@ -722,7 +748,7 @@ function overlayItemStyle(item: OverlayItem) {
   padding: 1rem;
 }
 
-.page-preview-image-wrap {
+.page-canvas-image-wrap {
   position: relative;
   max-width: 100%;
   flex: 0 0 auto;
@@ -730,14 +756,14 @@ function overlayItemStyle(item: OverlayItem) {
   background: var(--color-surface, #fff);
 }
 
-.page-preview-image {
+.page-canvas-image {
   display: block;
   max-width: 100%;
   height: auto;
   user-select: none;
 }
 
-.page-preview-info {
+.page-canvas-info {
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
@@ -751,12 +777,12 @@ function overlayItemStyle(item: OverlayItem) {
   font-size: 0.85rem;
 }
 
-.page-preview-hint {
+.page-canvas-hint {
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.8em;
 }
 
-.page-preview-unnamed {
+.page-canvas-unnamed {
   color: var(--color-text-dimmed, #a2acb6);
   font-style: italic;
 }
@@ -882,6 +908,35 @@ function overlayItemStyle(item: OverlayItem) {
   box-sizing: border-box;
   border: 2px dashed rgba(120, 202, 61, 0.9);
   background: rgba(120, 202, 61, 0.12);
+}
+
+.hocr-block-hints {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.hocr-block-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 1.5rem;
+  line-height: 1;
+  text-shadow: 0 0 2px white;
+  z-index: 5;
+}
+
+.hocr-block-hint--up {
+  top: -0.8rem;
+}
+
+.hocr-block-hint--down {
+  bottom: -0.8rem;
 }
 
 img {

@@ -61,7 +61,7 @@ const grayHintPalette = computed(() => {
 const panels = usePersistentPanels('panels.codex-edit', {
   'page-list': true,
   'page-strips': true,
-  'page-preview': false,
+  'page-canvas': false,
   'section-structure': false,
   'ocr-structure': false,
   tools: true,

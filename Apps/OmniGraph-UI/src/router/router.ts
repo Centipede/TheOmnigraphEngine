@@ -9,6 +9,7 @@ import AssistMode from '../folios/AssistMode.vue';
 import CropMode from '../folios/CropMode.vue';
 import HintMode from '../folios/HintMode.vue';
 import EditMode from '../folios/EditMode.vue';
+import BridgeMode from '../folios/BridgeMode.vue';
 import Settings from '../settings/Settings.vue';
 import RecogniseMode from "../folios/RecogniseMode.vue";
 import CodexView from '../codex/CodexView.vue';
@@ -104,6 +105,12 @@ export const router = createRouter({
                     path: 'edit/:page?',
                     name: 'folios-edit',
                     component: EditMode,
+                    props: folioProps,
+                },
+                {
+                    path: 'bridge/:page?',
+                    name: 'folios-bridge',
+                    component: BridgeMode,
                     props: folioProps,
                 },
             ],

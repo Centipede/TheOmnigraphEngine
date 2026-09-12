@@ -667,6 +667,7 @@ impl HocrPage {
             level: "block".to_string(),
             id: new_id,
             bbox: HocrBbox::empty(),
+            hints: HocrBlockHints::default(),
             lines: right.to_vec(),
         };
         old_block.lines.truncate(line_after);
@@ -829,6 +830,7 @@ impl HocrPage {
                     kind: block_kind,
                     lang: None,
                     bbox,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 };
 
@@ -879,6 +881,7 @@ impl HocrPage {
                     kind: block_kind,
                     lang: None,
                     bbox,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 });
 
@@ -944,5 +947,18 @@ impl HocrPage {
         self.careas[carea].blocks[block].kind = kind;
         self.careas[carea].blocks[block].rebuild_bbox();
         self.cleanup_carea(carea);
+    }
+    pub fn toggle_block_hint(&mut self, carea: usize, block: usize, hint_name: &str) -> Result<(), String> {
+        let block = &mut self.careas[carea].blocks[block];
+        match hint_name {
+            "continue_from_previous" => {
+                block.hints.continue_from_previous = !block.hints.continue_from_previous;
+            }
+            "continue_to_following" => {
+                block.hints.continue_to_following = !block.hints.continue_to_following;
+            }
+            _ => return Err("Invalid hint name".to_string()),
+        }
+        Ok(())
     }
 }

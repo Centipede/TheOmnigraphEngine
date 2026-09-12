@@ -31,12 +31,18 @@ export interface HocrLine {
     x_ascenders?: number;
 }
 
+export interface HocrBlockHints {
+    continue_from_previous: boolean;
+    continue_to_following: boolean;
+}
+
 export interface HocrBlock {
     level: HocrLevel;
     id: string;
     bbox: HocrBbox;
     kind: string;
     lang?: string;
+    hints: HocrBlockHints;
     lines: HocrLine[];
 }
 

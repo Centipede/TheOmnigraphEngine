@@ -1,4 +1,4 @@
-import type {HocrBbox, HocrNode, HocrLevel} from "./hocr.ts";
+import type {HocrBbox, HocrNode, HocrLevel, HocrBlockHints} from "./hocr.ts";
 import type {ColorSpecification} from "./project.ts";
 
 export type OverlayRole = 'parent' | 'active' | 'child';
@@ -61,6 +61,7 @@ export interface OverlayItem {
     kind: string | null;
     wconf?: number;
     lang?: string;
+    hints?: HocrBlockHints;
 }
 
 export type PageInteractionUpdate = (
@@ -78,6 +79,9 @@ export interface PointerSettings {
     icon: string;
     label: string;
 }
+
+export type PageInteractionClick = () => void;
+export type PageInteractionDrag = (x1: number, y1: number, x2: number, y2: number) => void;
 
 export function getParentLevel(level: HocrLevel) {
     switch (level) {

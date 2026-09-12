@@ -670,6 +670,7 @@ fn test_split_carea_metadata_preservation() {
                 bbox: HocrBbox::new(0, 0, 100, 100),
                 kind: HocrBlockKind::Paragraph,
                 lang: None,
+                hints: HocrBlockHints::default(),
                 lines: vec![],
             },
             HocrBlock {
@@ -678,6 +679,7 @@ fn test_split_carea_metadata_preservation() {
                 bbox: HocrBbox::new(0, 101, 100, 200),
                 kind: HocrBlockKind::Paragraph,
                 lang: None,
+                hints: HocrBlockHints::default(),
                 lines: vec![],
             },
         ],
@@ -783,6 +785,7 @@ fn test_auto_layout_merging() {
                     bbox: HocrBbox::new(0, 0, 10, 10),
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -799,6 +802,7 @@ fn test_auto_layout_merging() {
                     bbox: HocrBbox::new(20, 20, 30, 30),
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -815,6 +819,7 @@ fn test_auto_layout_merging() {
                     bbox: HocrBbox::new(40, 40, 50, 50),
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -857,7 +862,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(0, 0, 10, 10),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -866,7 +871,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(20, 20, 30, 30),
                 flow: Some("F1".to_string()),
                 layout: Some("L2".to_string()),
-                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -875,7 +880,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(40, 40, 50, 50),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
         ],
@@ -905,7 +910,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(0, 0, 10, 10),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -914,7 +919,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(20, 20, 30, 30),
                 flow: Some("F2".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -923,7 +928,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(40, 40, 50, 50),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
                 unknowns: vec![],
             },
         ],
@@ -1073,4 +1078,73 @@ fn test_inject_images() {
     let html = page.to_hocr_html();
     assert!(html.contains("<img class=\"ocr_photo\""));
     assert!(html.contains("title=\"bbox 600 600 800 800\""));
+}
+
+#[test]
+fn test_block_hints_parsing_and_html() {
+    let hocr = r#"
+        <div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+            <div class="ocr_carea" id="carea_1" title="bbox 0 0 1000 1000">
+                <p class="ocr_par" id="par_1" title="bbox 0 0 1000 500; continue_from_previous; continue_to_following">
+                    <span class="ocr_line" id="line_1" title="bbox 0 0 1000 100">
+                        <span class="ocrx_word" id="word_1" title="bbox 0 0 100 100; x_wconf 90">Word</span>
+                    </span>
+                </p>
+                <p class="ocr_par" id="par_2" title="bbox 0 500 1000 1000">
+                    <span class="ocr_line" id="line_2" title="bbox 0 500 1000 600">
+                        <span class="ocrx_word" id="word_2" title="bbox 0 500 100 600; x_wconf 90">Another</span>
+                    </span>
+                </p>
+            </div>
+        </div>
+    "#;
+
+    let page = parse(hocr).unwrap();
+    let block1 = &page.careas[0].blocks[0];
+    let block2 = &page.careas[0].blocks[1];
+
+    assert!(block1.hints.continue_from_previous);
+    assert!(block1.hints.continue_to_following);
+    assert!(!block2.hints.continue_from_previous);
+    assert!(!block2.hints.continue_to_following);
+
+    let html = block1.to_hocr_html();
+    assert!(html.contains("continue_from_previous"));
+    assert!(html.contains("continue_to_following"));
+    
+    let html2 = block2.to_hocr_html();
+    assert!(!html2.contains("continue_from_previous"));
+    assert!(!html2.contains("continue_to_following"));
+}
+
+#[test]
+fn test_block_hints_roundtrip() {
+    let hocr = r#"<!DOCTYPE html>
+<html>
+<body>
+<div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000">
+<div class="ocr_carea" id="carea_1" title="bbox 0 0 1000 1000">
+<p class="ocr_par" id="par_1" title="bbox 0 0 1000 500; continue_from_previous; continue_to_following">
+<span class="ocr_line" id="line_1" title="bbox 0 0 1000 100; baseline 0 0; x_size 0; x_descenders 0; x_ascenders 0">
+<span class="ocrx_word" id="word_1" title="bbox 0 0 100 100; x_wconf 90">Word</span>
+</span>
+</p>
+</div>
+</div>
+</body>
+</html>
+"#;
+
+    let page = parse(hocr).unwrap();
+    let generated_html = page.to_hocr_html();
+    
+    // We don't necessarily need exact string equality because of formatting/escaping,
+    // but the hints should be there.
+    assert!(generated_html.contains("continue_from_previous"));
+    assert!(generated_html.contains("continue_to_following"));
+    
+    // Parse again
+    let page2 = parse(&generated_html).unwrap();
+    assert!(page2.careas[0].blocks[0].hints.continue_from_previous);
+    assert!(page2.careas[0].blocks[0].hints.continue_to_following);
 }

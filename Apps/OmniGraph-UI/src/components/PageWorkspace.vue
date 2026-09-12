@@ -83,7 +83,7 @@
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!isPanelVisible('page-strips')"
-            :show-page-preview="!isPanelVisible('page-preview')"
+            :show-page-canvas="!isPanelVisible('page-canvas')"
             :hocr-page="hocrContext.hocrPage.value"
             :palette="effectivePalette"
         >
@@ -115,11 +115,11 @@
       </div>
 
       <div
-          class="workspace-page-preview-pane"
-          :class="{ 'workspace-pane-hidden': !isPanelVisible('page-preview') }"
+          class="workspace-page-canvas-pane"
+          :class="{ 'workspace-pane-hidden': !isPanelVisible('page-canvas') }"
       >
         <slot
-            name="page-preview"
+            name="page-canvas"
             :pages="pages"
             :filtered-pages="filteredPages"
             :visible-pages="visiblePages"
@@ -133,11 +133,11 @@
             :thumb-base-url="thumbBaseUrl"
             :scan-base-url="scanBaseUrl"
             :show-page-strips="!isPanelVisible('page-strips')"
-            :show-page-preview="!isPanelVisible('page-preview')"
+            :show-page-canvas="!isPanelVisible('page-canvas')"
             :palette="effectivePalette"
             :pointer-settings="pointerSettings"
         >
-          <PagePreview
+          <PageCanvas
               v-if="currentPage && currentPageCrop"
               :page="currentPage"
               :image-base-url="scanBaseUrl"
@@ -229,7 +229,7 @@ import type {
 import { DEFAULT_PALETTE } from '../types';
 import type {PanelVisibility} from '../types';
 import PageStrip from '../components/PageStrip.vue';
-import PagePreview from '../components/PagePreview.vue';
+import PageCanvas from './PageCanvas.vue';
 import PageList from "../components/PageList.vue";
 import HocrOutline from "../components/HocrOutline.vue";
 import SectionOutline from "../components/SectionOutline.vue";
@@ -926,7 +926,7 @@ sl-icon-button.filter-button-active:hover::part(base) {
 }
 
 .workspace-page-strips-pane,
-.workspace-page-preview-pane {
+.workspace-page-canvas-pane {
   min-width: 0;
   min-height: 0;
   max-height: 100%;
@@ -941,7 +941,7 @@ sl-icon-button.filter-button-active:hover::part(base) {
   overflow-y: auto;
 }
 
-.workspace-page-preview-pane {
+.workspace-page-canvas-pane {
   flex: 1 1 45%;
   border-left: 1px solid var(--color-border, #dee2e6);
   display: flex;
