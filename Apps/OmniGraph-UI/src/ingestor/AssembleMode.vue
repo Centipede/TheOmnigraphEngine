@@ -153,7 +153,7 @@ provideHocrContext();
 const panels = usePersistentPanels('panels.ingestor', {
   'page-list': true,
   'page-strips': true,
-  'page-preview': false,
+  'page-canvas': false,
   'section-structure': false,
   'ocr-structure': false,
   tools: true,

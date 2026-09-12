@@ -168,8 +168,8 @@
           <sl-icon-button
               name="file-earmark-image"
               label="Toggle page preview"
-              :class="{ active: panels['page-preview'] }"
-              @click="emit('togglePanel', 'page-preview')"
+              :class="{ active: panels['page-canvas'] }"
+              @click="emit('togglePanel', 'page-canvas')"
           />
 
           <span class="nav-separator" aria-hidden="true"></span>

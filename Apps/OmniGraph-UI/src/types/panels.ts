@@ -3,7 +3,7 @@ export type PanelId =
     | 'section-structure'
 
     | 'page-strips'
-    | 'page-preview'
+    | 'page-canvas'
 
     | 'tools'
     | 'ocr-structure'

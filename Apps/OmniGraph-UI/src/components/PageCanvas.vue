@@ -1,6 +1,6 @@
 <template>
-  <div class="page-preview">
-    <div class="page-preview-toolbar">
+  <div class="page-canvas">
+    <div class="page-canvas-toolbar">
       <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
       <sl-checkbox size="small" :checked="applyProcessing" @sl-change="applyProcessing = $event.target.checked">Processing</sl-checkbox>
     </div>
@@ -17,15 +17,15 @@
       <!-- page / overlays / workspace content -->
       <div
           ref="imageFrameRef"
-          class="page-preview-image-frame"
+          class="page-canvas-image-frame"
       >
         <div
             ref="imageWrapRef"
-            class="page-preview-image-wrap"
+            class="page-canvas-image-wrap"
         >
           <img id="scan-image"
                :src="src"
-               class="page-preview-image"
+               class="page-canvas-image"
                :style="imageStyle"
                :alt="label"
                :title="label"
@@ -84,10 +84,10 @@
       />
     </div>
 
-    <div class="page-preview-info">
-      <span class="page-preview-hint">(Index: {{ page.index }})</span>
-      <span :class="{ 'page-preview-unnamed': !page.name }">p. {{ label }}</span>
-      <span class="page-preview-hint">(Scan: {{ page.scan }})</span>
+    <div class="page-canvas-info">
+      <span class="page-canvas-hint">(Index: {{ page.index }})</span>
+      <span :class="{ 'page-canvas-unnamed': !page.name }">p. {{ label }}</span>
+      <span class="page-canvas-hint">(Scan: {{ page.scan }})</span>
     </div>
   </div>
 </template>
@@ -167,7 +167,7 @@ async function fetchProject() {
       project.value = await resp.json();
     }
   } catch (e) {
-    console.error('Failed to fetch project in PagePreview', e);
+    console.error('Failed to fetch project in PageCanvas', e);
   }
 }
 
@@ -691,7 +691,7 @@ function overlayItemStyle(item: OverlayItem) {
   cursor: none;
 }
 
-.page-preview-toolbar {
+.page-canvas-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -702,7 +702,7 @@ function overlayItemStyle(item: OverlayItem) {
   min-height: 1.5rem;
 }
 
-.page-preview {
+.page-canvas {
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -711,7 +711,7 @@ function overlayItemStyle(item: OverlayItem) {
   background: var(--color-bg, #f8f9fa);
 }
 
-.page-preview-image-frame {
+.page-canvas-image-frame {
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
@@ -722,7 +722,7 @@ function overlayItemStyle(item: OverlayItem) {
   padding: 1rem;
 }
 
-.page-preview-image-wrap {
+.page-canvas-image-wrap {
   position: relative;
   max-width: 100%;
   flex: 0 0 auto;
@@ -730,14 +730,14 @@ function overlayItemStyle(item: OverlayItem) {
   background: var(--color-surface, #fff);
 }
 
-.page-preview-image {
+.page-canvas-image {
   display: block;
   max-width: 100%;
   height: auto;
   user-select: none;
 }
 
-.page-preview-info {
+.page-canvas-info {
   flex: 0 0 auto;
   display: flex;
   align-items: baseline;
@@ -751,12 +751,12 @@ function overlayItemStyle(item: OverlayItem) {
   font-size: 0.85rem;
 }
 
-.page-preview-hint {
+.page-canvas-hint {
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.8em;
 }
 
-.page-preview-unnamed {
+.page-canvas-unnamed {
   color: var(--color-text-dimmed, #a2acb6);
   font-style: italic;
 }
