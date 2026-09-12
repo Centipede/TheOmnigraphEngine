@@ -5,6 +5,8 @@
     :project-name="projectName"
     :initial-page-stem="initialPageStem"
     :panels="panels"
+    :project="project"
+    :palette="grayHintPalette"
     @current-page-change="onPageChange"
   >
     <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette }">
@@ -34,13 +36,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import BridgePage from './BridgePage.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';
-import type { Page } from '../types';
+import type { Page, Project } from '../types';
+import { DEFAULT_PALETTE } from '../types';
 
 const props = defineProps<{
   machineName: string;
@@ -48,18 +51,43 @@ const props = defineProps<{
   initialPageStem?: string;
 }>();
 
-const workspaceRef = ref<InstanceType<typeof PageWorkspace> | null>(null);
 const currentPage = ref<Page | null>(null);
+const project = ref<Project | null>(null);
+
+const grayHintPalette = computed(() => {
+  const basePalette = project.value?.editor_palette || DEFAULT_PALETTE;
+  return {
+    ...basePalette,
+    hintDropcapColor: 'rgba(150, 150, 150, 1)',
+    hintImageColor: 'rgba(150, 150, 150, 1)',
+    hintCalloutColor: 'rgba(150, 150, 150, 1)',
+    hintGarbageColor: 'rgba(150, 150, 150, 1)',
+  };
+});
+
+async function fetchProjectMetadata(): Promise<void> {
+  try {
+    const resp = await fetch(`/api/projects/${props.machineName}`);
+    if (resp.ok) {
+      const data = await resp.json() as Project;
+      project.value = data;
+    }
+  } catch (e) {
+    console.error('Failed to fetch project metadata:', e);
+  }
+}
 
 const panels = usePersistentPanels('panels.bridge', {
   'page-list': true,
+  'section-structure': false,
+
   'page-strips': false,
   'page-canvas': true,
-  'section-structure': false,
-  'ocr-structure': false,
-  tools: false,
-});
 
+  'tools': true,
+  'ocr-structure': false,
+  'structural-tree': false,
+});
 const { setActivePanels } = usePanelVisibilityContext();
 
 // Provide HOCR context for PageWorkspace and general use
@@ -67,6 +95,7 @@ provideHocrContext();
 
 onMounted(() => {
   setActivePanels(panels);
+  void fetchProjectMetadata();
 });
 
 onUnmounted(() => {

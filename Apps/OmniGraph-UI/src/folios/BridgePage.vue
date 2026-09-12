@@ -6,6 +6,7 @@
       :machine-name="machineName"
       :image-base-url="imageBaseUrl"
       :minimal="minimal"
+      hocrLevel="block"
     />
   </div>
 </template>
