@@ -88,6 +88,12 @@
                 >
                   Edit
                 </RouterLink>
+                <RouterLink
+                    :to="{ name: 'folios-bridge', params: { machineName, page: currentPageParam } }"
+                    class="subpage-link"
+                >
+                  Bridge
+                </RouterLink>
               </div>
             </Transition>
           </div>

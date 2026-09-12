@@ -1,12 +1,12 @@
 <template>
   <div class="page-canvas">
-    <div class="page-canvas-toolbar">
+    <div class="page-canvas-toolbar" v-if="!minimal">
       <sl-checkbox size="small" :checked="showConfidence" @sl-change="showConfidence = $event.target.checked">Confidence</sl-checkbox>
       <sl-checkbox size="small" :checked="applyProcessing" @sl-change="applyProcessing = $event.target.checked">Processing</sl-checkbox>
     </div>
     <div
         class="interactive-area"
-        :class="pointerVisible ? 'cursor-mode-off' : ''"
+        :class="[pointerVisible ? 'cursor-mode-off' : '', minimal ? 'interactive-area--minimal' : '']"
         @mousemove="updatePointerAction"
         @mouseenter="changePointerState(true)"
         @mouseleave="changePointerState(false)"
@@ -74,6 +74,7 @@
       </div>
 
       <CustomPointer
+          v-if="!minimal"
           :visible="pointerVisible"
           :enabled="pointerSettings?.enabled ?? true"
           :x="pointerX"
@@ -84,7 +85,7 @@
       />
     </div>
 
-    <div class="page-canvas-info">
+    <div class="page-canvas-info" v-if="!minimal">
       <span class="page-canvas-hint">(Index: {{ page.index }})</span>
       <span :class="{ 'page-canvas-unnamed': !page.name }">p. {{ label }}</span>
       <span class="page-canvas-hint">(Scan: {{ page.scan }})</span>
@@ -147,10 +148,12 @@ const props = withDefaults(defineProps<{
   flows?: Record<string, FlowSchema>;
   layouts?: Record<string, LayoutSchema>;
   careaLayers?: { flow: boolean; layout: boolean };
+  minimal?: boolean;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
+  minimal: false,
 });
 
 const { hocrPage } = useHocrContext();
@@ -422,6 +425,7 @@ const rightDiscardStyle = computed(() => ({
 }));
 
 function changePointerState(inside: boolean) {
+  if (props.minimal) return;
   pointerVisible.value = props.pointerSettings ? inside : false;
   if (!inside) {
     dragStart.value = null;
@@ -431,7 +435,7 @@ function changePointerState(inside: boolean) {
 }
 
 function handleMouseDown(e: MouseEvent) {
-  if (!props.interactionDrag) return;
+  if (props.minimal || !props.interactionDrag) return;
   const point = getScanPointForEvent(e);
   if (point) {
     dragStart.value = point;
@@ -441,6 +445,7 @@ function handleMouseDown(e: MouseEvent) {
 }
 
 function handleMouseUp(e: MouseEvent) {
+  if (props.minimal) return;
   if (isDragging.value && dragStart.value && props.interactionDrag) {
     const point = getScanPointForEvent(e);
     if (point) {
@@ -467,6 +472,7 @@ function updateDragState(event: MouseEvent) {
 }
 
 function updatePointerAction(event: MouseEvent) {
+  if (props.minimal) return;
 
   pointerX.value = event.clientX;
   pointerY.value = event.clientY;
@@ -548,6 +554,7 @@ function updatePointerAction(event: MouseEvent) {
 }
 
 function performPendingAction() {
+  if (props.minimal) return;
   if (wasJustDragging.value) {
     wasJustDragging.value = false;
     return;
@@ -689,6 +696,10 @@ function overlayItemStyle(item: OverlayItem) {
 
 .cursor-mode-off {
   cursor: none;
+}
+
+.interactive-area--minimal {
+  pointer-events: none;
 }
 
 .page-canvas-toolbar {
