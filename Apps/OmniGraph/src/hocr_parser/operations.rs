@@ -667,6 +667,7 @@ impl HocrPage {
             level: "block".to_string(),
             id: new_id,
             bbox: HocrBbox::empty(),
+            hints: HocrBlockHints::default(),
             lines: right.to_vec(),
         };
         old_block.lines.truncate(line_after);
@@ -829,6 +830,7 @@ impl HocrPage {
                     kind: block_kind,
                     lang: None,
                     bbox,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 };
 
@@ -879,6 +881,7 @@ impl HocrPage {
                     kind: block_kind,
                     lang: None,
                     bbox,
+                    hints: HocrBlockHints::default(),
                     lines: vec![],
                 });
 

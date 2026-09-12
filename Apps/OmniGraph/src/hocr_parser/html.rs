@@ -89,13 +89,25 @@ impl HocrBlock {
             .map(|lang| format!(" lang=\"{}\"", escape_attr(lang)))
             .unwrap_or_default();
 
-        let mut html = format!(
-            "<{tag} class=\"{class}\" id=\"{}\" title=\"bbox {} {} {} {}\"{}>",
-            escape_attr(&self.id),
+        let mut title = format!(
+            "bbox {} {} {} {}",
             self.bbox.left(),
             self.bbox.top(),
             self.bbox.right(),
             self.bbox.bottom(),
+        );
+
+        if self.hints.continue_from_previous {
+            title.push_str("; continue_from_previous");
+        }
+        if self.hints.continue_to_following {
+            title.push_str("; continue_to_following");
+        }
+
+        let mut html = format!(
+            "<{tag} class=\"{class}\" id=\"{}\" title=\"{}\"{}>",
+            escape_attr(&self.id),
+            title,
             lang_attr,
         );
 

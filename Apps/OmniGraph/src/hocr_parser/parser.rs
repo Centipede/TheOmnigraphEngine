@@ -108,11 +108,16 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             .split_whitespace()
                             .find_map(HocrBlockKind::from_class_name)
                     }?;
+                    let hints = HocrBlockHints {
+                        continue_from_previous: block_title_map.contains_key("continue_from_previous"),
+                        continue_to_following: block_title_map.contains_key("continue_to_following"),
+                    };
                     let block = HocrBlock {
                         level: "block".to_string(),
                         id: block_id,
                         bbox: block_bbox,
                         lang: block_lang,
+                        hints,
                         kind,
                         lines,
                     };
