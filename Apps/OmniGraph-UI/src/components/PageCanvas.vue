@@ -44,7 +44,7 @@
           <div v-for="item in overlayItems"
                :key="item.id"
                class="hocr-overlay"
-               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': selectedItemIds?.has(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
+               :class="[`hocr-overlay--${item.role}`, { 'hocr-overlay--selected': isItemSelected(item.id), 'hocr-overlay--indicated': item.id === indicatedItemId }]"
                :style="overlayItemStyle(item)"
 
           >
@@ -56,6 +56,11 @@
               <span class="hocr-overlay-item-index">#{{ item.index }}</span>
               <span class="hocr-overlay-item-wconf" v-if="item.wconf != null">{{ item.wconf }}%</span>
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
+            </div>
+
+            <div v-if="showBlockHints && item.level === 'block' && item.hints" class="hocr-block-hints">
+              <div v-if="item.hints.continue_from_previous" class="hocr-block-hint hocr-block-hint--up">↑</div>
+              <div v-if="item.hints.continue_to_following" class="hocr-block-hint hocr-block-hint--down">↓</div>
             </div>
           </div>
 
@@ -113,7 +118,7 @@ import {
   type HocrNode,
   type FlowSchema,
   type LayoutSchema,
-  type EditorPalette, type HintType
+  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
@@ -143,22 +148,31 @@ const props = withDefaults(defineProps<{
   hocrLevel?: HocrLevel | null;
   pointerSettings?: PointerSettings;
   interactionUpdate?: PageInteractionUpdate;
-  interactionClick?: () => void;
-  interactionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
+  interactionClick?: PageInteractionClick;
+  interactionDrag?: PageInteractionDrag;
   flows?: Record<string, FlowSchema>;
   layouts?: Record<string, LayoutSchema>;
   careaLayers?: { flow: boolean; layout: boolean };
   minimal?: boolean;
+  showBlockHints?: boolean;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
   minimal: false,
+  showBlockHints: false,
 });
 
 const { hocrPage } = useHocrContext();
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
+const selectedPageScan = inject<Ref<string | null>>('selectedPageScan', ref(null));
+
+function isItemSelected(id: string) {
+  if (!selectedItemIds.value.has(id)) return false;
+  if (selectedPageScan.value && selectedPageScan.value !== props.page.scan) return false;
+  return true;
+}
 
 const project = ref<any>(null);
 
@@ -334,6 +348,7 @@ const overlayItems = computed((): OverlayItem[] => {
           color: blockColor,
           kind: blockKindFor(block),
           wconf: getMinWconf(block),
+          hints: block.hints,
         });
       }
 
@@ -893,6 +908,35 @@ function overlayItemStyle(item: OverlayItem) {
   box-sizing: border-box;
   border: 2px dashed rgba(120, 202, 61, 0.9);
   background: rgba(120, 202, 61, 0.12);
+}
+
+.hocr-block-hints {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.hocr-block-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 1.5rem;
+  line-height: 1;
+  text-shadow: 0 0 2px white;
+  z-index: 5;
+}
+
+.hocr-block-hint--up {
+  top: -0.8rem;
+}
+
+.hocr-block-hint--down {
+  bottom: -0.8rem;
 }
 
 img {

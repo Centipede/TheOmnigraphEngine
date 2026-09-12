@@ -751,7 +751,7 @@ async function pageInteractionClick(): Promise<void> {
 function pageInteractionUpdate(
     x: number,
     y: number,
-    _: OverlayItem[],
+    _overlappingOverlayItems: OverlayItem[],
     _activeItem: HocrNode | null,
     betweenOverlayItems: [HocrNode | null, HocrNode | null],
     betweenOverlaySubItems: [HocrNode | null, HocrNode | null],

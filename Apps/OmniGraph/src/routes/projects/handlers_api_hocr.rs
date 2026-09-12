@@ -787,6 +787,26 @@ pub async fn block_change_type_bulk(
     save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
 }
 
+pub async fn block_toggle_hint(
+    State(state): State<AppState>,
+    Path((machine_name, stem, id, hint_name)): Path<(String, String, String, String)>,
+) -> impl IntoResponse {
+    let mut page = match parse_page(&state.projects_dir, &machine_name, &stem).await {
+        Ok(page) => page,
+        Err(status_code) => return status_code.into_response(),
+    };
+
+    let Some(HocrPath::Block { carea, block }) = hocr_parser::find_node(&page, &id) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    if let Err(err) = page.toggle_block_hint(carea, block, &hint_name) {
+        return (StatusCode::BAD_REQUEST, Json(json!({"error": err}))).into_response();
+    }
+
+    save_and_report(&page, &state.projects_dir, &machine_name, &stem, None).into_response()
+}
+
 // ── LINE ─────────────────────────────────────────────────────────────
 
 pub async fn line_merge(

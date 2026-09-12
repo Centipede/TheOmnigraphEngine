@@ -73,6 +73,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages/{stem}/hocr/blocks/{id}/move-down",      post(handlers_api_hocr::block_move_down))
         .route("/projects/{machine_name}/pages/{stem}/hocr/blocks/{id}/remove",         post(handlers_api_hocr::block_remove))
         .route("/projects/{machine_name}/pages/{stem}/hocr/blocks/{id}/change-type",    post(handlers_api_hocr::block_change_type))
+        .route("/projects/{machine_name}/pages/{stem}/hocr/blocks/{id}/toggle-hint/{hint_name}", post(handlers_api_hocr::block_toggle_hint))
         .route("/projects/{machine_name}/pages/{stem}/hocr/lines/add",                  post(handlers_api_hocr::line_add))
         .route("/projects/{machine_name}/pages/{stem}/hocr/lines/merge",                post(handlers_api_hocr::lines_merge))
         .route("/projects/{machine_name}/pages/{stem}/hocr/lines/{id}/merge",           post(handlers_api_hocr::line_merge))

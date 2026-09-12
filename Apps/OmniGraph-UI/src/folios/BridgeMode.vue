@@ -7,6 +7,7 @@
     :panels="panels"
     :project="project"
     :palette="grayHintPalette"
+    :keyboard-handler="onKeyDown"
     @current-page-change="onPageChange"
   >
     <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette }">
@@ -27,6 +28,10 @@
               :image-base-url="scanBaseUrl"
               :palette="palette"
               :minimal="page.index !== currentPageIndex"
+              :show-block-hints="true"
+              :reload-trigger="hocrReloadTrigger[page.scan.replace(/\.[^.]+$/, '')]"
+              :interaction-update="makeInteractionUpdateHandler(page)"
+              :interaction-click="() => onInteractionClick(page)"
             />
           </div>
         </div>
@@ -36,13 +41,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, provide } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import BridgePage from './BridgePage.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';
-import type { Page, Project } from '../types';
+import type {HocrNode, OverlayItem, Page, Project, PageInteractionUpdate} from '../types';
 import { DEFAULT_PALETTE } from '../types';
 
 const props = defineProps<{
@@ -53,6 +58,79 @@ const props = defineProps<{
 
 const currentPage = ref<Page | null>(null);
 const project = ref<Project | null>(null);
+
+const selectedBlockId = ref<string | null>(null);
+const selectedPageScan = ref<string | null>(null);
+const hoveredItemId = ref<string | null>(null);
+
+const selectedItemIds = computed(() => {
+  const ids = new Set<string>();
+  if (selectedBlockId.value) {
+    ids.add(selectedBlockId.value);
+  }
+  return ids;
+});
+
+provide('selectedItemIds', selectedItemIds);
+provide('selectedPageScan', selectedPageScan);
+provide('indicatedItemId', ref(null));
+
+
+function makeInteractionUpdateHandler(page: Page) {
+  return (...args: Parameters<PageInteractionUpdate>) => {
+    onInteractionUpdate(page, ...args);
+  };
+}
+
+function onInteractionUpdate(_page: Page, _x: number, _y: number, _other: OverlayItem[], activeItem: HocrNode | null, _between1: [HocrNode | null, HocrNode | null], _between2: [HocrNode | null, HocrNode | null]) {
+  if (activeItem) {
+    hoveredItemId.value = activeItem.id;
+  } else {
+    hoveredItemId.value = null;
+  }
+}
+
+function onInteractionClick(page: Page) {
+  if (hoveredItemId.value) {
+    selectedBlockId.value = hoveredItemId.value;
+    selectedPageScan.value = page.scan;
+  } else {
+    selectedBlockId.value = null;
+    selectedPageScan.value = null;
+  }
+}
+
+const hocrReloadTrigger = ref<Record<string, number>>({});
+
+async function toggleHint(hintName: string) {
+  if (!selectedBlockId.value || !selectedPageScan.value) return;
+
+  const stem = selectedPageScan.value.replace(/\.[^.]+$/, '');
+  const url = `/api/projects/${props.machineName}/pages/${stem}/hocr/blocks/${selectedBlockId.value}/toggle-hint/${hintName}`;
+
+  try {
+    const resp = await fetch(url, { method: 'POST' });
+    if (resp.ok) {
+      hocrReloadTrigger.value[stem] = (hocrReloadTrigger.value[stem] || 0) + 1;
+    }
+  } catch (e) {
+    console.error('Failed to toggle hint:', e);
+  }
+}
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    void toggleHint('continue_from_previous');
+    return true;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    void toggleHint('continue_to_following');
+    return true;
+  }
+  return false;
+}
 
 const grayHintPalette = computed(() => {
   const basePalette = project.value?.editor_palette || DEFAULT_PALETTE;

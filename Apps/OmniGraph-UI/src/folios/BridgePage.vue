@@ -7,6 +7,8 @@
       :image-base-url="imageBaseUrl"
       :minimal="minimal"
       hocrLevel="block"
+      :interaction-update="interactionUpdate"
+      :interaction-click="interactionClick"
     />
   </div>
 </template>
@@ -15,13 +17,16 @@
 import { watch, onMounted } from 'vue';
 import PageCanvas from '../components/PageCanvas.vue';
 import { provideHocrContext } from '../composables/useHocr';
-import type { Page } from '../types';
+import type { Page, PageInteractionUpdate, PageInteractionClick } from '../types';
 
 const props = defineProps<{
   page: Page;
   machineName: string;
   imageBaseUrl: string;
   minimal?: boolean;
+  reloadTrigger?: number;
+  interactionUpdate?: PageInteractionUpdate;
+  interactionClick?: PageInteractionClick;
 }>();
 
 const { loadHocr } = provideHocrContext();
@@ -35,6 +40,7 @@ const reloadHocr = () => {
 
 watch(() => props.page?.scan, reloadHocr);
 watch(() => props.machineName, reloadHocr);
+watch(() => props.reloadTrigger, reloadHocr);
 
 onMounted(reloadHocr);
 </script>
