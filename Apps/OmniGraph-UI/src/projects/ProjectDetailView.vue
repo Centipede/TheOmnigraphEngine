@@ -971,7 +971,7 @@ h2 {
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem;
-  background: var(--color-surface-raised, #f8fafc);
+  background: var(--color-surface, #f8fafc);
   border-radius: 0.375rem;
 }
 
