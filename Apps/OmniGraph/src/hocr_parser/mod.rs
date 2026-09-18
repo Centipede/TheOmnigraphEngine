@@ -3,6 +3,7 @@ pub mod operations;
 pub mod parser;
 pub mod html;
 pub mod utils;
+pub mod navigation;
 
 pub use models::*;
 #[allow(unused_imports)]

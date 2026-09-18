@@ -1103,10 +1103,10 @@ fn test_block_hints_parsing_and_html() {
     let block1 = &page.careas[0].blocks[0];
     let block2 = &page.careas[0].blocks[1];
 
-    assert!(block1.hints.continue_from_previous);
-    assert!(block1.hints.continue_to_following);
-    assert!(!block2.hints.continue_from_previous);
-    assert!(!block2.hints.continue_to_following);
+    assert_eq!(block1.hints.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(block1.hints.break_from_following, Evidence::Assigned(false));
+    assert_eq!(block2.hints.break_from_preceding, Evidence::Untested);
+    assert_eq!(block2.hints.break_from_following, Evidence::Untested);
 
     let html = block1.to_hocr_html();
     assert!(html.contains("continue_from_previous"));
@@ -1145,6 +1145,6 @@ fn test_block_hints_roundtrip() {
     
     // Parse again
     let page2 = parse(&generated_html).unwrap();
-    assert!(page2.careas[0].blocks[0].hints.continue_from_previous);
-    assert!(page2.careas[0].blocks[0].hints.continue_to_following);
+    assert_eq!(page2.careas[0].blocks[0].hints.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(page2.careas[0].blocks[0].hints.break_from_following, Evidence::Assigned(false));
 }

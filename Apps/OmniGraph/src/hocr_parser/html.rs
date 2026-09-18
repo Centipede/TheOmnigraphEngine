@@ -97,10 +97,10 @@ impl HocrBlock {
             self.bbox.bottom(),
         );
 
-        if self.hints.continue_from_previous {
+        if let Evidence::Assigned(false) = self.hints.break_from_preceding {
             title.push_str("; continue_from_previous");
         }
-        if self.hints.continue_to_following {
+        if let Evidence::Assigned(false) = self.hints.break_from_following {
             title.push_str("; continue_to_following");
         }
 
