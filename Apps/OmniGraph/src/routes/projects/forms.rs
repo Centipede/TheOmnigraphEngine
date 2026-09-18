@@ -1,7 +1,7 @@
 use crate::app_settings::OcrCommandFormat;
 use crate::ocr_poll::ServerStatus;
 use serde::{Deserialize, Serialize};
-use crate::hocr_parser::{HocrBbox, AddBlockType};
+use crate::hocr_parser::{HocrBbox, AddBlockType, DetectionThresholds};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct OcrServerData {
@@ -137,4 +137,9 @@ pub struct AutoAssistRequest {
     pub stems: Vec<String>,
     #[serde(default)]
     pub carea_ids: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct AutoBridgeRequest {
+    pub thresholds: DetectionThresholds,
 }
