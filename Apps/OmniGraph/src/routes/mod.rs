@@ -51,6 +51,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{machine_name}/pages/{stem}/hocr-json",                       get(handlers_api::get_hocr_json))
         .route("/projects/{machine_name}/pages/{stem}/auto-layout",                     post(handlers_api::auto_layout))
         .route("/projects/{machine_name}/pages/{stem}/auto-flow",                       post(handlers_api::auto_flow))
+        .route("/projects/{machine_name}/pages/{stem}/auto-bridge-page",                 post(handlers_api::auto_bridge_page))
+        .route("/projects/{machine_name}/pages/{stem}/hocr/blocks/{id}/auto-bridge",     post(handlers_api::auto_bridge_block))
         .route("/projects/{machine_name}/pages/{stem}/restore-original",                post(handlers_api_hocr::restore_from_original))
         .route("/projects/{machine_name}/pages/{stem}/hocr/careas/merge",               post(handlers_api_hocr::careas_merge))
         .route("/projects/{machine_name}/pages/{stem}/hocr/careas/change-flow",         post(handlers_api_hocr::carea_change_flow_bulk))

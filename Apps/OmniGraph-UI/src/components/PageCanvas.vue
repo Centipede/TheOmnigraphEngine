@@ -59,8 +59,24 @@
             </div>
 
             <div v-if="showBlockHints && item.level === 'block' && item.hints" class="hocr-block-hints">
-              <div v-if="item.hints.continue_from_previous" class="hocr-block-hint hocr-block-hint--up">↑</div>
-              <div v-if="item.hints.continue_to_following" class="hocr-block-hint hocr-block-hint--down">↓</div>
+              <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) === false"
+                   class="hocr-block-evidence hocr-block-evidence--preceding"
+                   :class="getEvidenceClass(item.hints.break_from_preceding)">
+                ↑
+              </div>
+              <div v-if="item.hints.break_from_following && getEvidenceValue(item.hints.break_from_following) === false"
+                   class="hocr-block-evidence hocr-block-evidence--following"
+                   :class="getEvidenceClass(item.hints.break_from_following)">
+                ↓
+              </div>
+              <div v-if="item.hints.break_from_preceding === 'error'"
+                   class="hocr-block-evidence hocr-block-evidence--preceding ev-error">
+                ⚠
+              </div>
+              <div v-if="item.hints.break_from_following === 'error'"
+                   class="hocr-block-evidence hocr-block-evidence--following ev-error">
+                ⚠
+              </div>
             </div>
           </div>
 
@@ -110,6 +126,7 @@ import {
   type HocrLevel,
   type HocrPage,
   type OverlayItem,
+  type Evidence,
   type OverlayRole,
   type Page,
   type Hint,
@@ -631,6 +648,23 @@ function getHintColor(type: HintType) {
   return '#000000';
 }
 
+function getEvidenceClass(ev: Evidence) {
+  if (typeof ev === 'string') {
+    return `ev-${ev}`;
+  }
+  const key = Object.keys(ev)[0];
+  const val = (ev as any)[key];
+  return `ev-${key} ev-val-${val}`;
+}
+
+function getEvidenceValue(ev: Evidence): boolean | null {
+  if (typeof ev === 'string') return null;
+  if ('suggested' in ev) return ev.suggested;
+  if ('determined' in ev) return ev.determined;
+  if ('assigned' in ev) return ev.assigned;
+  return null;
+}
+
 function hintStyle(hint: Hint) {
   const color = getHintColor(hint.type);
   return {
@@ -938,6 +972,30 @@ function overlayItemStyle(item: OverlayItem) {
 .hocr-block-hint--down {
   bottom: -0.8rem;
 }
+
+.hocr-block-evidence {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: bold;
+  font-size: 1.5rem;
+  line-height: 1;
+  text-shadow: 0 0 2px white;
+  z-index: 5;
+}
+
+.hocr-block-evidence--preceding {
+  top: -0.8rem;
+}
+
+.hocr-block-evidence--following {
+  bottom: -0.8rem;
+}
+
+.ev-suggested { color: #22c55e; opacity: 0.5; }
+.ev-determined { color: #22c55e; opacity: 1; }
+.ev-assigned { color: #3b82f6; opacity: 1; }
+.ev-error { color: #ef4444; opacity: 1; font-size: 1.2rem; }
 
 img {
   -webkit-user-select: none;

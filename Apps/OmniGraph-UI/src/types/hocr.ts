@@ -31,9 +31,37 @@ export interface HocrLine {
     x_ascenders?: number;
 }
 
+export type Evidence =
+    | 'untested'
+    | 'undetermined'
+    | { suggested: boolean }
+    | { determined: boolean }
+    | { assigned: boolean }
+    | 'error';
+
+export interface DetectionThresholds {
+    x_indent_min: number;
+    x_indent_max: number;
+    x_dedent_min: number;
+    x_dedent_max: number;
+    y_advance_min: number;
+    y_advance_max: number;
+    use_x_indent: boolean;
+    use_x_dedent: boolean;
+    use_y_advance: boolean;
+    use_hyphenation: boolean;
+}
+
 export interface HocrBlockHints {
     continue_from_previous: boolean;
     continue_to_following: boolean;
+    test_x_indent?: Evidence;
+    test_x_dedent?: Evidence;
+    test_y_advance?: Evidence;
+    test_y_reverse?: Evidence;
+    test_hyphenation?: Evidence;
+    break_from_preceding?: Evidence;
+    break_from_following?: Evidence;
 }
 
 export interface HocrBlock {

@@ -1,5 +1,5 @@
 import { ref, provide, inject, type Ref, type InjectionKey } from 'vue';
-import type { HocrPage } from '../types/hocr';
+import type { HocrPage, DetectionThresholds } from '../types/hocr';
 
 export interface HocrContext {
   hocrPage: Ref<HocrPage | null>;
@@ -10,6 +10,8 @@ export interface HocrContext {
   loadHocr: (machineName: string, stem: string, isNoHocrAcceptable?: boolean) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
+  autoBridgePage: (thresholds: DetectionThresholds) => Promise<void>;
+  autoBridgeBlock: (blockId: string, thresholds: DetectionThresholds) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
 }
@@ -112,6 +114,54 @@ export function provideHocrContext() {
     }
   }
 
+  async function autoBridgePage(thresholds: DetectionThresholds) {
+    if (!machineName.value || !stem.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${machineName.value}/pages/${stem.value}/auto-bridge-page`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ thresholds })
+      });
+      if (resp.ok) {
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, false);
+      } else {
+        error.value = `Auto-bridge page failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function autoBridgeBlock(blockId: string, thresholds: DetectionThresholds) {
+    if (!machineName.value || !stem.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${machineName.value}/pages/${stem.value}/hocr/blocks/${blockId}/auto-bridge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ thresholds })
+      });
+      if (resp.ok) {
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, false);
+      } else {
+        error.value = `Auto-bridge block failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   function updateHocr(page: HocrPage | null) {
     hocrPage.value = page;
   }
@@ -132,6 +182,8 @@ export function provideHocrContext() {
     loadHocr,
     rescanCarea,
     rescanWord,
+    autoBridgePage,
+    autoBridgeBlock,
     updateHocr,
     clearHocr
   };
