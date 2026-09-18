@@ -47,12 +47,79 @@ pub struct HocrLine {
     pub x_ascenders: Option<f32>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Evidence {
+    Untested,
+    Undetermined,
+    Suggested(bool),
+    Determined(bool),
+    Assigned(bool),
+    Error,
+}
+
+impl Evidence {
+    pub fn is_true(&self) -> Option<bool> {
+        match self {
+            Evidence::Suggested(b) | Evidence::Determined(b) | Evidence::Assigned(b) => Some(*b),
+            _ => None,
+        }
+    }
+}
+
+impl Default for Evidence {
+    fn default() -> Self {
+        Evidence::Untested
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectionThresholds {
+    pub x_indent_min: i32,
+    pub x_indent_max: i32,
+    pub x_dedent_min: i32,
+    pub x_dedent_max: i32,
+    pub y_advance_min: i32,
+    pub y_advance_max: i32,
+    pub use_x_indent: bool,
+    pub use_x_dedent: bool,
+    pub use_y_advance: bool,
+    pub use_hyphenation: bool,
+}
+
+impl Default for DetectionThresholds {
+    fn default() -> Self {
+        Self {
+            x_indent_min: 5,
+            x_indent_max: 15,
+            x_dedent_min: 0,
+            x_dedent_max: 20,
+            y_advance_min: 0,
+            y_advance_max: 0,
+            use_x_indent: true,
+            use_x_dedent: true,
+            use_y_advance: true,
+            use_hyphenation: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrBlockHints {
     #[serde(default)]
-    pub continue_from_previous: bool,
+    pub test_x_indent: Evidence,
     #[serde(default)]
-    pub continue_to_following: bool,
+    pub test_x_dedent: Evidence,
+    #[serde(default)]
+    pub test_hyphenation: Evidence,
+    #[serde(default)]
+    pub test_y_advance: Evidence,
+    #[serde(default)]
+    pub test_y_reverse: Evidence,
+    #[serde(default)]
+    pub break_from_preceding: Evidence,
+    #[serde(default)]
+    pub break_from_following: Evidence,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

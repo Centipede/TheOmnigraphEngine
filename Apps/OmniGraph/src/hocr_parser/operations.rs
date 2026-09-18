@@ -952,13 +952,208 @@ impl HocrPage {
         let block = &mut self.careas[carea].blocks[block];
         match hint_name {
             "continue_from_previous" => {
-                block.hints.continue_from_previous = !block.hints.continue_from_previous;
+                let current = match block.hints.break_from_preceding {
+                    Evidence::Assigned(b) => b,
+                    Evidence::Determined(b) => b,
+                    Evidence::Suggested(b) => b,
+                    _ => false,
+                };
+                block.hints.break_from_preceding = Evidence::Assigned(!current);
             }
             "continue_to_following" => {
-                block.hints.continue_to_following = !block.hints.continue_to_following;
+                let current = match block.hints.break_from_following {
+                    Evidence::Assigned(b) => b,
+                    Evidence::Determined(b) => b,
+                    Evidence::Suggested(b) => b,
+                    _ => false,
+                };
+                block.hints.break_from_following = Evidence::Assigned(!current);
             }
             _ => return Err("Invalid hint name".to_string()),
         }
         Ok(())
     }
+
+    pub fn get_block_flow(&self, block_id: &str) -> Option<String> {
+        for carea in &self.careas {
+            for block in &carea.blocks {
+                if block.id == block_id {
+                    return carea.flow.clone();
+                }
+            }
+        }
+        None
+    }
+
+    pub fn filter_careas(&self, flow: &str) -> Vec<&HocrCarea> {
+        self.careas
+            .iter()
+            .filter(|c| c.flow.as_deref() == Some(flow))
+            .collect()
+    }
+
+    pub fn filter_blocks(&self, flow: &str) -> Vec<&HocrBlock> {
+        self.filter_careas(flow)
+            .into_iter()
+            .flat_map(|c| c.blocks.iter())
+            .collect()
+    }
+}
+
+fn derive_evidence(tests: &[Evidence]) -> Evidence {
+    let mut det_true = false;
+    let mut det_false = false;
+    let mut suggested = None;
+
+    for t in tests {
+        match t {
+            Evidence::Determined(true) => det_true = true,
+            Evidence::Determined(false) => det_false = true,
+            Evidence::Suggested(b) => {
+                if suggested.is_none() {
+                    suggested = Some(*b);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if det_true && det_false {
+        Evidence::Error
+    } else if det_true {
+        Evidence::Determined(true)
+    } else if det_false {
+        Evidence::Determined(false)
+    } else if let Some(b) = suggested {
+        Evidence::Suggested(b)
+    } else {
+        Evidence::Undetermined
+    }
+}
+
+impl HocrBlock {
+    pub fn x_indent(&self) -> i32 {
+        if self.lines.is_empty() {
+            return 0;
+        }
+        self.lines[0].bbox.left() - self.bbox.left()
+    }
+
+    pub fn x_dedent(&self) -> i32 {
+        if self.lines.is_empty() {
+            return 0;
+        }
+        self.bbox.right() - self.lines.last().unwrap().bbox.right()
+    }
+
+    pub fn test_hyphenation(&self) -> bool {
+        if self.lines.is_empty() {
+            return false;
+        }
+        let last_line = self.lines.last().unwrap();
+        if last_line.words.is_empty() {
+            return false;
+        }
+        let last_word = last_line.words.last().unwrap();
+        last_word.text.ends_with('-')
+            || last_word.text.ends_with('—')
+            || last_word.text.ends_with('–')
+    }
+
+    pub fn apply_auto_detection(
+        &mut self,
+        preceding: Option<&HocrBlock>,
+        following: Option<&HocrBlock>,
+        thresholds: &DetectionThresholds,
+    ) {
+        // 1. Low level indicators - per block
+        if thresholds.use_x_indent && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) {
+            let val = self.x_indent();
+            self.hints.test_x_indent = if val >= thresholds.x_indent_max {
+                Evidence::Determined(true)
+            } else if val < thresholds.x_indent_min {
+                Evidence::Determined(false)
+            } else {
+                Evidence::Suggested(true)
+            };
+        }
+
+        if thresholds.use_x_dedent && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) {
+            let val = self.x_dedent();
+            self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
+                Evidence::Determined(true)
+            } else if val < thresholds.x_dedent_min {
+                Evidence::Determined(false)
+            } else {
+                Evidence::Suggested(true)
+            };
+        }
+
+        if thresholds.use_hyphenation
+            && !matches!(self.hints.test_hyphenation, Evidence::Assigned(_))
+        {
+            self.hints.test_hyphenation = if self.test_hyphenation() {
+                Evidence::Suggested(true)
+            } else {
+                Evidence::Suggested(false)
+            };
+        }
+
+        // 2. Low level indicators - per boundary
+        if thresholds.use_y_advance {
+            if let Some(prev) = preceding {
+                if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
+                    let val = y_advance(prev, self);
+                    self.hints.test_y_advance = if val >= thresholds.y_advance_max {
+                        Evidence::Determined(true)
+                    } else if val < thresholds.y_advance_min {
+                        Evidence::Determined(false)
+                    } else {
+                        Evidence::Suggested(true)
+                    };
+                }
+            }
+
+            if let Some(next) = following {
+                if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
+                    let val = y_advance(self, next);
+                    self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
+                        Evidence::Determined(true)
+                    } else if val < thresholds.y_advance_min {
+                        Evidence::Determined(false)
+                    } else {
+                        Evidence::Suggested(true)
+                    };
+                }
+            }
+        }
+
+        // 3. Mid level calculations
+        if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) {
+            self.hints.break_from_preceding =
+                derive_evidence(&[self.hints.test_x_indent, self.hints.test_y_advance]);
+        }
+
+        if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) {
+            // Use test_y_reverse here because it's the space between this block and the following one
+            self.hints.break_from_following =
+                derive_evidence(&[self.hints.test_x_dedent, self.hints.test_y_reverse]);
+        }
+    }
+
+    pub fn get_continued_evidence(a: &HocrBlock, b: &HocrBlock) -> Evidence {
+        let a_break = a.hints.break_from_following.is_true();
+        let b_break = b.hints.break_from_preceding.is_true();
+
+        match (a_break, b_break) {
+            (Some(false), Some(false)) => Evidence::Determined(true),
+            (Some(true), Some(true)) => Evidence::Determined(false),
+            (Some(av), Some(bv)) if av != bv => Evidence::Error,
+            _ => Evidence::Undetermined,
+        }
+    }
+}
+
+pub fn y_advance(a: &HocrBlock, b: &HocrBlock) -> i32 {
+    b.bbox.top() - a.bbox.bottom()
 }
