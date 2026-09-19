@@ -1032,15 +1032,19 @@ impl HocrPage {
     }
 }
 
-fn derive_evidence(tests: &[Evidence]) -> Evidence {
+pub(crate) fn derive_evidence(tests: &[Evidence]) -> Evidence {
     let mut det_true = false;
     let mut det_false = false;
     let mut suggested = None;
+    let mut all_untested = true;
 
     for t in tests {
+        if *t != Evidence::Untested {
+            all_untested = false;
+        }
         match t {
-            Evidence::Determined(true) => det_true = true,
-            Evidence::Determined(false) => det_false = true,
+            Evidence::Assigned(true) | Evidence::Determined(true) => det_true = true,
+            Evidence::Assigned(false) | Evidence::Determined(false) => det_false = true,
             Evidence::Suggested(b) => {
                 if suggested.is_none() {
                     suggested = Some(*b);
@@ -1048,6 +1052,10 @@ fn derive_evidence(tests: &[Evidence]) -> Evidence {
             }
             _ => {}
         }
+    }
+
+    if all_untested {
+        return Evidence::Untested;
     }
 
     if det_true && det_false {
@@ -1100,6 +1108,15 @@ impl HocrBlock {
         self_path: HocrPath,
         thresholds: &DetectionThresholds,
     ) {
+        // Reset all hints that are not Assigned to Untested
+        if !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) { self.hints.test_x_indent = Evidence::Untested; }
+        if !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) { self.hints.test_x_dedent = Evidence::Untested; }
+        if !matches!(self.hints.test_hyphenation, Evidence::Assigned(_)) { self.hints.test_hyphenation = Evidence::Untested; }
+        if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) { self.hints.test_y_advance = Evidence::Untested; }
+        if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) { self.hints.test_y_reverse = Evidence::Untested; }
+        if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) { self.hints.break_from_preceding = Evidence::Untested; }
+        if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) { self.hints.break_from_following = Evidence::Untested; }
+
         // 1. Low level indicators - per block
         if thresholds.use_x_indent && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) {
             let val = self.x_indent();
