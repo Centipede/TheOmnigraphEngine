@@ -6,6 +6,7 @@
       :machine-name="machineName"
       :image-base-url="imageBaseUrl"
       :minimal="minimal"
+      :show-block-hints="showBlockHints"
       hocrLevel="block"
       :interaction-update="interactionUpdate"
       :interaction-click="interactionClick"
@@ -16,7 +17,7 @@
 <script setup lang="ts">
 import { watch, onMounted } from 'vue';
 import PageCanvas from '../components/PageCanvas.vue';
-import { provideHocrContext } from '../composables/useHocr';
+import { provideHocrContext, useHocrContext } from '../composables/useHocr';
 import type { Page, PageInteractionUpdate, PageInteractionClick } from '../types';
 
 const props = defineProps<{
@@ -24,12 +25,15 @@ const props = defineProps<{
   machineName: string;
   imageBaseUrl: string;
   minimal?: boolean;
+  showBlockHints?: boolean;
   reloadTrigger?: number;
   interactionUpdate?: PageInteractionUpdate;
   interactionClick?: PageInteractionClick;
 }>();
 
-const { loadHocr } = provideHocrContext();
+// Inject parent context (shared by tools) before providing local context
+const parentContext = useHocrContext();
+const { hocrPage, loadHocr } = provideHocrContext();
 
 const reloadHocr = () => {
   if (props.page && props.machineName) {
@@ -37,6 +41,16 @@ const reloadHocr = () => {
     loadHocr(props.machineName, props.page.scan);
   }
 };
+
+// Sync from parent context when it updates (e.g. after "Auto detect")
+watch(() => parentContext.hocrPage.value, (newPage) => {
+  if (newPage && props.page) {
+    const currentStem = props.page.scan.replace(/\.[^.]+$/, '');
+    if (parentContext.stem.value === currentStem) {
+      hocrPage.value = newPage;
+    }
+  }
+});
 
 watch(() => props.page?.scan, reloadHocr);
 watch(() => props.machineName, reloadHocr);
