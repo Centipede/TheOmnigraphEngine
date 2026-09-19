@@ -1108,17 +1108,51 @@ impl HocrBlock {
         self_path: HocrPath,
         thresholds: &DetectionThresholds,
     ) {
+
         // Reset all hints that are not Assigned to Untested
         if !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) { self.hints.test_x_indent = Evidence::Untested; }
         if !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) { self.hints.test_x_dedent = Evidence::Untested; }
         if !matches!(self.hints.test_hyphenation, Evidence::Assigned(_)) { self.hints.test_hyphenation = Evidence::Untested; }
         if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) { self.hints.test_y_advance = Evidence::Untested; }
         if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) { self.hints.test_y_reverse = Evidence::Untested; }
+        if !matches!(self.hints.test_preceding_terminal, Evidence::Assigned(_)) { self.hints.test_preceding_terminal = Evidence::Untested; }
+        if !matches!(self.hints.test_following_terminal, Evidence::Assigned(_)) { self.hints.test_following_terminal = Evidence::Untested; }
         if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) { self.hints.break_from_preceding = Evidence::Untested; }
         if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) { self.hints.break_from_following = Evidence::Untested; }
 
+        // Only paragraphs participate in considerations of continuation. All headers images, lists and tables live alone and cannot be continued.
+        if !matches!(self.kind, HocrBlockKind::Paragraph) {
+            if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) { self.hints.break_from_preceding = Evidence::Determined(true); }
+            if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) { self.hints.break_from_following = Evidence::Determined(true); }
+            return;
+        }
+
+        // 0. Terminal block detection
+        if !matches!(self.hints.test_preceding_terminal, Evidence::Assigned(_)) {
+            if let Some((prev, _, _)) = preceding {
+                self.hints.test_preceding_terminal = if !matches!(prev.kind, HocrBlockKind::Paragraph) {
+                    Evidence::Determined(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
+        }
+
+        if !matches!(self.hints.test_following_terminal, Evidence::Assigned(_)) {
+            if let Some((next, _, _)) = following {
+                self.hints.test_following_terminal = if !matches!(next.kind, HocrBlockKind::Paragraph) {
+                    Evidence::Determined(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
+        }
+
+        let ignore_preceding = matches!(self.hints.test_preceding_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_preceding_terminal, Evidence::Determined(true));
+        let ignore_following = matches!(self.hints.test_following_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_following_terminal, Evidence::Determined(true));
+
         // 1. Low level indicators - per block
-        if thresholds.use_x_indent && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) {
+        if thresholds.use_x_indent && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
             let val = self.x_indent();
             self.hints.test_x_indent = if val >= thresholds.x_indent_max {
                 Evidence::Determined(true)
@@ -1129,7 +1163,7 @@ impl HocrBlock {
             };
         }
 
-        if thresholds.use_x_dedent && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) {
+        if thresholds.use_x_dedent && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
             let val = self.x_dedent();
             self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
                 Evidence::Determined(true)
@@ -1152,32 +1186,37 @@ impl HocrBlock {
 
         // 2. Low level indicators - per boundary
         if thresholds.use_y_advance {
-            if let Some((prev, prev_page, prev_path)) = preceding {
-                if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
-                    if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
-                        let val = y_advance(prev, self);
-                        self.hints.test_y_advance = if val >= thresholds.y_advance_max {
-                            Evidence::Determined(true)
-                        } else if val < thresholds.y_advance_min {
-                            Evidence::Determined(false)
-                        } else {
-                            Evidence::Suggested(true)
-                        };
+
+            if !ignore_preceding {
+                if let Some((prev, prev_page, prev_path)) = preceding {
+                    if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
+                        if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
+                            let val = y_advance(prev, self);
+                            self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
+                                Evidence::Determined(true)
+                            } else if val < thresholds.y_advance_min {
+                                Evidence::Determined(false)
+                            } else {
+                                Evidence::Suggested(true)
+                            };
+                        }
                     }
                 }
             }
 
             if let Some((next, next_page, next_path)) = following {
-                if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
-                    if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
-                        let val = y_advance(self, next);
-                        self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
-                            Evidence::Determined(true)
-                        } else if val < thresholds.y_advance_min {
-                            Evidence::Determined(false)
-                        } else {
-                            Evidence::Suggested(true)
-                        };
+                if !ignore_following {
+                    if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
+                        if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
+                            let val = y_advance(self, next);
+                            self.hints.test_y_advance = if val >= thresholds.y_advance_max {
+                                Evidence::Determined(true)
+                            } else if val < thresholds.y_advance_min {
+                                Evidence::Determined(false)
+                            } else {
+                                Evidence::Suggested(true)
+                            };
+                        }
                     }
                 }
             }
@@ -1186,13 +1225,12 @@ impl HocrBlock {
         // 3. Mid level calculations
         if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) {
             self.hints.break_from_preceding =
-                derive_evidence(&[self.hints.test_x_indent, self.hints.test_y_advance]);
+                derive_evidence(&[self.hints.test_preceding_terminal, self.hints.test_x_indent, self.hints.test_y_reverse, self.hints.test_preceding_terminal]);
         }
 
         if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) {
-            // Use test_y_reverse here because it's the space between this block and the following one
             self.hints.break_from_following =
-                derive_evidence(&[self.hints.test_x_dedent, self.hints.test_y_reverse]);
+                derive_evidence(&[self.hints.test_following_terminal, self.hints.test_x_dedent, self.hints.test_y_advance, self.hints.test_following_terminal]);
         }
     }
 

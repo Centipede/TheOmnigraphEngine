@@ -112,6 +112,12 @@ impl HocrBlock {
         if self.hints.test_y_reverse != Evidence::Untested {
             title.push_str(&format!("; test_y_reverse {}", self.hints.test_y_reverse.to_hocr_string()));
         }
+        if self.hints.test_preceding_terminal != Evidence::Untested {
+            title.push_str(&format!("; test_preceding_terminal {}", self.hints.test_preceding_terminal.to_hocr_string()));
+        }
+        if self.hints.test_following_terminal != Evidence::Untested {
+            title.push_str(&format!("; test_following_terminal {}", self.hints.test_following_terminal.to_hocr_string()));
+        }
         if self.hints.break_from_preceding != Evidence::Untested {
             title.push_str(&format!("; break_from_preceding {}", self.hints.break_from_preceding.to_hocr_string()));
         }

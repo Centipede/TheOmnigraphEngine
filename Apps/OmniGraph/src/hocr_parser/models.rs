@@ -143,6 +143,10 @@ pub struct HocrBlockHints {
     #[serde(default)]
     pub test_y_reverse: Evidence,
     #[serde(default)]
+    pub test_preceding_terminal: Evidence,
+    #[serde(default)]
+    pub test_following_terminal: Evidence,
+    #[serde(default)]
     pub break_from_preceding: Evidence,
     #[serde(default)]
     pub break_from_following: Evidence,

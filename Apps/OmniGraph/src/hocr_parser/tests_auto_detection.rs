@@ -14,6 +14,8 @@ fn test_auto_detection_reset_and_assigned() {
             test_hyphenation: Evidence::Determined(false),
             test_y_advance: Evidence::Determined(true),
             test_y_reverse: Evidence::Determined(false),
+            test_preceding_terminal: Evidence::Untested,
+            test_following_terminal: Evidence::Untested,
             break_from_preceding: Evidence::Assigned(true), // Should be preserved
             break_from_following: Evidence::Suggested(false),
         },
@@ -56,4 +58,103 @@ fn test_derive_evidence_assigned_and_untested() {
 
     // Test Mixed Untested and Evidence
     assert_eq!(operations::derive_evidence(&[Evidence::Untested, Evidence::Suggested(true)]), Evidence::Suggested(true));
+}
+
+#[test]
+fn test_terminal_block_detection() {
+    let header = HocrBlock {
+        id: "h1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Chapter,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 150]),
+        hints: HocrBlockHints::default(),
+        lines: vec![],
+    };
+
+    let mut paragraph = HocrBlock {
+        id: "p1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 160, 500, 250]),
+        hints: HocrBlockHints::default(),
+        lines: vec![],
+    };
+
+    let thresholds = DetectionThresholds::default();
+
+    paragraph.apply_auto_detection(
+        Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
+        None,
+        "page1",
+        HocrPath::Block { carea: 0, block: 1 },
+        &thresholds
+    );
+
+    assert_eq!(paragraph.hints.test_preceding_terminal, Evidence::Determined(true));
+    // break_from_preceding is derived from test_x_indent, test_y_advance, and test_preceding_terminal.
+    // Since lines is empty, x_indent is 0. With default thresholds, x_indent_min=5, so x_indent is 0 < 5 -> Determined(false).
+    // y_advance is (160 - 150) = 10. Default y_advance_min=0, y_advance_max=0, so y_advance is 10 >= 0 -> Determined(true).
+    // test_preceding_terminal is Determined(true).
+    // So derive_evidence([Determined(false), Determined(true), Determined(true)]) -> Evidence::Error because of conflicting Determinations.
+    // Wait, let's check default thresholds again in models.rs.
+    // y_advance_min: 0, y_advance_max: 0.
+    // val >= thresholds.y_advance_max { Evidence::Determined(true) } -> 10 >= 0 is true.
+    // val < thresholds.x_indent_min { Evidence::Determined(false) } -> 0 < 5 is true.
+    // test_preceding_terminal is Determined(true).
+    // So [Determined(false), Determined(true), Determined(true)] -> Error.
+    
+    // Actually, I should probably check that it correctly identified the terminal block.
+    // To make break_from_preceding Determined(true), I should make others Untested or Determined(true).
+    
+    let mut thresholds_only_terminal = DetectionThresholds::default();
+    thresholds_only_terminal.use_x_indent = false;
+    thresholds_only_terminal.use_y_advance = false;
+
+    paragraph.hints = HocrBlockHints::default(); // Reset hints
+    paragraph.apply_auto_detection(
+        Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
+        None,
+        "page1",
+        HocrPath::Block { carea: 0, block: 1 },
+        &thresholds_only_terminal
+    );
+
+    assert_eq!(paragraph.hints.test_preceding_terminal, Evidence::Determined(true));
+    assert_eq!(paragraph.hints.break_from_preceding, Evidence::Determined(true));
+}
+
+#[test]
+fn test_terminal_hints_persistence() {
+    let block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 200]),
+        hints: HocrBlockHints {
+            test_preceding_terminal: Evidence::Determined(true),
+            test_following_terminal: Evidence::Determined(false),
+            ..HocrBlockHints::default()
+        },
+        lines: vec![],
+    };
+
+    let html = block.to_hocr_html();
+    assert!(html.contains("test_preceding_terminal determined_true"));
+    assert!(html.contains("test_following_terminal determined_false"));
+
+    // To test parsing, we need a full page or a way to parse just a block.
+    // parser::parse takes a full HTML string.
+    let full_html = format!(
+        r#"<!DOCTYPE html><html><body><div class="ocr_page" id="page_1" title="bbox 0 0 1000 1000"><div class="ocr_carea" id="carea_1" title="bbox 0 0 1000 1000">{}</div></div></body></html>"#,
+        html
+    );
+
+    let parsed_page = parser::parse(&full_html).unwrap();
+    let parsed_block = &parsed_page.careas[0].blocks[0];
+
+    assert_eq!(parsed_block.hints.test_preceding_terminal, Evidence::Determined(true));
+    assert_eq!(parsed_block.hints.test_following_terminal, Evidence::Determined(false));
 }

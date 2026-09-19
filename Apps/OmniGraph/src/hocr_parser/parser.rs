@@ -134,6 +134,12 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                     if let Some(s) = block_title_map.get("test_y_reverse") {
                         hints.test_y_reverse = Evidence::from_hocr_string(s);
                     }
+                    if let Some(s) = block_title_map.get("test_preceding_terminal") {
+                        hints.test_preceding_terminal = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_following_terminal") {
+                        hints.test_following_terminal = Evidence::from_hocr_string(s);
+                    }
                     if let Some(s) = block_title_map.get("break_from_preceding") {
                         hints.break_from_preceding = Evidence::from_hocr_string(s);
                     }
