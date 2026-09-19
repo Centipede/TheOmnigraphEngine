@@ -13,3 +13,5 @@ pub use utils::{stem_from_id, count_from_id};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_auto_detection;
