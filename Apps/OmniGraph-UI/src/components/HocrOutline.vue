@@ -35,6 +35,16 @@
             <span class="hocr-toggle">{{ expandedBlocks.has(block.id) ? '▾' : '▸' }}</span>
           </div>
 
+          <!-- Hints -->
+          <div v-if="block.hints && Object.keys(block.hints).length > 0" class="hocr-hints-list">
+            <template v-for="(ev, key) in block.hints" :key="key">
+              <div v-if="ev !== 'untested' && ev !== 'undetermined'" class="hocr-hint-item" :class="getEvidenceClass(ev)">
+                <span class="hocr-hint-key">{{ key.replace('test_', '').replace('break_from_', '') }}:</span>
+                <span class="hocr-hint-value">{{ getEvidenceText(ev) }}</span>
+              </div>
+            </template>
+          </div>
+
           <!-- Lines -->
           <div v-if="expandedBlocks.has(block.id)" class="hocr-children">
             <div v-for="line in block.lines" :key="line.id" class="hocr-item">
@@ -96,10 +106,12 @@ const props = withDefaults(defineProps<{
   palette?: EditorPalette;
   flows?: FlowSchema[];
   layouts?: LayoutSchema[];
+  initialCollapseMode?: 'all' | 'block' | 'carea' | 'none';
 }>(), {
   palette: () => DEFAULT_PALETTE,
   flows: () => [],
   layouts: () => [],
+  initialCollapseMode: 'none',
 });
 
 const { hocrPage, machineName, stem, rescanCarea, rescanWord } = useHocrContext();
@@ -109,6 +121,30 @@ const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => 
 
 function indicate(id: string | null) {
   if (indicatedItemId) indicatedItemId.value = id;
+}
+
+watch(hocrPage, (newPage) => {
+  if (newPage) {
+    applyInitialCollapse();
+  }
+}, { immediate: true });
+
+function applyInitialCollapse() {
+  if (!props.initialCollapseMode || props.initialCollapseMode === 'none') return;
+
+  if (props.initialCollapseMode === 'all') {
+    collapseAll();
+  } else if (props.initialCollapseMode === 'carea') {
+    collapseAll();
+  } else if (props.initialCollapseMode === 'block') {
+    collapseToBlock();
+  }
+}
+
+function collapseToBlock() {
+  collapsedCareas.clear();
+  expandedBlocks.clear();
+  expandedLines.clear();
 }
 
 watch(selectedItemIds, () => {
@@ -146,6 +182,30 @@ function toggleLine(id: string) {
 // ── Selection ────────────────────────────────────────────────────────
 function selectNode(level: HocrLevel, id: string, e?: MouseEvent) {
   selectNodeCb(level, id, e);
+}
+
+function getEvidenceClass(ev: Evidence) {
+  if (typeof ev === 'string') {
+    return `ev-${ev}`;
+  }
+  const key = Object.keys(ev)[0];
+  const val = (ev as any)[key];
+  return `ev-${key} ev-val-${val}`;
+}
+
+function getEvidenceValue(ev: Evidence): boolean | null {
+  if (typeof ev === 'string') return null;
+  if ('suggested' in ev) return ev.suggested;
+  if ('determined' in ev) return ev.determined;
+  if ('assigned' in ev) return ev.assigned;
+  return null;
+}
+
+function getEvidenceText(ev: Evidence): string {
+  if (typeof ev === 'string') return ev;
+  const key = Object.keys(ev)[0];
+  const val = (ev as any)[key];
+  return `${val}`;
 }
 
 function rescan(careaId: string) {
@@ -426,5 +486,61 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.8rem;
   font-style: italic;
+}
+
+.hocr-hints-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.1rem 0.4rem 0.3rem 2rem;
+}
+
+.hocr-hint-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6rem;
+  padding: 0.05rem 0.3rem;
+  background: var(--color-bg-muted, #f8f9fa);
+  border-radius: 4px;
+  border: 1px solid var(--color-border-muted, #e9ecef);
+}
+
+.hocr-hint-key {
+  color: var(--color-text-dimmed, #a2acb6);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.hocr-hint-value {
+  font-weight: 700;
+}
+
+.ev-suggested {
+  color: #16a34a;
+  border-color: color-mix(in srgb, #16a34a 20%, transparent);
+  background: color-mix(in srgb, #16a34a 5%, transparent);
+}
+.ev-suggested.ev-val-false {
+  color: #a2acb6;
+  opacity: 0.6;
+}
+
+.ev-determined {
+  color: #16a34a;
+  border-color: #16a34a;
+  background: color-mix(in srgb, #16a34a 10%, transparent);
+}
+
+.ev-assigned {
+  color: #2563eb;
+  border-color: #2563eb;
+  background: color-mix(in srgb, #2563eb 10%, transparent);
+}
+
+.ev-error {
+  color: #dc2626;
+  border-color: #dc2626;
+  background: color-mix(in srgb, #dc2626 10%, transparent);
 }
 </style>

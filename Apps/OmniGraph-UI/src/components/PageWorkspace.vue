@@ -206,6 +206,7 @@
             :flows="flows"
             :layouts="layouts"
             :palette="effectivePalette"
+            :initial-collapse-mode="hocrInitialCollapseMode"
         />
       </div>
     </div><!-- end workspace-right-sidebar -->
@@ -285,11 +286,13 @@ const props = withDefaults(defineProps<{
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
       isNoHocrAcceptable?: boolean;
+      hocrInitialCollapseMode?: 'all' | 'block' | 'carea' | 'none';
     }>(), {
       canPagesBeFiltered: true,
       palette: null,
       project: null,
       isNoHocrAcceptable: true,
+      hocrInitialCollapseMode: 'none',
     }
 );
 

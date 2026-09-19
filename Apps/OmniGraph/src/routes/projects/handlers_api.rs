@@ -7,7 +7,7 @@ use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureD
 use crate::routes::projects::storage::hocr_edited_path;
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
-use crate::hocr_parser::{HocrPage, HocrBlock};
+use crate::hocr_parser::{HocrPage, HocrBlock, HocrPath};
 use crate::hocr_parser::navigation::{HocrPageProvider, preceding_block, succeeding_block};
 use axum::Json;
 use axum::extract::{Multipart, Path, Query, State};
@@ -810,16 +810,20 @@ pub async fn auto_bridge_page(
 
         let thresholds = payload.thresholds;
 
-        let mut all_blocks_by_id: std::collections::HashMap<String, HocrBlock> =
+        let mut blocks_with_paths: std::collections::HashMap<String, (HocrBlock, HocrPath)> =
             std::collections::HashMap::new();
         let mut flows_blocks: std::collections::HashMap<String, Vec<String>> =
             std::collections::HashMap::new();
 
-        for carea in &page.careas {
+        for (c_idx, carea) in page.careas.iter().enumerate() {
             if let Some(ref flow) = carea.flow {
                 let entry = flows_blocks.entry(flow.clone()).or_default();
-                for block in &carea.blocks {
-                    all_blocks_by_id.insert(block.id.clone(), block.clone());
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    let path = HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    };
+                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
                     entry.push(block.id.clone());
                 }
             }
@@ -828,24 +832,21 @@ pub async fn auto_bridge_page(
         for (_flow, ids) in flows_blocks {
             for i in 0..ids.len() {
                 let block_id = &ids[i];
-
-                let preceding = if i > 0 {
-                    all_blocks_by_id.get(&ids[i - 1])
-                } else {
-                    None
-                };
+                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
 
                 let preceding_owned = if i == 0 {
                     preceding_block(&provider, &stem, block_id)
                 } else {
                     None
                 };
-                let preceding_ref = preceding.or(preceding_owned.as_ref());
 
-                let following = if i < ids.len() - 1 {
-                    all_blocks_by_id.get(&ids[i + 1])
+                let prec_ctx = if i > 0 {
+                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
+                    Some((b, stem.as_str(), *path))
                 } else {
-                    None
+                    preceding_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
                 };
 
                 let following_owned = if i == ids.len() - 1 {
@@ -853,7 +854,15 @@ pub async fn auto_bridge_page(
                 } else {
                     None
                 };
-                let following_ref = following.or(following_owned.as_ref());
+
+                let foll_ctx = if i < ids.len() - 1 {
+                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
+                    Some((b, stem.as_str(), *path))
+                } else {
+                    following_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
 
                 if let Some(block) = page
                     .careas
@@ -861,7 +870,13 @@ pub async fn auto_bridge_page(
                     .flat_map(|c| c.blocks.iter_mut())
                     .find(|b| b.id == *block_id)
                 {
-                    block.apply_auto_detection(preceding_ref, following_ref, &thresholds);
+                    block.apply_auto_detection(
+                        prec_ctx,
+                        foll_ctx,
+                        &stem,
+                        *self_path,
+                        &thresholds,
+                    );
                 }
             }
         }
@@ -892,6 +907,7 @@ pub async fn auto_bridge_block(
 
         let preceding = preceding_block(&provider, &stem, &block_id);
         let following = succeeding_block(&provider, &stem, &block_id);
+        let self_path = page.get_block_path(&block_id);
 
         if let Some(block) = page
             .careas
@@ -899,7 +915,21 @@ pub async fn auto_bridge_block(
             .flat_map(|c| c.blocks.iter_mut())
             .find(|b| b.id == block_id)
         {
-            block.apply_auto_detection(preceding.as_ref(), following.as_ref(), &payload.thresholds);
+            let self_path = self_path?;
+            let prec_ctx = preceding
+                .as_ref()
+                .map(|(b, p, path)| (b, p.as_str(), *path));
+            let foll_ctx = following
+                .as_ref()
+                .map(|(b, p, path)| (b, p.as_str(), *path));
+
+            block.apply_auto_detection(
+                prec_ctx,
+                foll_ctx,
+                &stem,
+                self_path,
+                &payload.thresholds,
+            );
 
             let new_html = page.to_hocr_html();
             storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;
