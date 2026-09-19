@@ -998,6 +998,38 @@ impl HocrPage {
             .flat_map(|c| c.blocks.iter())
             .collect()
     }
+
+    pub fn get_block_path(&self, block_id: &str) -> Option<HocrPath> {
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            for (b_idx, block) in carea.blocks.iter().enumerate() {
+                if block.id == block_id {
+                    return Some(HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    pub fn filter_blocks_with_paths(&self, flow: &str) -> Vec<(&HocrBlock, HocrPath)> {
+        let mut results = Vec::new();
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if carea.flow.as_deref() == Some(flow) {
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    results.push((
+                        block,
+                        HocrPath::Block {
+                            carea: c_idx,
+                            block: b_idx,
+                        },
+                    ));
+                }
+            }
+        }
+        results
+    }
 }
 
 fn derive_evidence(tests: &[Evidence]) -> Evidence {
@@ -1062,8 +1094,10 @@ impl HocrBlock {
 
     pub fn apply_auto_detection(
         &mut self,
-        preceding: Option<&HocrBlock>,
-        following: Option<&HocrBlock>,
+        preceding: Option<(&HocrBlock, &str, HocrPath)>,
+        following: Option<(&HocrBlock, &str, HocrPath)>,
+        self_page_stem: &str,
+        self_path: HocrPath,
         thresholds: &DetectionThresholds,
     ) {
         // 1. Low level indicators - per block
@@ -1101,29 +1135,33 @@ impl HocrBlock {
 
         // 2. Low level indicators - per boundary
         if thresholds.use_y_advance {
-            if let Some(prev) = preceding {
-                if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
-                    let val = y_advance(prev, self);
-                    self.hints.test_y_advance = if val >= thresholds.y_advance_max {
-                        Evidence::Determined(true)
-                    } else if val < thresholds.y_advance_min {
-                        Evidence::Determined(false)
-                    } else {
-                        Evidence::Suggested(true)
-                    };
+            if let Some((prev, prev_page, prev_path)) = preceding {
+                if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
+                    if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
+                        let val = y_advance(prev, self);
+                        self.hints.test_y_advance = if val >= thresholds.y_advance_max {
+                            Evidence::Determined(true)
+                        } else if val < thresholds.y_advance_min {
+                            Evidence::Determined(false)
+                        } else {
+                            Evidence::Suggested(true)
+                        };
+                    }
                 }
             }
 
-            if let Some(next) = following {
-                if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
-                    let val = y_advance(self, next);
-                    self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
-                        Evidence::Determined(true)
-                    } else if val < thresholds.y_advance_min {
-                        Evidence::Determined(false)
-                    } else {
-                        Evidence::Suggested(true)
-                    };
+            if let Some((next, next_page, next_path)) = following {
+                if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
+                    if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
+                        let val = y_advance(self, next);
+                        self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
+                            Evidence::Determined(true)
+                        } else if val < thresholds.y_advance_min {
+                            Evidence::Determined(false)
+                        } else {
+                            Evidence::Suggested(true)
+                        };
+                    }
                 }
             }
         }

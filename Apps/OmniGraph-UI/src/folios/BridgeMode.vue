@@ -8,6 +8,7 @@
     :project="project"
     :palette="grayHintPalette"
     :keyboard-handler="onKeyDown"
+    hocr-initial-collapse-mode="block"
     @current-page-change="onPageChange"
   >
     <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette }">
