@@ -62,6 +62,8 @@ export interface OverlayItem {
     wconf?: number;
     lang?: string;
     hints?: HocrBlockHints;
+    firstWordBbox?: HocrBbox;
+    lastWordBbox?: HocrBbox;
 }
 
 export type PageInteractionUpdate = (

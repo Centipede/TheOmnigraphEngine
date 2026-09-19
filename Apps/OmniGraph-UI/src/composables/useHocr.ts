@@ -1,5 +1,6 @@
 import { ref, provide, inject, type Ref, type InjectionKey } from 'vue';
 import type { HocrPage, DetectionThresholds } from '../types/hocr';
+import { augmentHocrPageWithWordCoords } from '../utils/hocr';
 
 export interface HocrContext {
   hocrPage: Ref<HocrPage | null>;
@@ -26,7 +27,8 @@ export async function fetchHocrPage(machineName: string, stem: string, isNoHocrA
     }
     throw new Error(`Failed to load hOCR: ${resp.statusText}`);
   }
-  return await resp.json() as HocrPage;
+  const page = await resp.json() as HocrPage;
+  return augmentHocrPageWithWordCoords(page);
 }
 
 export function provideHocrContext() {
@@ -71,11 +73,13 @@ export function provideHocrContext() {
       });
       if (resp.ok) {
         const data = await resp.json();
+        let page: HocrPage;
         if (data && typeof data === 'object' && 'page' in data) {
-          hocrPage.value = data.page as HocrPage;
+          page = data.page as HocrPage;
         } else {
-          hocrPage.value = data as HocrPage;
+          page = data as HocrPage;
         }
+        hocrPage.value = augmentHocrPageWithWordCoords(page);
       } else {
         error.value = `Rescan failed: ${await resp.text()}`;
       }
@@ -99,11 +103,13 @@ export function provideHocrContext() {
       });
       if (resp.ok) {
         const data = await resp.json();
+        let page: HocrPage;
         if (data && typeof data === 'object' && 'page' in data) {
-          hocrPage.value = data.page as HocrPage;
+          page = data.page as HocrPage;
         } else {
-          hocrPage.value = data as HocrPage;
+          page = data as HocrPage;
         }
+        hocrPage.value = augmentHocrPageWithWordCoords(page);
       } else {
         error.value = `Rescan failed: ${await resp.text()}`;
       }

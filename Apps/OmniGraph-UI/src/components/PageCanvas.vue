@@ -77,6 +77,18 @@
                    class="hocr-block-evidence hocr-block-evidence--following ev-error">
                 ⚠
               </div>
+              <div v-if="item.hints.test_x_indent && getEvidenceValue(item.hints.test_x_indent) === true && item.firstWordBbox"
+                   class="hocr-block-evidence hocr-block-evidence--indent"
+                   :class="getEvidenceClass(item.hints.test_x_indent)"
+                   :style="overlayItemHintStyle(item, item.firstWordBbox, 'indent')">
+                ┌
+              </div>
+              <div v-if="item.hints.test_x_dedent && getEvidenceValue(item.hints.test_x_dedent) === true && item.lastWordBbox"
+                   class="hocr-block-evidence hocr-block-evidence--dedent"
+                   :class="getEvidenceClass(item.hints.test_x_dedent)"
+                   :style="overlayItemHintStyle(item, item.lastWordBbox, 'dedent')">
+                ┘
+              </div>
             </div>
           </div>
 
@@ -123,6 +135,7 @@ import {
   getChildren,
   getParentLevel,
   bboxContainsPoint,
+  type HocrBbox,
   type HocrLevel,
   type HocrPage,
   type OverlayItem,
@@ -366,6 +379,8 @@ const overlayItems = computed((): OverlayItem[] => {
           kind: blockKindFor(block),
           wconf: getMinWconf(block),
           hints: block.hints,
+          firstWordBbox: block.firstWordBbox,
+          lastWordBbox: block.lastWordBbox,
         });
       }
 
@@ -663,6 +678,30 @@ function getEvidenceValue(ev: Evidence): boolean | null {
   if ('determined' in ev) return ev.determined;
   if ('assigned' in ev) return ev.assigned;
   return null;
+}
+
+function overlayItemHintStyle(item: OverlayItem, wordBbox: HocrBbox, type: 'indent' | 'dedent') {
+  const [bl, bt, br, bb] = item.bbox;
+  const [wl, wt, wr, wb] = wordBbox;
+
+  const bw = br - bl;
+  const bh = bb - bt;
+
+  if (bw === 0 || bh === 0) return {};
+
+  if (type === 'indent') {
+    return {
+      left: `${((wl - bl) / bw) * 100}%`,
+      top: `${((wt - bt) / bh) * 100}%`,
+      transform: 'translate(-50%, -50%)',
+    };
+  } else {
+    return {
+      left: `${((wr - bl) / bw) * 100}%`,
+      top: `${((wb - bt) / bh) * 100}%`,
+      transform: 'translate(-50%, -50%)',
+    };
+  }
 }
 
 function hintStyle(hint: Hint) {
@@ -990,6 +1029,11 @@ function overlayItemStyle(item: OverlayItem) {
 
 .hocr-block-evidence--following {
   bottom: -0.8rem;
+}
+
+.hocr-block-evidence--indent,
+.hocr-block-evidence--dedent {
+  font-size: 1.2rem;
 }
 
 .ev-suggested { color: #22c55e; opacity: 0.5; }

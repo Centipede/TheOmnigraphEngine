@@ -70,6 +70,8 @@ export interface HocrBlock {
     lang?: string;
     hints: HocrBlockHints;
     lines: HocrLine[];
+    firstWordBbox?: HocrBbox;
+    lastWordBbox?: HocrBbox;
 }
 
 export interface HocrCarea {
