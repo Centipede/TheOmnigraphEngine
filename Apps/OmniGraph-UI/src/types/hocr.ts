@@ -53,13 +53,11 @@ export interface DetectionThresholds {
 }
 
 export interface HocrBlockHints {
-    continue_from_previous: boolean;
-    continue_to_following: boolean;
     test_x_indent?: Evidence;
     test_x_dedent?: Evidence;
+    test_hyphenation?: Evidence;
     test_y_advance?: Evidence;
     test_y_reverse?: Evidence;
-    test_hyphenation?: Evidence;
     break_from_preceding?: Evidence;
     break_from_following?: Evidence;
 }

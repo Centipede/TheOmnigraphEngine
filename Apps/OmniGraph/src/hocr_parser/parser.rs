@@ -109,11 +109,36 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             .find_map(HocrBlockKind::from_class_name)
                     }?;
                     let mut hints = HocrBlockHints::default();
+
+                    // Legacy hints
                     if block_title_map.contains_key("continue_from_previous") {
                         hints.break_from_preceding = Evidence::Assigned(false);
                     }
                     if block_title_map.contains_key("continue_to_following") {
                         hints.break_from_following = Evidence::Assigned(false);
+                    }
+
+                    // Modern hints
+                    if let Some(s) = block_title_map.get("test_x_indent") {
+                        hints.test_x_indent = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_x_dedent") {
+                        hints.test_x_dedent = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_hyphenation") {
+                        hints.test_hyphenation = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_y_advance") {
+                        hints.test_y_advance = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_y_reverse") {
+                        hints.test_y_reverse = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("break_from_preceding") {
+                        hints.break_from_preceding = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("break_from_following") {
+                        hints.break_from_following = Evidence::from_hocr_string(s);
                     }
                     let block = HocrBlock {
                         level: "block".to_string(),

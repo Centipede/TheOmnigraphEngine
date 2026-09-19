@@ -1109,12 +1109,14 @@ fn test_block_hints_parsing_and_html() {
     assert_eq!(block2.hints.break_from_following, Evidence::Untested);
 
     let html = block1.to_hocr_html();
-    assert!(html.contains("continue_from_previous"));
-    assert!(html.contains("continue_to_following"));
+    assert!(!html.contains("continue_from_previous"));
+    assert!(!html.contains("continue_to_following"));
+    assert!(html.contains("break_from_preceding assigned_false"));
+    assert!(html.contains("break_from_following assigned_false"));
     
     let html2 = block2.to_hocr_html();
-    assert!(!html2.contains("continue_from_previous"));
-    assert!(!html2.contains("continue_to_following"));
+    assert!(!html2.contains("break_from_preceding"));
+    assert!(!html2.contains("break_from_following"));
 }
 
 #[test]
@@ -1138,13 +1140,75 @@ fn test_block_hints_roundtrip() {
     let page = parse(hocr).unwrap();
     let generated_html = page.to_hocr_html();
     
-    // We don't necessarily need exact string equality because of formatting/escaping,
-    // but the hints should be there.
-    assert!(generated_html.contains("continue_from_previous"));
-    assert!(generated_html.contains("continue_to_following"));
+    // Legacy hints removed from output, modern hints added
+    assert!(!generated_html.contains("continue_from_previous"));
+    assert!(!generated_html.contains("continue_to_following"));
+    assert!(generated_html.contains("break_from_preceding assigned_false"));
+    assert!(generated_html.contains("break_from_following assigned_false"));
     
     // Parse again
     let page2 = parse(&generated_html).unwrap();
     assert_eq!(page2.careas[0].blocks[0].hints.break_from_preceding, Evidence::Assigned(false));
     assert_eq!(page2.careas[0].blocks[0].hints.break_from_following, Evidence::Assigned(false));
+}
+
+#[test]
+fn test_modern_block_hints_roundtrip() {
+    let mut hints = HocrBlockHints::default();
+    hints.test_x_indent = Evidence::Suggested(true);
+    hints.test_x_dedent = Evidence::Determined(false);
+    hints.test_hyphenation = Evidence::Assigned(true);
+    hints.test_y_advance = Evidence::Error;
+    hints.test_y_reverse = Evidence::Undetermined;
+    hints.break_from_preceding = Evidence::Assigned(false);
+    hints.break_from_following = Evidence::Assigned(true);
+
+    let block = HocrBlock {
+        level: "block".to_string(),
+        id: "par_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        hints,
+        lines: vec![],
+    };
+
+    let carea = HocrCarea {
+        level: "carea".to_string(),
+        id: "carea_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        flow: None,
+        layout: None,
+        blocks: vec![block],
+        unknowns: vec![],
+    };
+
+    let page = HocrPage {
+        level: "page".to_string(),
+        page_id: "page_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        careas: vec![carea],
+        unknowns: vec![],
+    };
+
+    let html = page.to_hocr_html();
+    
+    assert!(html.contains("test_x_indent suggested_true"));
+    assert!(html.contains("test_x_dedent determined_false"));
+    assert!(html.contains("test_hyphenation assigned_true"));
+    assert!(html.contains("test_y_advance error"));
+    assert!(html.contains("test_y_reverse undetermined"));
+    assert!(html.contains("break_from_preceding assigned_false"));
+    assert!(html.contains("break_from_following assigned_true"));
+
+    let page2 = parse(&html).unwrap();
+    let hints2 = &page2.careas[0].blocks[0].hints;
+
+    assert_eq!(hints2.test_x_indent, Evidence::Suggested(true));
+    assert_eq!(hints2.test_x_dedent, Evidence::Determined(false));
+    assert_eq!(hints2.test_hyphenation, Evidence::Assigned(true));
+    assert_eq!(hints2.test_y_advance, Evidence::Error);
+    assert_eq!(hints2.test_y_reverse, Evidence::Undetermined);
+    assert_eq!(hints2.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(hints2.break_from_following, Evidence::Assigned(true));
 }
