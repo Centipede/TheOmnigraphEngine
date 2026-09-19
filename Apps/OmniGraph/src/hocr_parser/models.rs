@@ -65,6 +65,32 @@ impl Evidence {
             _ => None,
         }
     }
+
+    pub fn to_hocr_string(&self) -> String {
+        match self {
+            Evidence::Untested => "untested".to_string(),
+            Evidence::Undetermined => "undetermined".to_string(),
+            Evidence::Suggested(b) => format!("suggested_{}", b),
+            Evidence::Determined(b) => format!("determined_{}", b),
+            Evidence::Assigned(b) => format!("assigned_{}", b),
+            Evidence::Error => "error".to_string(),
+        }
+    }
+
+    pub fn from_hocr_string(s: &str) -> Self {
+        match s {
+            "untested" => Evidence::Untested,
+            "undetermined" => Evidence::Undetermined,
+            "suggested_true" => Evidence::Suggested(true),
+            "suggested_false" => Evidence::Suggested(false),
+            "determined_true" => Evidence::Determined(true),
+            "determined_false" => Evidence::Determined(false),
+            "assigned_true" => Evidence::Assigned(true),
+            "assigned_false" => Evidence::Assigned(false),
+            "error" => Evidence::Error,
+            _ => Evidence::Untested,
+        }
+    }
 }
 
 impl Default for Evidence {
