@@ -1,43 +1,49 @@
 <template>
   <div class="detection-tools">
     <sl-details label="Detection Thresholds" open>
-      <div class="threshold-group">
-        <sl-checkbox :checked="thresholds.use_x_indent" @sl-change="thresholds.use_x_indent = $event.target.checked; onThresholdChange()">X Indent</sl-checkbox>
-        <div class="input-row">
-          <sl-input type="number" size="small" label="Min" :value="thresholds.x_indent_min" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_min = parseInt($event.target.value); onThresholdChange()" />
-          <sl-input type="number" size="small" label="Max" :value="thresholds.x_indent_max" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_max = parseInt($event.target.value); onThresholdChange()" />
-        </div>
+      <div class="threshold-row">
+        <sl-checkbox size="small" :checked="thresholds.use_x_indent" @sl-change="thresholds.use_x_indent = $event.target.checked; onThresholdChange()">X Indent</sl-checkbox>
+        <sl-tooltip content="Threshold for suggested">
+          <sl-input type="number" size="small" :value="thresholds.x_indent_min" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_min = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
+        <sl-tooltip content="Threshold for determined">
+          <sl-input type="number" size="small" :value="thresholds.x_indent_max" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_max = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
       </div>
 
-      <div class="threshold-group">
-        <sl-checkbox :checked="thresholds.use_x_dedent" @sl-change="thresholds.use_x_dedent = $event.target.checked; onThresholdChange()">X Dedent</sl-checkbox>
-        <div class="input-row">
-          <sl-input type="number" size="small" label="Min" :value="thresholds.x_dedent_min" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_min = parseInt($event.target.value); onThresholdChange()" />
-          <sl-input type="number" size="small" label="Max" :value="thresholds.x_dedent_max" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_max = parseInt($event.target.value); onThresholdChange()" />
-        </div>
+      <div class="threshold-row">
+        <sl-checkbox size="small" :checked="thresholds.use_x_dedent" @sl-change="thresholds.use_x_dedent = $event.target.checked; onThresholdChange()">X Dedent</sl-checkbox>
+        <sl-tooltip content="Threshold for suggested">
+          <sl-input type="number" size="small" :value="thresholds.x_dedent_min" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_min = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
+        <sl-tooltip content="Threshold for determined">
+          <sl-input type="number" size="small" :value="thresholds.x_dedent_max" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_max = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
       </div>
 
-      <div class="threshold-group">
-        <sl-checkbox :checked="thresholds.use_y_advance" @sl-change="thresholds.use_y_advance = $event.target.checked; onThresholdChange()">Y Advance</sl-checkbox>
-        <div class="input-row">
-          <sl-input type="number" size="small" label="Min" :value="thresholds.y_advance_min" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_min = parseInt($event.target.value); onThresholdChange()" />
-          <sl-input type="number" size="small" label="Max" :value="thresholds.y_advance_max" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_max = parseInt($event.target.value); onThresholdChange()" />
-        </div>
+      <div class="threshold-row">
+        <sl-checkbox size="small" :checked="thresholds.use_y_advance" @sl-change="thresholds.use_y_advance = $event.target.checked; onThresholdChange()">Y Advance</sl-checkbox>
+        <sl-tooltip content="Threshold for suggested">
+          <sl-input type="number" size="small" :value="thresholds.y_advance_min" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_min = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
+        <sl-tooltip content="Threshold for determined">
+          <sl-input type="number" size="small" :value="thresholds.y_advance_max" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_max = parseInt($event.target.value); onThresholdChange()" />
+        </sl-tooltip>
       </div>
 
-      <div class="threshold-group">
-        <sl-checkbox :checked="thresholds.use_hyphenation" @sl-change="thresholds.use_hyphenation = $event.target.checked; onThresholdChange()">Use Hyphenation</sl-checkbox>
+      <div class="threshold-row threshold-row--single">
+        <sl-checkbox size="small" :checked="thresholds.use_hyphenation" @sl-change="thresholds.use_hyphenation = $event.target.checked; onThresholdChange()">Hyphen</sl-checkbox>
       </div>
     </sl-details>
 
-    <div class="button-group">
+    <sl-button-group>
       <sl-button variant="primary" size="small" @click="onAutoBridgePage" :loading="hocrContext.loading.value">
-        Auto detect page
+        Auto Page
       </sl-button>
       <sl-button size="small" @click="onAutoBridgeBlock" :disabled="!selectedBlockId" :loading="hocrContext.loading.value">
-        Auto detect selected
+        Auto Block
       </sl-button>
-    </div>
+    </sl-button-group>
 
     <div v-if="selectedBlock" class="ocr-info-panel">
       <div class="ocr-info-row">
@@ -130,27 +136,81 @@ async function onAutoBridgeBlock() {
 .detection-tools {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem;
-}
-
-.threshold-group {
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid var(--sl-color-neutral-200);
-  border-radius: var(--sl-border-radius-medium);
-}
-
-.input-row {
-  display: flex;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  padding: 0.5rem;
 }
 
-.button-group {
+sl-details::part(base) {
+  border: none;
+  background: transparent;
+}
+
+sl-details::part(header) {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #6c757d);
+}
+
+sl-details::part(content) {
+  padding: 0 0.5rem 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
+}
+
+.threshold-row {
+  display: grid;
+  grid-template-columns: minmax(3rem, 1fr) minmax(2rem, 1fr) minmax(2rem, 1fr);
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 1.75rem;
+}
+
+.threshold-row--single {
+  grid-template-columns: 1fr;
+}
+
+.threshold-row sl-checkbox,
+.threshold-row sl-tooltip,
+.threshold-row sl-input {
+  min-width: 0;
+}
+
+.threshold-row sl-tooltip,
+.threshold-row sl-input {
+  display: block;
+  width: 100%;
+}
+
+.threshold-row sl-checkbox::part(label) {
+  font-size: 0.8rem;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.threshold-row sl-checkbox::part(label) {
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+sl-button-group {
+  width: 100%;
+  min-width: 0;
+}
+
+sl-button-group::part(base) {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+sl-button-group sl-button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .ocr-info-panel {
@@ -160,24 +220,23 @@ async function onAutoBridgeBlock() {
   font-size: 0.8rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.5rem;
+  gap: 0.2rem;
 }
 
 .ocr-info-row {
   display: flex;
   align-items: baseline;
   gap: 0.35rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .ocr-info-label {
   font-weight: 600;
   color: var(--color-text-muted, #6c757d);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  flex-shrink: 0;
+  flex: 0 0 4.5rem;
 }
 
 .ocr-info-value {
@@ -186,6 +245,7 @@ async function onAutoBridgeBlock() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.75rem;
 }
 
 .ocr-info-id {
@@ -194,6 +254,7 @@ async function onAutoBridgeBlock() {
 }
 
 sl-input {
-  flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 </style>
