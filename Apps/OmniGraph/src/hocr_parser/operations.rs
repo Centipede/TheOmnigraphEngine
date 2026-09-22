@@ -1152,7 +1152,7 @@ impl HocrBlock {
         let ignore_following = matches!(self.hints.test_following_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_following_terminal, Evidence::Determined(true));
 
         // 1. Low level indicators - per block
-        if thresholds.use_x_indent && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
+        if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
             let val = self.x_indent();
             self.hints.test_x_indent = if val >= thresholds.x_indent_max {
                 Evidence::Determined(true)
@@ -1163,7 +1163,7 @@ impl HocrBlock {
             };
         }
 
-        if thresholds.use_x_dedent && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
+        if thresholds.use_x_dedent && self.lines.len() > 1 && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
             let val = self.x_dedent();
             self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
                 Evidence::Determined(true)

@@ -158,3 +158,155 @@ fn test_terminal_hints_persistence() {
     assert_eq!(parsed_block.hints.test_preceding_terminal, Evidence::Determined(true));
     assert_eq!(parsed_block.hints.test_following_terminal, Evidence::Determined(false));
 }
+
+#[test]
+fn test_x_indent_dedent_omitted_for_single_line() {
+    let line = HocrLine {
+        id: "l1".to_string(),
+        level: "line".to_string(),
+        bbox: HocrBbox([110, 110, 490, 130]),
+        lang: None,
+        words: vec![],
+        baseline: None,
+        x_size: None,
+        x_descenders: None,
+        x_ascenders: None,
+    };
+    let mut block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 140]),
+        hints: HocrBlockHints::default(),
+        lines: vec![line],
+    };
+
+    let thresholds = DetectionThresholds {
+        use_x_indent: true,
+        use_x_dedent: true,
+        x_indent_min: 5,
+        x_indent_max: 15,
+        x_dedent_min: 5,
+        x_dedent_max: 15,
+        ..Default::default()
+    };
+
+    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+
+    assert_eq!(block.hints.test_x_indent, Evidence::Untested);
+    assert_eq!(block.hints.test_x_dedent, Evidence::Untested);
+}
+
+#[test]
+fn test_x_indent_dedent_omitted_for_zero_lines() {
+    let mut block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 140]),
+        hints: HocrBlockHints::default(),
+        lines: vec![],
+    };
+
+    let thresholds = DetectionThresholds {
+        use_x_indent: true,
+        use_x_dedent: true,
+        ..Default::default()
+    };
+
+    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+
+    assert_eq!(block.hints.test_x_indent, Evidence::Untested);
+    assert_eq!(block.hints.test_x_dedent, Evidence::Untested);
+}
+
+#[test]
+fn test_x_indent_dedent_included_for_multiple_lines() {
+    let line1 = HocrLine {
+        id: "l1".to_string(),
+        level: "line".to_string(),
+        bbox: HocrBbox([120, 110, 490, 130]), // x_indent = 20
+        lang: None,
+        words: vec![],
+        baseline: None,
+        x_size: None,
+        x_descenders: None,
+        x_ascenders: None,
+    };
+    let line2 = HocrLine {
+        id: "l2".to_string(),
+        level: "line".to_string(),
+        bbox: HocrBbox([100, 140, 480, 160]), // x_dedent = 20
+        lang: None,
+        words: vec![],
+        baseline: None,
+        x_size: None,
+        x_descenders: None,
+        x_ascenders: None,
+    };
+    let mut block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 170]),
+        hints: HocrBlockHints::default(),
+        lines: vec![line1, line2],
+    };
+
+    let thresholds = DetectionThresholds {
+        use_x_indent: true,
+        use_x_dedent: true,
+        x_indent_min: 5,
+        x_indent_max: 15,
+        x_dedent_min: 5,
+        x_dedent_max: 15,
+        ..Default::default()
+    };
+
+    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+
+    assert_eq!(block.hints.test_x_indent, Evidence::Determined(true)); // 20 >= 15
+    assert_eq!(block.hints.test_x_dedent, Evidence::Determined(true)); // 20 >= 15
+}
+
+#[test]
+fn test_assigned_preserved_for_single_line() {
+    let line = HocrLine {
+        id: "l1".to_string(),
+        level: "line".to_string(),
+        bbox: HocrBbox([110, 110, 490, 130]),
+        lang: None,
+        words: vec![],
+        baseline: None,
+        x_size: None,
+        x_descenders: None,
+        x_ascenders: None,
+    };
+    let mut block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 140]),
+        hints: HocrBlockHints {
+            test_x_indent: Evidence::Assigned(true),
+            test_x_dedent: Evidence::Assigned(false),
+            ..HocrBlockHints::default()
+        },
+        lines: vec![line],
+    };
+
+    let thresholds = DetectionThresholds {
+        use_x_indent: true,
+        use_x_dedent: true,
+        ..Default::default()
+    };
+
+    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+
+    assert_eq!(block.hints.test_x_indent, Evidence::Assigned(true));
+    assert_eq!(block.hints.test_x_dedent, Evidence::Assigned(false));
+}
