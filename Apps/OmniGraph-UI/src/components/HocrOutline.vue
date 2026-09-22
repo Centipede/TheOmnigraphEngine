@@ -38,9 +38,9 @@
           <!-- Hints -->
           <div v-if="block.hints && Object.keys(block.hints).length > 0" class="hocr-hints-list">
             <template v-for="(ev, key) in block.hints" :key="key">
-              <div v-if="ev !== 'untested' && ev !== 'undetermined'" class="hocr-hint-item" :class="getEvidenceClass(ev)">
+              <div v-if="ev && ev !== 'untested' && ev !== 'undetermined'" class="hocr-hint-item" :class="getEvidenceClass(ev as Evidence)">
                 <span class="hocr-hint-key">{{ key.replace('test_', '').replace('break_from_', '') }}:</span>
-                <span class="hocr-hint-value">{{ getEvidenceText(ev) }}</span>
+                <span class="hocr-hint-value">{{ getEvidenceText(ev as Evidence) }}</span>
               </div>
             </template>
           </div>
@@ -97,7 +97,7 @@
 import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
-import type { HocrLevel, HocrCarea, HocrBlock, HocrLine, HocrWord, EditorPalette } from '../types';
+import type { HocrLevel, HocrCarea, HocrBlock, HocrLine, HocrWord, EditorPalette, Evidence } from '../types';
 import { DEFAULT_PALETTE, findMultilevelById } from '../types';
 import type { FlowSchema, LayoutSchema, ColorSpecification } from '../types';
 import { applyColorSpecs } from '../utils/colors';
@@ -193,13 +193,6 @@ function getEvidenceClass(ev: Evidence) {
   return `ev-${key} ev-val-${val}`;
 }
 
-function getEvidenceValue(ev: Evidence): boolean | null {
-  if (typeof ev === 'string') return null;
-  if ('suggested' in ev) return ev.suggested;
-  if ('determined' in ev) return ev.determined;
-  if ('assigned' in ev) return ev.assigned;
-  return null;
-}
 
 function getEvidenceText(ev: Evidence): string {
   if (typeof ev === 'string') return ev;

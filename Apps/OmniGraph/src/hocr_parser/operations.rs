@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::hocr_parser::models::*;
 use crate::hocr_parser::utils::*;
 use crate::hocr_parser::parser::find_node;
+use crate::hocr_parser::navigation::{HocrPageProvider, preceding_block, succeeding_block};
 
 impl HocrPage {
     // -- HIGHER ORDER OPERATIONS --
@@ -47,6 +48,133 @@ impl HocrPage {
             }
         }
     }
+    pub fn calculate_all_metrics(&mut self, provider: &dyn HocrPageProvider, stem: &str) {
+        let mut blocks_with_paths: HashMap<String, (HocrBlock, HocrPath)> = HashMap::new();
+        let mut flows_blocks: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if let Some(ref flow) = carea.flow {
+                let entry = flows_blocks.entry(flow.clone()).or_default();
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    let path = HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    };
+                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
+                    entry.push(block.id.clone());
+                }
+            }
+        }
+
+        for (_flow, ids) in flows_blocks {
+            for i in 0..ids.len() {
+                let block_id = &ids[i];
+                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
+
+                let preceding_owned = if i == 0 {
+                    preceding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let prec_ctx = if i > 0 {
+                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    preceding_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                let following_owned = if i == ids.len() - 1 {
+                    succeeding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let foll_ctx = if i < ids.len() - 1 {
+                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    following_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                if let Some(path) = self.get_block_path(block_id) {
+                    if let HocrPath::Block { carea, block } = path {
+                        self.careas[carea].blocks[block].update_metrics(prec_ctx, foll_ctx, stem, *self_path);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn apply_auto_detection_to_all_blocks(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds) {
+        // First ensure metrics are calculated
+        self.calculate_all_metrics(provider, stem);
+
+        let mut blocks_with_paths: HashMap<String, (HocrBlock, HocrPath)> = HashMap::new();
+        let mut flows_blocks: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if let Some(ref flow) = carea.flow {
+                let entry = flows_blocks.entry(flow.clone()).or_default();
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    let path = HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    };
+                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
+                    entry.push(block.id.clone());
+                }
+            }
+        }
+
+        for (_flow, ids) in flows_blocks {
+            for i in 0..ids.len() {
+                let block_id = &ids[i];
+                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
+
+                let preceding_owned = if i == 0 {
+                    preceding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let prec_ctx = if i > 0 {
+                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    preceding_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                let following_owned = if i == ids.len() - 1 {
+                    succeeding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let foll_ctx = if i < ids.len() - 1 {
+                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    following_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                if let Some(path) = self.get_block_path(block_id) {
+                    if let HocrPath::Block { carea, block } = path {
+                        self.careas[carea].blocks[block].apply_auto_detection(prec_ctx, foll_ctx, stem, *self_path, thresholds);
+                    }
+                }
+            }
+        }
+    }
+
     pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
         for bbox in bboxes {
             // Add as an image block, letting the engine find the best carea/vertical position
@@ -668,6 +796,7 @@ impl HocrPage {
             id: new_id,
             bbox: HocrBbox::empty(),
             hints: HocrBlockHints::default(),
+            metrics: None,
             lines: right.to_vec(),
         };
         old_block.lines.truncate(line_after);
@@ -831,6 +960,7 @@ impl HocrPage {
                     lang: None,
                     bbox,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 };
 
@@ -882,6 +1012,7 @@ impl HocrPage {
                     lang: None,
                     bbox,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 });
 
@@ -1100,14 +1231,55 @@ impl HocrBlock {
             || last_word.text.ends_with('–')
     }
 
-    pub fn apply_auto_detection(
+    pub fn update_metrics(
         &mut self,
         preceding: Option<(&HocrBlock, &str, HocrPath)>,
         following: Option<(&HocrBlock, &str, HocrPath)>,
         self_page_stem: &str,
         self_path: HocrPath,
+    ) {
+        let x_indent = self.x_indent();
+        let x_dedent = self.x_dedent();
+        let has_final_hyphen = self.test_hyphenation();
+
+        let mut y_reverse = None;
+        if let Some((prev, prev_page, prev_path)) = preceding {
+            if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
+                y_reverse = Some(y_advance(prev, self));
+            }
+        }
+
+        let mut y_advance_val = None;
+        if let Some((next, next_page, next_path)) = following {
+            if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
+                y_advance_val = Some(y_advance(self, next));
+            }
+        }
+
+        self.metrics = Some(HocrBlockMetrics {
+            x_indent,
+            x_dedent,
+            y_advance: y_advance_val,
+            y_reverse,
+            has_final_hyphen,
+        });
+    }
+
+    pub fn apply_auto_detection(
+        &mut self,
+        preceding: Option<(&HocrBlock, &str, HocrPath)>,
+        following: Option<(&HocrBlock, &str, HocrPath)>,
+        _self_page_stem: &str,
+        _self_path: HocrPath,
         thresholds: &DetectionThresholds,
     ) {
+        if self.metrics.is_none() {
+            // Should have metrics calculated before calling this if we want to use them.
+            // But for safety/backward compat, we could calculate them here if missing,
+            // though the goal is to decouple.
+            // For now, I'll assume metrics might be missing if not pre-calculated.
+            // But wait, the plan says simplified to consume self.metrics.
+        }
 
         // Reset all hints that are not Assigned to Untested
         if !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) { self.hints.test_x_indent = Evidence::Untested; }
@@ -1151,47 +1323,45 @@ impl HocrBlock {
         let ignore_preceding = matches!(self.hints.test_preceding_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_preceding_terminal, Evidence::Determined(true));
         let ignore_following = matches!(self.hints.test_following_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_following_terminal, Evidence::Determined(true));
 
-        // 1. Low level indicators - per block
-        if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
-            let val = self.x_indent();
-            self.hints.test_x_indent = if val >= thresholds.x_indent_max {
-                Evidence::Determined(true)
-            } else if val < thresholds.x_indent_min {
-                Evidence::Determined(false)
-            } else {
-                Evidence::Suggested(true)
-            };
-        }
+        if let Some(ref m) = self.metrics {
+            // 1. Low level indicators - per block
+            if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
+                let val = m.x_indent;
+                self.hints.test_x_indent = if val >= thresholds.x_indent_max {
+                    Evidence::Determined(true)
+                } else if val < thresholds.x_indent_min {
+                    Evidence::Determined(false)
+                } else {
+                    Evidence::Suggested(true)
+                };
+            }
 
-        if thresholds.use_x_dedent && self.lines.len() > 1 && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
-            let val = self.x_dedent();
-            self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
-                Evidence::Determined(true)
-            } else if val < thresholds.x_dedent_min {
-                Evidence::Determined(false)
-            } else {
-                Evidence::Suggested(true)
-            };
-        }
+            if thresholds.use_x_dedent && self.lines.len() > 1 && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
+                let val = m.x_dedent;
+                self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
+                    Evidence::Determined(true)
+                } else if val < thresholds.x_dedent_min {
+                    Evidence::Determined(false)
+                } else {
+                    Evidence::Suggested(true)
+                };
+            }
 
-        if thresholds.use_hyphenation
-            && !matches!(self.hints.test_hyphenation, Evidence::Assigned(_))
-        {
-            self.hints.test_hyphenation = if self.test_hyphenation() {
-                Evidence::Suggested(true)
-            } else {
-                Evidence::Suggested(false)
-            };
-        }
+            if thresholds.use_hyphenation
+                && !matches!(self.hints.test_hyphenation, Evidence::Assigned(_))
+            {
+                self.hints.test_hyphenation = if m.has_final_hyphen {
+                    Evidence::Suggested(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
 
-        // 2. Low level indicators - per boundary
-        if thresholds.use_y_advance {
-
-            if !ignore_preceding {
-                if let Some((prev, prev_page, prev_path)) = preceding {
-                    if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
+            // 2. Low level indicators - per boundary
+            if thresholds.use_y_advance {
+                if !ignore_preceding {
+                    if let Some(val) = m.y_reverse {
                         if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
-                            let val = y_advance(prev, self);
                             self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
                                 Evidence::Determined(true)
                             } else if val < thresholds.y_advance_min {
@@ -1202,13 +1372,10 @@ impl HocrBlock {
                         }
                     }
                 }
-            }
 
-            if let Some((next, next_page, next_path)) = following {
                 if !ignore_following {
-                    if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
+                    if let Some(val) = m.y_advance {
                         if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
-                            let val = y_advance(self, next);
                             self.hints.test_y_advance = if val >= thresholds.y_advance_max {
                                 Evidence::Determined(true)
                             } else if val < thresholds.y_advance_min {

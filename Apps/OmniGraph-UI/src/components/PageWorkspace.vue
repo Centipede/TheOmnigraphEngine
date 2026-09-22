@@ -711,7 +711,7 @@ watch(currentPage, (page) => {
   emit('currentPageChange', page);
   if (page) {
     const stem = page.scan.replace(/\.[^.]+$/, '');
-    hocrContext.loadHocr(props.machineName, stem, props.isNoHocrAcceptable);
+    hocrContext.loadHocr(props.machineName, stem, { isNoHocrAcceptable: props.isNoHocrAcceptable });
   } else {
     hocrContext.clearHocr();
   }

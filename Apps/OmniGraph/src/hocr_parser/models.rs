@@ -153,6 +153,15 @@ pub struct HocrBlockHints {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HocrBlockMetrics {
+    pub x_indent: i32,
+    pub x_dedent: i32,
+    pub y_advance: Option<i32>,
+    pub y_reverse: Option<i32>,
+    pub has_final_hyphen: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HocrBlock {
     #[serde(default = "block_level", skip_deserializing)]
     pub level: String,
@@ -162,6 +171,8 @@ pub struct HocrBlock {
     pub lang: Option<String>,
     #[serde(default)]
     pub hints: HocrBlockHints,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<HocrBlockMetrics>,
     pub kind: HocrBlockKind,
     pub lines: Vec<HocrLine>,
 }

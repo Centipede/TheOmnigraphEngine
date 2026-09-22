@@ -38,19 +38,54 @@
         Auto detect selected
       </sl-button>
     </div>
+
+    <div v-if="selectedBlock" class="ocr-info-panel">
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">ID</span>
+        <span class="ocr-info-value ocr-info-id">{{ selectedBlock.id }}</span>
+      </div>
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">x_indent</span>
+        <span class="ocr-info-value">{{ selectedBlock.metrics?.x_indent ?? '—' }}</span>
+      </div>
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">x_dedent</span>
+        <span class="ocr-info-value">{{ selectedBlock.metrics?.x_dedent ?? '—' }}</span>
+      </div>
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">y_advance</span>
+        <span class="ocr-info-value">{{ selectedBlock.metrics?.y_advance ?? '—' }}</span>
+      </div>
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">y_reverse</span>
+        <span class="ocr-info-value">{{ selectedBlock.metrics?.y_reverse ?? '—' }}</span>
+      </div>
+      <div class="ocr-info-row">
+        <span class="ocr-info-label">has_hyphen</span>
+        <span class="ocr-info-value">{{ selectedBlock.metrics ? (selectedBlock.metrics.has_final_hyphen ? 'Yes' : 'No') : '—' }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
-import type { DetectionThresholds } from '../types/hocr';
+import type { DetectionThresholds, HocrBlock } from '../types/hocr';
+import { findItem } from '../types/hocr';
 
 const props = defineProps<{
   selectedBlockId: string | null;
 }>();
 
 const hocrContext = useHocrContext();
+
+const selectedBlock = computed(() => {
+  if (!props.selectedBlockId || !hocrContext.hocrPage.value) return null;
+  const item = findItem(hocrContext.hocrPage.value, props.selectedBlockId);
+  if (item && item.level === 'block') return item as HocrBlock;
+  return null;
+});
 
 const thresholds = reactive<DetectionThresholds>({
   x_indent_min: 5,
@@ -116,6 +151,46 @@ async function onAutoBridgeBlock() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.ocr-info-panel {
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.ocr-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.ocr-info-label {
+  font-weight: 600;
+  color: var(--color-text-muted, #6c757d);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ocr-info-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-info-id {
+  font-family: ui-monospace, monospace;
+  color: var(--color-text-dimmed, #a2acb6);
 }
 
 sl-input {

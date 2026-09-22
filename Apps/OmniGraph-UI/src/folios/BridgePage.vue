@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted } from 'vue';
+import { watch, onMounted, inject, type Ref } from 'vue';
 import PageCanvas from '../components/PageCanvas.vue';
 import { provideHocrContext, useHocrContext } from '../composables/useHocr';
 import type { Page, PageInteractionUpdate, PageInteractionClick } from '../types';
@@ -33,12 +33,13 @@ const props = defineProps<{
 
 // Inject parent context (shared by tools) before providing local context
 const parentContext = useHocrContext();
+const selectedPageScan = inject<Ref<string | null>>('selectedPageScan');
 const { hocrPage, loadHocr } = provideHocrContext();
 
 const reloadHocr = () => {
   if (props.page && props.machineName) {
     // page.scan is used as the stem for HOCR loading
-    loadHocr(props.machineName, props.page.scan);
+    loadHocr(props.machineName, props.page.scan, { block_metrics: true });
   }
 };
 
@@ -51,6 +52,15 @@ watch(() => parentContext.hocrPage.value, (newPage) => {
     }
   }
 });
+
+// Sync to parent context when this page is selected
+watch([() => hocrPage.value, () => selectedPageScan?.value], ([newHocr, selectedScan]) => {
+  if (selectedScan === props.page?.scan && newHocr) {
+    parentContext.updateHocr(newHocr);
+    parentContext.machineName.value = props.machineName;
+    parentContext.stem.value = props.page.scan.replace(/\.[^.]+$/, '');
+  }
+}, { immediate: true });
 
 watch(() => props.page?.scan, reloadHocr);
 watch(() => props.machineName, reloadHocr);

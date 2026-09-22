@@ -7,8 +7,8 @@ use crate::routes::projects::models::{IMPORT_ORDER_GAP, Page, PageDb, StructureD
 use crate::routes::projects::storage::hocr_edited_path;
 use crate::routes::projects::{images, storage};
 use crate::state::AppState;
-use crate::hocr_parser::{HocrPage, HocrBlock, HocrPath};
-use crate::hocr_parser::navigation::{HocrPageProvider, preceding_block, succeeding_block};
+use crate::hocr_parser::ParserConfig;
+use crate::hocr_parser::navigation::{preceding_block, succeeding_block};
 use axum::Json;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::http::StatusCode;
@@ -125,7 +125,7 @@ pub async fn put_project_metadata(
                 storage::hocr_active_path(&state.projects_dir, &machine_name, &page.scan)
             {
                 if let Ok(html) = std::fs::read_to_string(&hocr_path) {
-                    if let Some(hocr_page) = crate::hocr_parser::parse(&html) {
+                    if let Some(hocr_page) = crate::hocr_parser::parse(&html, ParserConfig::default()) {
                         let page_label = if page.name.is_empty() {
                             page.scan.clone()
                         } else {
@@ -312,6 +312,7 @@ pub async fn post_remove_images(
 pub async fn get_hocr_json(
     State(state): State<AppState>,
     Path((machine_name, stem)): Path<(String, String)>,
+    Query(config): Query<ParserConfig>,
 ) -> impl IntoResponse {
     let Some(hocr_path) = storage::hocr_active_path(&state.projects_dir, &machine_name, &stem)
     else {
@@ -323,9 +324,23 @@ pub async fn get_hocr_json(
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
-        .await
-        .unwrap_or(None);
+    let projects_dir = state.projects_dir().clone();
+    let machine_name_clone = machine_name.clone();
+    let stem_clone = stem.clone();
+
+    let page = tokio::task::spawn_blocking(move || {
+        let mut p = crate::hocr_parser::parse(&html, config.clone())?;
+        if config.block_metrics {
+            if let Some(provider) =
+                crate::hocr_parser::FileSystemPageProvider::new(projects_dir, &machine_name_clone)
+            {
+                p.calculate_all_metrics(&provider, &stem_clone);
+            }
+        }
+        Some(p)
+    })
+    .await
+    .unwrap_or(None);
 
     match page {
         Some(mut p) => {
@@ -495,7 +510,7 @@ pub async fn scan_pages_post(
                 let hints = page.hints.clone();
                 let hocr_str = original_hocr.clone();
                 let result = tokio::task::spawn_blocking(move || {
-                    let mut hocr_page = crate::hocr_parser::parse(&hocr_str)?;
+                    let mut hocr_page = crate::hocr_parser::parse(&hocr_str, ParserConfig::default())?;
                     let mut dropcaps = Vec::new();
                     let mut images = Vec::new();
 
@@ -624,7 +639,7 @@ pub async fn save_all_pages(
         if let Some(active_path) = storage::hocr_active_path(&state.projects_dir, &machine_name, &page.scan) {
             match fs::read_to_string(&active_path).await {
                 Ok(html) => {
-                    if let Some(hocr_page) = crate::hocr_parser::parse(&html) {
+                    if let Some(hocr_page) = crate::hocr_parser::parse(&html, ParserConfig::default()) {
                         let normalized_html = hocr_page.to_hocr_html();
                         match storage::save_hocr_edited(&state.projects_dir, &machine_name, &page.scan, &normalized_html) {
                             Ok(_) => success_count += 1,
@@ -728,7 +743,7 @@ pub async fn auto_flow(
         let layouts = layouts.clone();
         let carea_ids = carea_ids.clone();
         let result = tokio::task::spawn_blocking(move || {
-            let mut page = crate::hocr_parser::parse(&html)?;
+            let mut page = crate::hocr_parser::parse(&html, ParserConfig::default())?;
             page.auto_flow(flows, layouts, true, carea_ids);
             Some(page.to_hocr_html())
         })
@@ -752,49 +767,6 @@ pub async fn auto_flow(
     StatusCode::OK.into_response()
 }
 
-struct DiskPageProvider {
-    projects_dir: std::path::PathBuf,
-    machine_name: String,
-    page_order: Vec<String>,
-}
-
-impl DiskPageProvider {
-    fn new(projects_dir: std::path::PathBuf, machine_name: &str) -> Option<Self> {
-        let pagedb_path = projects_dir
-            .join(machine_name)
-            .join("pages")
-            .join("pagedata.json");
-        let pagedb = storage::load_page_db(&pagedb_path);
-
-        let page_order = pagedb
-            .pages
-            .iter()
-            .filter_map(|page| {
-                std::path::Path::new(&page.scan)
-                    .file_stem()
-                    .and_then(|stem| stem.to_str())
-                    .map(str::to_string)
-            })
-            .collect();
-        Some(Self {
-            projects_dir,
-            machine_name: machine_name.to_string(),
-            page_order,
-        })
-    }
-}
-
-impl HocrPageProvider for DiskPageProvider {
-    fn get_page(&self, page_id: &str) -> Option<HocrPage> {
-        let hocr_path = storage::hocr_active_path(&self.projects_dir, &self.machine_name, page_id)?;
-        let html = std::fs::read_to_string(&hocr_path).ok()?;
-        crate::hocr_parser::parse(&html)
-    }
-
-    fn get_page_order(&self) -> Vec<String> {
-        self.page_order.clone()
-    }
-}
 
 pub async fn auto_bridge_page(
     State(state): State<AppState>,
@@ -803,83 +775,13 @@ pub async fn auto_bridge_page(
 ) -> impl IntoResponse {
     let projects_dir = state.projects_dir().clone();
     let result = tokio::task::spawn_blocking(move || {
-        let provider = DiskPageProvider::new(projects_dir.clone(), &machine_name)?;
+        let provider =
+            crate::hocr_parser::FileSystemPageProvider::new(projects_dir.clone(), &machine_name)?;
         let hocr_path = storage::hocr_active_path(&projects_dir, &machine_name, &stem)?;
         let html = std::fs::read_to_string(&hocr_path).ok()?;
-        let mut page = crate::hocr_parser::parse(&html)?;
+        let mut page = crate::hocr_parser::parse(&html, ParserConfig::default())?;
 
-        let thresholds = payload.thresholds;
-
-        let mut blocks_with_paths: std::collections::HashMap<String, (HocrBlock, HocrPath)> =
-            std::collections::HashMap::new();
-        let mut flows_blocks: std::collections::HashMap<String, Vec<String>> =
-            std::collections::HashMap::new();
-
-        for (c_idx, carea) in page.careas.iter().enumerate() {
-            if let Some(ref flow) = carea.flow {
-                let entry = flows_blocks.entry(flow.clone()).or_default();
-                for (b_idx, block) in carea.blocks.iter().enumerate() {
-                    let path = HocrPath::Block {
-                        carea: c_idx,
-                        block: b_idx,
-                    };
-                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
-                    entry.push(block.id.clone());
-                }
-            }
-        }
-
-        for (_flow, ids) in flows_blocks {
-            for i in 0..ids.len() {
-                let block_id = &ids[i];
-                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
-
-                let preceding_owned = if i == 0 {
-                    preceding_block(&provider, &stem, block_id)
-                } else {
-                    None
-                };
-
-                let prec_ctx = if i > 0 {
-                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
-                    Some((b, stem.as_str(), *path))
-                } else {
-                    preceding_owned
-                        .as_ref()
-                        .map(|(b, p, path)| (b, p.as_str(), *path))
-                };
-
-                let following_owned = if i == ids.len() - 1 {
-                    succeeding_block(&provider, &stem, block_id)
-                } else {
-                    None
-                };
-
-                let foll_ctx = if i < ids.len() - 1 {
-                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
-                    Some((b, stem.as_str(), *path))
-                } else {
-                    following_owned
-                        .as_ref()
-                        .map(|(b, p, path)| (b, p.as_str(), *path))
-                };
-
-                if let Some(block) = page
-                    .careas
-                    .iter_mut()
-                    .flat_map(|c| c.blocks.iter_mut())
-                    .find(|b| b.id == *block_id)
-                {
-                    block.apply_auto_detection(
-                        prec_ctx,
-                        foll_ctx,
-                        &stem,
-                        *self_path,
-                        &thresholds,
-                    );
-                }
-            }
-        }
+        page.apply_auto_detection_to_all_blocks(&provider, &stem, &payload.thresholds);
 
         let new_html = page.to_hocr_html();
         storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;
@@ -900,10 +802,11 @@ pub async fn auto_bridge_block(
 ) -> impl IntoResponse {
     let projects_dir = state.projects_dir().clone();
     let result = tokio::task::spawn_blocking(move || {
-        let provider = DiskPageProvider::new(projects_dir.clone(), &machine_name)?;
+        let provider =
+            crate::hocr_parser::FileSystemPageProvider::new(projects_dir.clone(), &machine_name)?;
         let hocr_path = storage::hocr_active_path(&projects_dir, &machine_name, &stem)?;
         let html = std::fs::read_to_string(&hocr_path).ok()?;
-        let mut page = crate::hocr_parser::parse(&html)?;
+        let mut page = crate::hocr_parser::parse(&html, ParserConfig::default())?;
 
         let preceding = preceding_block(&provider, &stem, &block_id);
         let following = succeeding_block(&provider, &stem, &block_id);
@@ -916,20 +819,11 @@ pub async fn auto_bridge_block(
             .find(|b| b.id == block_id)
         {
             let self_path = self_path?;
-            let prec_ctx = preceding
-                .as_ref()
-                .map(|(b, p, path)| (b, p.as_str(), *path));
-            let foll_ctx = following
-                .as_ref()
-                .map(|(b, p, path)| (b, p.as_str(), *path));
+            let prec_ctx = preceding.as_ref().map(|(b, p, path)| (b, p.as_str(), *path));
+            let foll_ctx = following.as_ref().map(|(b, p, path)| (b, p.as_str(), *path));
 
-            block.apply_auto_detection(
-                prec_ctx,
-                foll_ctx,
-                &stem,
-                self_path,
-                &payload.thresholds,
-            );
+            block.update_metrics(prec_ctx, foll_ctx, &stem, self_path);
+            block.apply_auto_detection(prec_ctx, foll_ctx, &stem, self_path, &payload.thresholds);
 
             let new_html = page.to_hocr_html();
             storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;

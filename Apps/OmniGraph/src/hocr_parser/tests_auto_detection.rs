@@ -19,6 +19,7 @@ fn test_auto_detection_reset_and_assigned() {
             break_from_preceding: Evidence::Assigned(true), // Should be preserved
             break_from_following: Evidence::Suggested(false),
         },
+        metrics: None,
         lines: vec![],
     };
 
@@ -35,6 +36,7 @@ fn test_auto_detection_reset_and_assigned() {
         use_y_advance: false,
     };
 
+    block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
     block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
@@ -69,6 +71,7 @@ fn test_terminal_block_detection() {
         lang: None,
         bbox: HocrBbox([100, 100, 500, 150]),
         hints: HocrBlockHints::default(),
+        metrics: None,
         lines: vec![],
     };
 
@@ -79,11 +82,18 @@ fn test_terminal_block_detection() {
         lang: None,
         bbox: HocrBbox([100, 160, 500, 250]),
         hints: HocrBlockHints::default(),
+        metrics: None,
         lines: vec![],
     };
 
     let thresholds = DetectionThresholds::default();
 
+    paragraph.update_metrics(
+        Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
+        None,
+        "page1",
+        HocrPath::Block { carea: 0, block: 1 },
+    );
     paragraph.apply_auto_detection(
         Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
         None,
@@ -113,6 +123,12 @@ fn test_terminal_block_detection() {
     thresholds_only_terminal.use_y_advance = false;
 
     paragraph.hints = HocrBlockHints::default(); // Reset hints
+    paragraph.update_metrics(
+        Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
+        None,
+        "page1",
+        HocrPath::Block { carea: 0, block: 1 },
+    );
     paragraph.apply_auto_detection(
         Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
         None,
@@ -138,6 +154,7 @@ fn test_terminal_hints_persistence() {
             test_following_terminal: Evidence::Determined(false),
             ..HocrBlockHints::default()
         },
+        metrics: None,
         lines: vec![],
     };
 
@@ -152,7 +169,7 @@ fn test_terminal_hints_persistence() {
         html
     );
 
-    let parsed_page = parser::parse(&full_html).unwrap();
+    let parsed_page = parser::parse(&full_html, parser::ParserConfig::default()).unwrap();
     let parsed_block = &parsed_page.careas[0].blocks[0];
 
     assert_eq!(parsed_block.hints.test_preceding_terminal, Evidence::Determined(true));
@@ -179,6 +196,7 @@ fn test_x_indent_dedent_omitted_for_single_line() {
         lang: None,
         bbox: HocrBbox([100, 100, 500, 140]),
         hints: HocrBlockHints::default(),
+        metrics: None,
         lines: vec![line],
     };
 
@@ -192,6 +210,7 @@ fn test_x_indent_dedent_omitted_for_single_line() {
         ..Default::default()
     };
 
+    block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
     block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
@@ -207,6 +226,7 @@ fn test_x_indent_dedent_omitted_for_zero_lines() {
         lang: None,
         bbox: HocrBbox([100, 100, 500, 140]),
         hints: HocrBlockHints::default(),
+        metrics: None,
         lines: vec![],
     };
 
@@ -216,6 +236,7 @@ fn test_x_indent_dedent_omitted_for_zero_lines() {
         ..Default::default()
     };
 
+    block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
     block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
@@ -253,6 +274,7 @@ fn test_x_indent_dedent_included_for_multiple_lines() {
         lang: None,
         bbox: HocrBbox([100, 100, 500, 170]),
         hints: HocrBlockHints::default(),
+        metrics: None,
         lines: vec![line1, line2],
     };
 
@@ -266,6 +288,7 @@ fn test_x_indent_dedent_included_for_multiple_lines() {
         ..Default::default()
     };
 
+    block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
     block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Determined(true)); // 20 >= 15
@@ -296,6 +319,7 @@ fn test_assigned_preserved_for_single_line() {
             test_x_dedent: Evidence::Assigned(false),
             ..HocrBlockHints::default()
         },
+        metrics: None,
         lines: vec![line],
     };
 
@@ -305,6 +329,7 @@ fn test_assigned_preserved_for_single_line() {
         ..Default::default()
     };
 
+    block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
     block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Assigned(true));

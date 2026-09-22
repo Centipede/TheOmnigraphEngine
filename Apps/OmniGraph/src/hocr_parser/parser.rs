@@ -1,6 +1,15 @@
 use std::collections::HashMap;
 use scraper::{ElementRef, Html, Selector};
+use serde::{Deserialize, Serialize};
 use crate::hocr_parser::models::*;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ParserConfig {
+    #[serde(default)]
+    pub block_metrics: bool,
+    #[serde(default)]
+    pub line_metrics: bool,
+}
 
 pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown> {
     el.child_elements()
@@ -9,7 +18,7 @@ pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown>
         .collect()
 }
 
-pub fn parse(html: &str) -> Option<HocrPage> {
+pub fn parse(html: &str, _config: ParserConfig) -> Option<HocrPage> {
     let document = Html::parse_document(html);
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
@@ -152,6 +161,7 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                         bbox: block_bbox,
                         lang: block_lang,
                         hints,
+                        metrics: None,
                         kind,
                         lines,
                     };

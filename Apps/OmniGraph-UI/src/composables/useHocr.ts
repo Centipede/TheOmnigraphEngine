@@ -2,13 +2,18 @@ import { ref, provide, inject, type Ref, type InjectionKey } from 'vue';
 import type { HocrPage, DetectionThresholds } from '../types/hocr';
 import { augmentHocrPageWithWordCoords } from '../utils/hocr';
 
+export interface LoadHocrOptions {
+  isNoHocrAcceptable?: boolean;
+  block_metrics?: boolean;
+}
+
 export interface HocrContext {
   hocrPage: Ref<HocrPage | null>;
   machineName: Ref<string | null>;
   stem: Ref<string | null>;
   loading: Ref<boolean>;
   error: Ref<string | null>;
-  loadHocr: (machineName: string, stem: string, isNoHocrAcceptable?: boolean) => Promise<void>;
+  loadHocr: (machineName: string, stem: string, options?: LoadHocrOptions) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
   autoBridgePage: (thresholds: DetectionThresholds) => Promise<void>;
@@ -19,10 +24,15 @@ export interface HocrContext {
 
 const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
 
-export async function fetchHocrPage(machineName: string, stem: string, isNoHocrAcceptable = true): Promise<HocrPage | null> {
-  const resp = await fetch(`/api/projects/${machineName}/pages/${stem}/hocr-json`);
+export async function fetchHocrPage(machineName: string, stem: string, options: LoadHocrOptions = { isNoHocrAcceptable: true }): Promise<HocrPage | null> {
+  const params = new URLSearchParams();
+  if (options.block_metrics) params.append('block_metrics', 'true');
+  const query = params.toString();
+  const url = `/api/projects/${machineName}/pages/${stem}/hocr-json${query ? `?${query}` : ''}`;
+
+  const resp = await fetch(url);
   if (!resp.ok) {
-    if (resp.status === 404 && isNoHocrAcceptable) {
+    if (resp.status === 404 && options.isNoHocrAcceptable) {
       return null;
     }
     throw new Error(`Failed to load hOCR: ${resp.statusText}`);
@@ -38,7 +48,7 @@ export function provideHocrContext() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function loadHocr(mName: string, sName: string, isNoHocrAcceptable = true) {
+  async function loadHocr(mName: string, sName: string, options: LoadHocrOptions = { isNoHocrAcceptable: true }) {
     if (!mName || !sName) {
       hocrPage.value = null;
       machineName.value = null;
@@ -51,7 +61,7 @@ export function provideHocrContext() {
     machineName.value = mName;
     stem.value = sName;
     try {
-      hocrPage.value = await fetchHocrPage(mName, sName, isNoHocrAcceptable);
+      hocrPage.value = await fetchHocrPage(mName, sName, options);
     } catch (e) {
       hocrPage.value = null;
       error.value = e instanceof Error ? e.message : String(e);
@@ -133,7 +143,7 @@ export function provideHocrContext() {
         body: JSON.stringify({ thresholds })
       });
       if (resp.ok) {
-        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, false);
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { isNoHocrAcceptable: false });
       } else {
         error.value = `Auto-bridge page failed: ${await resp.text()}`;
       }
@@ -157,7 +167,7 @@ export function provideHocrContext() {
         body: JSON.stringify({ thresholds })
       });
       if (resp.ok) {
-        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, false);
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { isNoHocrAcceptable: false });
       } else {
         error.value = `Auto-bridge block failed: ${await resp.text()}`;
       }

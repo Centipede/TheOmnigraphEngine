@@ -62,6 +62,14 @@ export interface HocrBlockHints {
     break_from_following?: Evidence;
 }
 
+export interface HocrBlockMetrics {
+    x_indent: number;
+    x_dedent: number;
+    y_advance: number | null;
+    y_reverse: number | null;
+    has_final_hyphen: boolean;
+}
+
 export interface HocrBlock {
     level: HocrLevel;
     id: string;
@@ -69,6 +77,7 @@ export interface HocrBlock {
     kind: string;
     lang?: string;
     hints: HocrBlockHints;
+    metrics?: HocrBlockMetrics;
     lines: HocrLine[];
     firstWordBbox?: HocrBbox;
     lastWordBbox?: HocrBbox;
