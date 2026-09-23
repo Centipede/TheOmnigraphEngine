@@ -34,12 +34,12 @@ const props = defineProps<{
 // Inject parent context (shared by tools) before providing local context
 const parentContext = useHocrContext();
 const selectedPageScan = inject<Ref<string | null>>('selectedPageScan');
-const { hocrPage, loadHocr } = provideHocrContext();
+const { hocrPage, loadHocr } = provideHocrContext({ block_metrics: true });
 
 const reloadHocr = () => {
   if (props.page && props.machineName) {
     // page.scan is used as the stem for HOCR loading
-    loadHocr(props.machineName, props.page.scan, { block_metrics: true });
+    loadHocr(props.machineName, props.page.scan);
   }
 };
 

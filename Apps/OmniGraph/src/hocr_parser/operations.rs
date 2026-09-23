@@ -1328,7 +1328,7 @@ impl HocrBlock {
             if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
                 let val = m.x_indent;
                 self.hints.test_x_indent = if val >= thresholds.x_indent_max {
-                    Evidence::Determined(true)
+                    Evidence::Determined(true)                   // No, this thinking is just wrong. >max = break for certain. >min = break suggested. We need third value for certain false.
                 } else if val < thresholds.x_indent_min {
                     Evidence::Determined(false)
                 } else {

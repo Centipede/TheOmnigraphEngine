@@ -20,6 +20,7 @@ export interface HocrContext {
   autoBridgeBlock: (blockId: string, thresholds: DetectionThresholds) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
+  baseOptions: LoadHocrOptions;
 }
 
 const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
@@ -41,14 +42,14 @@ export async function fetchHocrPage(machineName: string, stem: string, options: 
   return augmentHocrPageWithWordCoords(page);
 }
 
-export function provideHocrContext() {
+export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
   const hocrPage = ref<HocrPage | null>(null);
   const machineName = ref<string | null>(null);
   const stem = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function loadHocr(mName: string, sName: string, options: LoadHocrOptions = { isNoHocrAcceptable: true }) {
+  async function loadHocr(mName: string, sName: string, options?: LoadHocrOptions) {
     if (!mName || !sName) {
       hocrPage.value = null;
       machineName.value = null;
@@ -61,7 +62,8 @@ export function provideHocrContext() {
     machineName.value = mName;
     stem.value = sName;
     try {
-      hocrPage.value = await fetchHocrPage(mName, sName, options);
+      const finalOptions = { isNoHocrAcceptable: true, ...baseOptions, ...options };
+      hocrPage.value = await fetchHocrPage(mName, sName, finalOptions);
     } catch (e) {
       hocrPage.value = null;
       error.value = e instanceof Error ? e.message : String(e);
@@ -143,7 +145,7 @@ export function provideHocrContext() {
         body: JSON.stringify({ thresholds })
       });
       if (resp.ok) {
-        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { isNoHocrAcceptable: false });
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });
       } else {
         error.value = `Auto-bridge page failed: ${await resp.text()}`;
       }
@@ -167,7 +169,7 @@ export function provideHocrContext() {
         body: JSON.stringify({ thresholds })
       });
       if (resp.ok) {
-        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { isNoHocrAcceptable: false });
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });
       } else {
         error.value = `Auto-bridge block failed: ${await resp.text()}`;
       }
@@ -201,7 +203,8 @@ export function provideHocrContext() {
     autoBridgePage,
     autoBridgeBlock,
     updateHocr,
-    clearHocr
+    clearHocr,
+    baseOptions
   };
 
   provide(HocrSymbol, context);

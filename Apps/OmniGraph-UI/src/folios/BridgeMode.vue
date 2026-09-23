@@ -174,8 +174,10 @@ const panels = usePersistentPanels('panels.bridge', {
 });
 const { setActivePanels } = usePanelVisibilityContext();
 
-// Provide HOCR context for PageWorkspace and general use
-provideHocrContext();
+// Provide HOCR context for PageWorkspace and general use. BridgeMode is special in that it works with multiple pages at once.
+// But still there is a primary page relevant, namely the one in the center of the viewport, which is also the current page.
+// Note though, that each inlined BridgePage uses its own HOCR context, which is loaded on demand.
+provideHocrContext({ block_metrics: true });
 
 onMounted(() => {
   setActivePanels(panels);
