@@ -40,7 +40,7 @@
     </template>
 
     <template #tools>
-      <DetectionTools :selected-block-id="selectedBlockId" />
+      <BridgeDetectionTools :selected-block-id="selectedBlockId" />
     </template>
   </PageWorkspace>
 </template>
@@ -49,7 +49,7 @@
 import { ref, onMounted, onUnmounted, computed, provide } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import BridgePage from './BridgePage.vue';
-import DetectionTools from '../components/DetectionTools.vue';
+import BridgeDetectionTools from '../components/BridgeDetectionTools.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';

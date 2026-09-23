@@ -1,6 +1,7 @@
 <template>
   <div class="detection-tools">
-    <sl-details label="Detection Thresholds" open>
+    <div class="section-header">Detection Thresholds</div>
+    <div class="thresholds-container">
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_x_indent" @sl-change="thresholds.use_x_indent = $event.target.checked; onThresholdChange()">X Indent</sl-checkbox>
         <sl-tooltip content="Threshold for suggested">
@@ -34,16 +35,16 @@
       <div class="threshold-row threshold-row--single">
         <sl-checkbox size="small" :checked="thresholds.use_hyphenation" @sl-change="thresholds.use_hyphenation = $event.target.checked; onThresholdChange()">Hyphen</sl-checkbox>
       </div>
-    </sl-details>
+    </div>
 
-    <sl-button-group>
+    <div class="action-buttons">
       <sl-button variant="primary" size="small" @click="onAutoBridgePage" :loading="hocrContext.loading.value">
         Auto Page
       </sl-button>
       <sl-button size="small" @click="onAutoBridgeBlock" :disabled="!selectedBlockId" :loading="hocrContext.loading.value">
         Auto Block
       </sl-button>
-    </sl-button-group>
+    </div>
 
     <div v-if="selectedBlock" class="ocr-info-panel">
       <div class="ocr-info-row">
@@ -137,16 +138,10 @@ async function onAutoBridgeBlock() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.5rem;
 }
 
-sl-details::part(base) {
-  border: none;
-  background: transparent;
-}
-
-sl-details::part(header) {
-  padding: 0.25rem 0.5rem;
+.section-header {
+  padding: 0.25rem 0;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -154,8 +149,8 @@ sl-details::part(header) {
   color: var(--color-text-muted, #6c757d);
 }
 
-sl-details::part(content) {
-  padding: 0 0.5rem 0.5rem;
+.thresholds-container {
+  padding: 0 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -196,21 +191,14 @@ sl-details::part(content) {
   user-select: none;
 }
 
-sl-button-group {
-  width: 100%;
-  min-width: 0;
-}
-
-sl-button-group::part(base) {
+.action-buttons {
   display: flex;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  gap: 0.5rem;
+  padding: 0 0;
 }
 
-sl-button-group sl-button {
-  flex: 1 1 0;
-  min-width: 0;
+.action-buttons sl-button {
+  flex: 1;
 }
 
 .ocr-info-panel {
