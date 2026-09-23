@@ -24,12 +24,9 @@ fn test_auto_detection_reset_and_assigned() {
     };
 
     let thresholds = DetectionThresholds {
-        x_indent_min: 10,
-        x_indent_max: 20,
-        x_dedent_min: 10,
-        x_dedent_max: 20,
-        y_advance_min: 10,
-        y_advance_max: 20,
+        x_indent: DetectionRange { certainly_true: 20, suggested_true: 15, suggested_false: 10, certainly_false: 5 },
+        x_dedent: DetectionRange { certainly_true: 20, suggested_true: 15, suggested_false: 10, certainly_false: 5 },
+        y_advance: DetectionRange { certainly_true: 20, suggested_true: 15, suggested_false: 10, certainly_false: 5 },
         use_x_indent: false, // Should result in Untested
         use_x_dedent: false,
         use_hyphenation: false,
@@ -203,10 +200,8 @@ fn test_x_indent_dedent_omitted_for_single_line() {
     let thresholds = DetectionThresholds {
         use_x_indent: true,
         use_x_dedent: true,
-        x_indent_min: 5,
-        x_indent_max: 15,
-        x_dedent_min: 5,
-        x_dedent_max: 15,
+        x_indent: DetectionRange { certainly_true: 15, suggested_true: 10, suggested_false: 5, certainly_false: 2 },
+        x_dedent: DetectionRange { certainly_true: 15, suggested_true: 10, suggested_false: 5, certainly_false: 2 },
         ..Default::default()
     };
 
@@ -281,10 +276,8 @@ fn test_x_indent_dedent_included_for_multiple_lines() {
     let thresholds = DetectionThresholds {
         use_x_indent: true,
         use_x_dedent: true,
-        x_indent_min: 5,
-        x_indent_max: 15,
-        x_dedent_min: 5,
-        x_dedent_max: 15,
+        x_indent: DetectionRange { certainly_true: 15, suggested_true: 10, suggested_false: 5, certainly_false: 2 },
+        x_dedent: DetectionRange { certainly_true: 15, suggested_true: 10, suggested_false: 5, certainly_false: 2 },
         ..Default::default()
     };
 
@@ -334,4 +327,51 @@ fn test_assigned_preserved_for_single_line() {
 
     assert_eq!(block.hints.test_x_indent, Evidence::Assigned(true));
     assert_eq!(block.hints.test_x_dedent, Evidence::Assigned(false));
+}
+
+#[test]
+fn test_four_value_detection_logic() {
+    let mut block = HocrBlock {
+        id: "b1".to_string(),
+        level: "block".to_string(),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        bbox: HocrBbox([100, 100, 500, 300]),
+        hints: HocrBlockHints::default(),
+        metrics: Some(HocrBlockMetrics {
+            x_indent: 10,
+            x_dedent: 0,
+            y_advance: Some(2),
+            y_reverse: None,
+            has_final_hyphen: false,
+        }),
+        lines: vec![
+            HocrLine { id: "l1".to_string(), level: "line".to_string(), bbox: HocrBbox([110, 110, 490, 130]), words: vec![], ..Default::default() },
+            HocrLine { id: "l2".to_string(), level: "line".to_string(), bbox: HocrBbox([100, 140, 490, 160]), words: vec![], ..Default::default() },
+        ],
+    };
+
+    let thresholds = DetectionThresholds {
+        x_indent: DetectionRange {
+            certainly_true: 15,
+            suggested_true: 8,
+            suggested_false: 4,
+            certainly_false: 1,
+        },
+        y_advance: DetectionRange {
+            certainly_true: 10,
+            suggested_true: 5,
+            suggested_false: 3,
+            certainly_false: 0,
+        },
+        ..DetectionThresholds::default()
+    };
+
+    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+
+    // x_indent = 10. certainly_true: 15, suggested_true: 8. 10 >= 8 -> Suggested(true)
+    assert_eq!(block.hints.test_x_indent, Evidence::Suggested(true));
+
+    // y_advance = 2. certainly_true: 10, suggested_true: 5, suggested_false: 3. 2 <= 3 -> Suggested(false)
+    assert_eq!(block.hints.test_y_advance, Evidence::Suggested(false));
 }

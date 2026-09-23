@@ -39,13 +39,17 @@ export type Evidence =
     | { assigned: boolean }
     | 'error';
 
+export interface DetectionRange {
+    certainly_true: number;
+    suggested_true: number;
+    suggested_false: number;
+    certainly_false: number;
+}
+
 export interface DetectionThresholds {
-    x_indent_min: number;
-    x_indent_max: number;
-    x_dedent_min: number;
-    x_dedent_max: number;
-    y_advance_min: number;
-    y_advance_max: number;
+    x_indent: DetectionRange;
+    x_dedent: DetectionRange;
+    y_advance: DetectionRange;
     use_x_indent: boolean;
     use_x_dedent: boolean;
     use_y_advance: boolean;

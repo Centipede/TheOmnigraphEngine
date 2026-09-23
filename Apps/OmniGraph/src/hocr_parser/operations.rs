@@ -1323,28 +1323,28 @@ impl HocrBlock {
         let ignore_preceding = matches!(self.hints.test_preceding_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_preceding_terminal, Evidence::Determined(true));
         let ignore_following = matches!(self.hints.test_following_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_following_terminal, Evidence::Determined(true));
 
+        let check_range = |val: i32, range: &DetectionRange| -> Evidence {
+            if val >= range.certainly_true {
+                Evidence::Determined(true)
+            } else if val >= range.suggested_true {
+                Evidence::Suggested(true)
+            } else if val <= range.certainly_false {
+                Evidence::Determined(false)
+            } else if val <= range.suggested_false {
+                Evidence::Suggested(false)
+            } else {
+                Evidence::Undetermined
+            }
+        };
+
         if let Some(ref m) = self.metrics {
             // 1. Low level indicators - per block
             if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
-                let val = m.x_indent;
-                self.hints.test_x_indent = if val >= thresholds.x_indent_max {
-                    Evidence::Determined(true)                   // No, this thinking is just wrong. >max = break for certain. >min = break suggested. We need third value for certain false.
-                } else if val < thresholds.x_indent_min {
-                    Evidence::Determined(false)
-                } else {
-                    Evidence::Suggested(true)
-                };
+                self.hints.test_x_indent = check_range(m.x_indent, &thresholds.x_indent);
             }
 
             if thresholds.use_x_dedent && self.lines.len() > 1 && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
-                let val = m.x_dedent;
-                self.hints.test_x_dedent = if val >= thresholds.x_dedent_max {
-                    Evidence::Determined(true)
-                } else if val < thresholds.x_dedent_min {
-                    Evidence::Determined(false)
-                } else {
-                    Evidence::Suggested(true)
-                };
+                self.hints.test_x_dedent = check_range(m.x_dedent, &thresholds.x_dedent);
             }
 
             if thresholds.use_hyphenation
@@ -1362,13 +1362,7 @@ impl HocrBlock {
                 if !ignore_preceding {
                     if let Some(val) = m.y_reverse {
                         if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
-                            self.hints.test_y_reverse = if val >= thresholds.y_advance_max {
-                                Evidence::Determined(true)
-                            } else if val < thresholds.y_advance_min {
-                                Evidence::Determined(false)
-                            } else {
-                                Evidence::Suggested(true)
-                            };
+                            self.hints.test_y_reverse = check_range(val, &thresholds.y_advance);
                         }
                     }
                 }
@@ -1376,13 +1370,7 @@ impl HocrBlock {
                 if !ignore_following {
                     if let Some(val) = m.y_advance {
                         if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
-                            self.hints.test_y_advance = if val >= thresholds.y_advance_max {
-                                Evidence::Determined(true)
-                            } else if val < thresholds.y_advance_min {
-                                Evidence::Determined(false)
-                            } else {
-                                Evidence::Suggested(true)
-                            };
+                            self.hints.test_y_advance = check_range(val, &thresholds.y_advance);
                         }
                     }
                 }

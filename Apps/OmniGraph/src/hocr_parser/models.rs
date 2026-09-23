@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::hocr_parser::utils::*;
 
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct HocrBbox(pub [i32; 4]);
 
@@ -18,7 +18,7 @@ pub struct HocrUnknown {
     pub string: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrWord {
     #[serde(default = "word_level", skip_deserializing)]
     pub level: String,
@@ -32,7 +32,7 @@ pub struct HocrWord {
     pub dropcap: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrLine {
     #[serde(default = "line_level", skip_deserializing)]
     pub level: String,
@@ -99,14 +99,19 @@ impl Default for Evidence {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct DetectionRange {
+    pub certainly_true: i32,
+    pub suggested_true: i32,
+    pub suggested_false: i32,
+    pub certainly_false: i32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectionThresholds {
-    pub x_indent_min: i32,
-    pub x_indent_max: i32,
-    pub x_dedent_min: i32,
-    pub x_dedent_max: i32,
-    pub y_advance_min: i32,
-    pub y_advance_max: i32,
+    pub x_indent: DetectionRange,
+    pub x_dedent: DetectionRange,
+    pub y_advance: DetectionRange,
     pub use_x_indent: bool,
     pub use_x_dedent: bool,
     pub use_y_advance: bool,
@@ -116,12 +121,24 @@ pub struct DetectionThresholds {
 impl Default for DetectionThresholds {
     fn default() -> Self {
         Self {
-            x_indent_min: 5,
-            x_indent_max: 15,
-            x_dedent_min: 0,
-            x_dedent_max: 20,
-            y_advance_min: 0,
-            y_advance_max: 0,
+            x_indent: DetectionRange {
+                certainly_true: 15,
+                suggested_true: 10,
+                suggested_false: 5,
+                certainly_false: 2,
+            },
+            x_dedent: DetectionRange {
+                certainly_true: 20,
+                suggested_true: 10,
+                suggested_false: 5,
+                certainly_false: 0,
+            },
+            y_advance: DetectionRange {
+                certainly_true: 10,
+                suggested_true: 5,
+                suggested_false: 2,
+                certainly_false: 0,
+            },
             use_x_indent: true,
             use_x_dedent: true,
             use_y_advance: true,

@@ -2,34 +2,36 @@
   <div class="detection-tools">
     <div class="section-header">Detection Thresholds</div>
     <div class="thresholds-container">
+      <div class="threshold-header">
+        <div></div>
+        <div title="Certainly True">CT</div>
+        <div title="Suggested True">ST</div>
+        <div title="Suggested False">SF</div>
+        <div title="Certainly False">CF</div>
+      </div>
+
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_x_indent" @sl-change="thresholds.use_x_indent = $event.target.checked; onThresholdChange()">X Indent</sl-checkbox>
-        <sl-tooltip content="Threshold for suggested">
-          <sl-input type="number" size="small" :value="thresholds.x_indent_min" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_min = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
-        <sl-tooltip content="Threshold for determined">
-          <sl-input type="number" size="small" :value="thresholds.x_indent_max" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent_max = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
+        <sl-input type="number" size="small" :value="thresholds.x_indent.certainly_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_indent.suggested_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_indent.suggested_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_indent.certainly_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_x_dedent" @sl-change="thresholds.use_x_dedent = $event.target.checked; onThresholdChange()">X Dedent</sl-checkbox>
-        <sl-tooltip content="Threshold for suggested">
-          <sl-input type="number" size="small" :value="thresholds.x_dedent_min" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_min = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
-        <sl-tooltip content="Threshold for determined">
-          <sl-input type="number" size="small" :value="thresholds.x_dedent_max" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent_max = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
+        <sl-input type="number" size="small" :value="thresholds.x_dedent.certainly_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_dedent.suggested_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_dedent.suggested_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.x_dedent.certainly_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_y_advance" @sl-change="thresholds.use_y_advance = $event.target.checked; onThresholdChange()">Y Advance</sl-checkbox>
-        <sl-tooltip content="Threshold for suggested">
-          <sl-input type="number" size="small" :value="thresholds.y_advance_min" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_min = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
-        <sl-tooltip content="Threshold for determined">
-          <sl-input type="number" size="small" :value="thresholds.y_advance_max" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance_max = parseInt($event.target.value); onThresholdChange()" />
-        </sl-tooltip>
+        <sl-input type="number" size="small" :value="thresholds.y_advance.certainly_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.y_advance.suggested_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.y_advance.suggested_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input type="number" size="small" :value="thresholds.y_advance.certainly_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_false = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row threshold-row--single">
@@ -95,12 +97,9 @@ const selectedBlock = computed(() => {
 });
 
 const thresholds = reactive<DetectionThresholds>({
-  x_indent_min: 5,
-  x_indent_max: 15,
-  x_dedent_min: 0,
-  x_dedent_max: 20,
-  y_advance_min: 0,
-  y_advance_max: 0,
+  x_indent: { certainly_true: 15, suggested_true: 10, suggested_false: 5, certainly_false: 2 },
+  x_dedent: { certainly_true: 20, suggested_true: 10, suggested_false: 5, certainly_false: 0 },
+  y_advance: { certainly_true: 10, suggested_true: 5, suggested_false: 2, certainly_false: 0 },
   use_x_indent: true,
   use_x_dedent: true,
   use_y_advance: true,
@@ -112,7 +111,14 @@ const STORAGE_KEY = 'omnigraph-detection-thresholds';
 const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) {
   try {
-    Object.assign(thresholds, JSON.parse(saved));
+    const data = JSON.parse(saved);
+    // Simple migration: if it has x_indent_min but not x_indent, it's old
+    if (data.x_indent_min !== undefined && data.x_indent === undefined) {
+      data.x_indent = { certainly_true: data.x_indent_max, suggested_true: data.x_indent_min, suggested_false: data.x_indent_min - 1, certainly_false: Math.max(0, data.x_indent_min - 2) };
+      data.x_dedent = { certainly_true: data.x_dedent_max, suggested_true: data.x_dedent_min, suggested_false: data.x_dedent_min - 1, certainly_false: Math.max(0, data.x_dedent_min - 2) };
+      data.y_advance = { certainly_true: data.y_advance_max, suggested_true: data.y_advance_min, suggested_false: data.y_advance_min - 1, certainly_false: Math.max(0, data.y_advance_min - 2) };
+    }
+    Object.assign(thresholds, data);
   } catch (e) {
     console.error('Failed to parse saved thresholds', e);
   }
@@ -158,10 +164,21 @@ async function onAutoBridgeBlock() {
 
 .threshold-row {
   display: grid;
-  grid-template-columns: minmax(3rem, 1fr) minmax(2rem, 1fr) minmax(2rem, 1fr);
+  grid-template-columns: 5.5rem repeat(4, 1fr);
   align-items: center;
   gap: 0.2rem;
   min-height: 1.75rem;
+}
+
+.threshold-header {
+  display: grid;
+  grid-template-columns: 5.5rem repeat(4, 1fr);
+  gap: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-text-muted, #6c757d);
+  margin-bottom: 0.1rem;
 }
 
 .threshold-row--single {
@@ -244,5 +261,9 @@ async function onAutoBridgeBlock() {
 sl-input {
   width: 100%;
   min-width: 0;
+}
+
+sl-input::part(input){
+  padding-inline: 0.1rem;
 }
 </style>

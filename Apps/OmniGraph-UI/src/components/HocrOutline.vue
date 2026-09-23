@@ -509,20 +509,26 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
   font-weight: 700;
 }
 
-.ev-suggested {
-  color: #16a34a;
-  border-color: color-mix(in srgb, #16a34a 20%, transparent);
-  background: color-mix(in srgb, #16a34a 5%, transparent);
+.ev-suggested.ev-val-true {
+  color: #fb923c;
+  border-color: color-mix(in srgb, #fb923c 40%, transparent);
+  background: color-mix(in srgb, #fb923c 10%, transparent);
 }
 .ev-suggested.ev-val-false {
-  color: #a2acb6;
-  opacity: 0.6;
+  color: #60a5fa;
+  border-color: color-mix(in srgb, #60a5fa 40%, transparent);
+  background: color-mix(in srgb, #60a5fa 10%, transparent);
 }
 
-.ev-determined {
-  color: #16a34a;
-  border-color: #16a34a;
-  background: color-mix(in srgb, #16a34a 10%, transparent);
+.ev-determined.ev-val-true {
+  color: #f97316;
+  border-color: #f97316;
+  background: color-mix(in srgb, #f97316 10%, transparent);
+}
+.ev-determined.ev-val-false {
+  color: #2563eb;
+  border-color: #2563eb;
+  background: color-mix(in srgb, #2563eb 10%, transparent);
 }
 
 .ev-assigned {
