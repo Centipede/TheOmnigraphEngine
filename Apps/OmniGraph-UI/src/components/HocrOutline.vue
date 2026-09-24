@@ -510,36 +510,41 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
 }
 
 .ev-suggested.ev-val-true {
-  color: #fb923c;
-  border-color: color-mix(in srgb, #fb923c 40%, transparent);
-  background: color-mix(in srgb, #fb923c 10%, transparent);
+  color: var(--sl-color-orange-900);
+  border-color: var(--sl-color-orange-300);
+  background: var(--sl-color-orange-200);
 }
 .ev-suggested.ev-val-false {
-  color: #60a5fa;
-  border-color: color-mix(in srgb, #60a5fa 40%, transparent);
-  background: color-mix(in srgb, #60a5fa 10%, transparent);
+  color: var(--sl-color-sky-900);
+  border-color: var(--sl-color-sky-300);
+  background: var(--sl-color-sky-200);
 }
 
 .ev-determined.ev-val-true {
-  color: #f97316;
-  border-color: #f97316;
-  background: color-mix(in srgb, #f97316 10%, transparent);
+  color: white;
+  border-color: var(--sl-color-orange-500);
+  background: var(--sl-color-orange-400);
 }
 .ev-determined.ev-val-false {
-  color: #2563eb;
-  border-color: #2563eb;
-  background: color-mix(in srgb, #2563eb 10%, transparent);
+  color: white;
+  border-color: var(--sl-color-sky-500);
+  background: var(--sl-color-sky-400);
 }
 
-.ev-assigned {
-  color: #2563eb;
-  border-color: #2563eb;
-  background: color-mix(in srgb, #2563eb 10%, transparent);
+.ev-assigned.ev-val-true {
+  color: white;
+  border-color: var(--sl-color-orange-700);
+  background: var(--sl-color-orange-600);
+}
+.ev-assigned.ev-val-false {
+  color: white;
+  border-color: var(--sl-color-sky-700);
+  background: var(--sl-color-sky-600);
 }
 
 .ev-error {
-  color: #dc2626;
-  border-color: #dc2626;
-  background: color-mix(in srgb, #dc2626 10%, transparent);
+  color: var(--sl-color-red-900);
+  border-color: var(--sl-color-red-300);
+  background: var(--sl-color-red-200);
 }
 </style>

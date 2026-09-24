@@ -4,34 +4,34 @@
     <div class="thresholds-container">
       <div class="threshold-header">
         <div></div>
-        <div title="Certainly True">CT</div>
-        <div title="Suggested True">ST</div>
-        <div title="Suggested False">SF</div>
         <div title="Certainly False">CF</div>
+        <div title="Suggested False">SF</div>
+        <div title="Suggested True">ST</div>
+        <div title="Certainly True">CT</div>
       </div>
 
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_x_indent" @sl-change="thresholds.use_x_indent = $event.target.checked; onThresholdChange()">X Indent</sl-checkbox>
-        <sl-input type="number" size="small" :value="thresholds.x_indent.certainly_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_indent.suggested_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_indent.suggested_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_indent.certainly_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-cf" type="number" size="small" :value="thresholds.x_indent.certainly_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-sf" type="number" size="small" :value="thresholds.x_indent.suggested_false" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-st" type="number" size="small" :value="thresholds.x_indent.suggested_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-ct" type="number" size="small" :value="thresholds.x_indent.certainly_true" :disabled="!thresholds.use_x_indent" @sl-change="thresholds.x_indent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_x_dedent" @sl-change="thresholds.use_x_dedent = $event.target.checked; onThresholdChange()">X Dedent</sl-checkbox>
-        <sl-input type="number" size="small" :value="thresholds.x_dedent.certainly_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_dedent.suggested_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_dedent.suggested_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.x_dedent.certainly_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-cf" type="number" size="small" :value="thresholds.x_dedent.certainly_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-sf" type="number" size="small" :value="thresholds.x_dedent.suggested_false" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-st" type="number" size="small" :value="thresholds.x_dedent.suggested_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-ct" type="number" size="small" :value="thresholds.x_dedent.certainly_true" :disabled="!thresholds.use_x_dedent" @sl-change="thresholds.x_dedent.certainly_true = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row">
         <sl-checkbox size="small" :checked="thresholds.use_y_advance" @sl-change="thresholds.use_y_advance = $event.target.checked; onThresholdChange()">Y Advance</sl-checkbox>
-        <sl-input type="number" size="small" :value="thresholds.y_advance.certainly_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.y_advance.suggested_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_true = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.y_advance.suggested_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_false = parseInt($event.target.value); onThresholdChange()" />
-        <sl-input type="number" size="small" :value="thresholds.y_advance.certainly_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-cf" type="number" size="small" :value="thresholds.y_advance.certainly_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-sf" type="number" size="small" :value="thresholds.y_advance.suggested_false" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_false = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-st" type="number" size="small" :value="thresholds.y_advance.suggested_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.suggested_true = parseInt($event.target.value); onThresholdChange()" />
+        <sl-input class="threshold-ct" type="number" size="small" :value="thresholds.y_advance.certainly_true" :disabled="!thresholds.use_y_advance" @sl-change="thresholds.y_advance.certainly_true = parseInt($event.target.value); onThresholdChange()" />
       </div>
 
       <div class="threshold-row threshold-row--single">
@@ -261,6 +261,38 @@ async function onAutoBridgeBlock() {
 sl-input {
   width: 100%;
   min-width: 0;
+}
+
+sl-input.threshold-cf::part(base) {
+  background-color: var(--sl-color-sky-400);
+  border-color: var(--sl-color-sky-500);
+}
+sl-input.threshold-cf::part(input) {
+  color: white;
+}
+
+sl-input.threshold-sf::part(base) {
+  background-color: var(--sl-color-sky-200);
+  border-color: var(--sl-color-sky-300);
+}
+sl-input.threshold-sf::part(input) {
+  color: var(--sl-color-sky-900);
+}
+
+sl-input.threshold-st::part(base) {
+  background-color: var(--sl-color-orange-200);
+  border-color: var(--sl-color-orange-300);
+}
+sl-input.threshold-st::part(input) {
+  color: var(--sl-color-orange-900);
+}
+
+sl-input.threshold-ct::part(base) {
+  background-color: var(--sl-color-orange-400);
+  border-color: var(--sl-color-orange-500);
+}
+sl-input.threshold-ct::part(input) {
+  color: white;
 }
 
 sl-input::part(input){
