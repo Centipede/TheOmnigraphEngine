@@ -62,6 +62,8 @@ export interface HocrBlockHints {
     test_hyphenation?: Evidence;
     test_y_advance?: Evidence;
     test_y_reverse?: Evidence;
+    test_preceding_terminal?: Evidence;
+    test_following_terminal?: Evidence;
     break_from_preceding?: Evidence;
     break_from_following?: Evidence;
 }

@@ -36,13 +36,38 @@
           </div>
 
           <!-- Hints -->
-          <div v-if="block.hints && Object.keys(block.hints).length > 0" class="hocr-hints-list">
-            <template v-for="(ev, key) in block.hints" :key="key">
-              <div v-if="ev && ev !== 'untested' && ev !== 'undetermined'" class="hocr-hint-item" :class="getEvidenceClass(ev as Evidence)">
-                <span class="hocr-hint-key">{{ key.replace('test_', '').replace('break_from_', '') }}:</span>
-                <span class="hocr-hint-value">{{ getEvidenceText(ev as Evidence) }}</span>
+          <div v-if="block.hints" class="hocr-hints-list">
+            <!-- Before -->
+            <div v-if="block.hints.break_from_preceding && block.hints.break_from_preceding !== 'untested'" class="hocr-hints-line">
+              <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_preceding)">
+                <sl-icon :name="getEvidenceValue(block.hints.break_from_preceding) === true ? 'align-start' : 'box-arrow-left'"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_preceding) === true ? '|- BREAK' : '-- CON\'T' }}</span>
               </div>
-            </template>
+              <template v-for="param in precedingParams" :key="param.key">
+                <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
+                  {{ param.label }}
+                </div>
+              </template>
+              <div v-if="isAssigned(block.hints.break_from_preceding)" class="hocr-hint-tag" :class="getEvidenceClass(block.hints.break_from_preceding)">
+                user
+              </div>
+            </div>
+
+            <!-- After -->
+            <div v-if="block.hints.break_from_following && block.hints.break_from_following !== 'untested'" class="hocr-hints-line">
+              <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_following)">
+                <sl-icon :name="getEvidenceValue(block.hints.break_from_following) === true ? 'align-end' : 'box-arrow-right'"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_following) === true ? '|- BREAK' : '-- CON\'T' }}</span>
+              </div>
+              <template v-for="param in followingParams" :key="param.key">
+                <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
+                  {{ param.label }}
+                </div>
+              </template>
+              <div v-if="isAssigned(block.hints.break_from_following)" class="hocr-hint-tag" :class="getEvidenceClass(block.hints.break_from_following)">
+                user
+              </div>
+            </div>
           </div>
 
           <!-- Lines -->
@@ -193,6 +218,29 @@ function getEvidenceClass(ev: Evidence) {
   return `ev-${key} ev-val-${val}`;
 }
 
+function getEvidenceValue(ev?: Evidence): boolean | null {
+  if (!ev || typeof ev === 'string') return null;
+  if ('suggested' in ev) return ev.suggested;
+  if ('determined' in ev) return ev.determined;
+  if ('assigned' in ev) return ev.assigned;
+  return null;
+}
+
+function isAssigned(ev?: Evidence): boolean {
+  return typeof ev === 'object' && ev !== null && 'assigned' in ev;
+}
+
+const precedingParams = [
+  { key: 'test_x_indent', label: 'indent' },
+  { key: 'test_y_reverse', label: 'gap-above' },
+  { key: 'test_preceding_terminal', label: 'Hx-before' },
+] as const;
+
+const followingParams = [
+  { key: 'test_x_dedent', label: 'dedent' },
+  { key: 'test_y_advance', label: 'gap-below' },
+  { key: 'test_following_terminal', label: 'Hx-after' },
+] as const;
 
 function getEvidenceText(ev: Evidence): string {
   if (typeof ev === 'string') return ev;
@@ -482,31 +530,33 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
 }
 
 .hocr-hints-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.1rem 0.4rem 0.3rem 2rem;
+  padding: 0 0.4rem 0.2rem 2.2rem;
 }
 
-.hocr-hint-item {
-  display: inline-flex;
+.hocr-hints-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.1rem;
+}
+
+.hocr-hints-conclusion {
+  display: flex;
   align-items: center;
   gap: 0.2rem;
+  font-weight: 800;
   font-size: 0.6rem;
   padding: 0.05rem 0.3rem;
-  background: var(--color-bg-muted, #f8f9fa);
   border-radius: 4px;
-  border: 1px solid var(--color-border-muted, #e9ecef);
+  min-width: 4.5rem;
 }
 
-.hocr-hint-key {
-  color: var(--color-text-dimmed, #a2acb6);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.hocr-hint-value {
-  font-weight: 700;
+.hocr-hint-tag {
+  font-size: 0.6rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  opacity: 0.9;
 }
 
 .ev-suggested.ev-val-true {
