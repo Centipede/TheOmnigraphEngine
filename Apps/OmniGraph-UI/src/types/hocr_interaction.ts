@@ -62,6 +62,7 @@ export interface OverlayItem {
     wconf?: number;
     lang?: string;
     hints?: HocrBlockHints;
+    flow?: string;
     firstWordBbox?: HocrBbox;
     lastWordBbox?: HocrBbox;
 }

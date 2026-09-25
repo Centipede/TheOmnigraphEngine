@@ -781,7 +781,7 @@ pub async fn auto_bridge_page(
         let html = std::fs::read_to_string(&hocr_path).ok()?;
         let mut page = crate::hocr_parser::parse(&html, ParserConfig::default())?;
 
-        page.apply_auto_detection_to_all_blocks(&provider, &stem, &payload.thresholds);
+        page.apply_auto_detection_to_all_blocks(&provider, &stem, &payload.thresholds, &payload.flow_set);
 
         let new_html = page.to_hocr_html();
         storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;

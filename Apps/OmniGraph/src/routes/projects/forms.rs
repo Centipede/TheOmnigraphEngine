@@ -142,4 +142,5 @@ pub struct AutoAssistRequest {
 #[derive(Deserialize, Serialize)]
 pub struct AutoBridgeRequest {
     pub thresholds: DetectionThresholds,
+    pub flow_set: Option<Vec<String>>,
 }

@@ -66,6 +66,7 @@ const currentPage = ref<Page | null>(null);
 const project = ref<Project | null>(null);
 
 const selectedBlockId = ref<string | null>(null);
+const flowSet = ref<Set<string>>(new Set());
 const selectedPageScan = ref<string | null>(null);
 const hoveredItemId = ref<string | null>(null);
 
@@ -80,6 +81,8 @@ const selectedItemIds = computed(() => {
 provide('selectedItemIds', selectedItemIds);
 provide('selectedPageScan', selectedPageScan);
 provide('indicatedItemId', ref(null));
+provide('flowSet', flowSet);
+provide('project', project);
 
 
 function makeInteractionUpdateHandler(page: Page) {
@@ -155,6 +158,9 @@ async function fetchProjectMetadata(): Promise<void> {
     if (resp.ok) {
       const data = await resp.json() as Project;
       project.value = data;
+      if (data.flows && flowSet.value.size === 0) {
+        flowSet.value = new Set(data.flows.map(f => f.name));
+      }
     }
   } catch (e) {
     console.error('Failed to fetch project metadata:', e);

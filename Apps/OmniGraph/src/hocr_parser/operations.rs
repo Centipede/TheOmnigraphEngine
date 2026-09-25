@@ -110,7 +110,7 @@ impl HocrPage {
         }
     }
 
-    pub fn apply_auto_detection_to_all_blocks(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds) {
+    pub fn apply_auto_detection_to_all_blocks(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds, flow_set: &Option<Vec<String>>) {
         // First ensure metrics are calculated
         self.calculate_all_metrics(provider, stem);
 
@@ -119,6 +119,11 @@ impl HocrPage {
 
         for (c_idx, carea) in self.careas.iter().enumerate() {
             if let Some(ref flow) = carea.flow {
+                if let Some(flows) = flow_set {
+                    if !flows.contains(flow) {
+                        continue;
+                    }
+                }
                 let entry = flows_blocks.entry(flow.clone()).or_default();
                 for (b_idx, block) in carea.blocks.iter().enumerate() {
                     let path = HocrPath::Block {

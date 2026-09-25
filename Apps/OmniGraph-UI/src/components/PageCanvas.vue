@@ -48,6 +48,9 @@
                :style="overlayItemStyle(item)"
 
           >
+            <div v-if="(item.level === 'carea' || item.level === 'block') && item.flow && !flowSet.has(item.flow)"
+                 class="hocr-dimmed-overlay" />
+
             <div class="hocr-overlay-item-info"
                  v-if="item.role === 'active'">
               <span class="hocr-overlay-item-kind"
@@ -58,7 +61,7 @@
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
 
-            <div v-if="showBlockHints && item.level === 'block' && item.hints" class="hocr-block-hints">
+            <div v-if="showBlockHints && item.level === 'block' && item.hints && (!item.flow || flowSet.has(item.flow))" class="hocr-block-hints">
               <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) === false"
                    class="hocr-block-evidence hocr-block-evidence--preceding"
                    :class="getEvidenceClass(item.hints.break_from_preceding)">
@@ -194,6 +197,7 @@ const props = withDefaults(defineProps<{
 });
 
 const { hocrPage } = useHocrContext();
+const flowSet = inject<Ref<Set<string>>>('flowSet', ref(new Set()));
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectedPageScan = inject<Ref<string | null>>('selectedPageScan', ref(null));
@@ -355,7 +359,8 @@ const overlayItems = computed((): OverlayItem[] => {
         role: cr,
         color: careaColor,
         kind: null,
-        wconf: getMinWconf(carea)
+        wconf: getMinWconf(carea),
+        flow: carea.flow,
       });
     }
 
@@ -379,6 +384,7 @@ const overlayItems = computed((): OverlayItem[] => {
           kind: blockKindFor(block),
           wconf: getMinWconf(block),
           hints: block.hints,
+          flow: carea.flow,
           firstWordBbox: block.firstWordBbox,
           lastWordBbox: block.lastWordBbox,
         });
@@ -965,6 +971,16 @@ function overlayItemStyle(item: OverlayItem) {
 .hocr-overlay--indicated {
   outline: 2px dashed var(--hocr-color) !important;
   opacity: 1 !important;
+}
+
+.hocr-dimmed-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
 }
 
 /* N+1: children — lighter fill, thin outline, selectable */

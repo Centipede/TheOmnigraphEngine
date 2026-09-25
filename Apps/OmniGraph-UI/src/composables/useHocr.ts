@@ -16,8 +16,8 @@ export interface HocrContext {
   loadHocr: (machineName: string, stem: string, options?: LoadHocrOptions) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
-  autoBridgePage: (thresholds: DetectionThresholds) => Promise<void>;
-  autoBridgeBlock: (blockId: string, thresholds: DetectionThresholds) => Promise<void>;
+  autoBridgePage: (thresholds: DetectionThresholds, flowSet?: Set<string>) => Promise<void>;
+  autoBridgeBlock: (blockId: string, thresholds: DetectionThresholds, flowSet?: Set<string>) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
   baseOptions: LoadHocrOptions;
@@ -132,7 +132,7 @@ export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
     }
   }
 
-  async function autoBridgePage(thresholds: DetectionThresholds) {
+  async function autoBridgePage(thresholds: DetectionThresholds, flowSet?: Set<string>) {
     if (!machineName.value || !stem.value) return;
     loading.value = true;
     error.value = null;
@@ -142,7 +142,10 @@ export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ thresholds })
+        body: JSON.stringify({
+          thresholds,
+          flow_set: flowSet ? Array.from(flowSet) : undefined
+        })
       });
       if (resp.ok) {
         hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });
@@ -156,7 +159,7 @@ export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
     }
   }
 
-  async function autoBridgeBlock(blockId: string, thresholds: DetectionThresholds) {
+  async function autoBridgeBlock(blockId: string, thresholds: DetectionThresholds, flowSet?: Set<string>) {
     if (!machineName.value || !stem.value) return;
     loading.value = true;
     error.value = null;
@@ -166,7 +169,10 @@ export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ thresholds })
+        body: JSON.stringify({
+          thresholds,
+          flow_set: flowSet ? Array.from(flowSet) : undefined
+        })
       });
       if (resp.ok) {
         hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });

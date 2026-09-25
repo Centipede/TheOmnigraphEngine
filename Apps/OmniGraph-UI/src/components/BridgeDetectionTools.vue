@@ -48,6 +48,19 @@
       </sl-button>
     </div>
 
+    <div class="section-header">Active Flows</div>
+    <div class="flow-buttons">
+      <sl-button
+        v-for="flow in flows"
+        :key="flow.name"
+        :variant="flowSet.has(flow.name) ? 'primary' : 'default'"
+        size="small"
+        @click="toggleFlow(flow.name)"
+      >
+        {{ flow.name }}
+      </sl-button>
+    </div>
+
     <div v-if="selectedBlock" class="ocr-info-panel">
       <div class="ocr-info-row">
         <span class="ocr-info-label">ID</span>
@@ -78,16 +91,31 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue';
+import { reactive, computed, inject, type Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import type { DetectionThresholds, HocrBlock } from '../types/hocr';
-import { findItem } from '../types/hocr';
+import { findItem, findMultilevelById } from '../types/hocr';
+import type { Project } from '../types/project';
 
 const props = defineProps<{
   selectedBlockId: string | null;
 }>();
 
 const hocrContext = useHocrContext();
+const flowSet = inject<Ref<Set<string>>>('flowSet')!;
+const project = inject<Ref<Project | null>>('project')!;
+
+const flows = computed(() => project.value?.flows || []);
+
+function toggleFlow(flowName: string) {
+  const newSet = new Set(flowSet.value);
+  if (newSet.has(flowName)) {
+    newSet.delete(flowName);
+  } else {
+    newSet.add(flowName);
+  }
+  flowSet.value = newSet;
+}
 
 const selectedBlock = computed(() => {
   if (!props.selectedBlockId || !hocrContext.hocrPage.value) return null;
@@ -129,12 +157,18 @@ function onThresholdChange() {
 }
 
 async function onAutoBridgePage() {
-  await hocrContext.autoBridgePage(thresholds);
+  await hocrContext.autoBridgePage(thresholds, flowSet.value);
 }
 
 async function onAutoBridgeBlock() {
-  if (props.selectedBlockId) {
-    await hocrContext.autoBridgeBlock(props.selectedBlockId, thresholds);
+  if (props.selectedBlockId && hocrContext.hocrPage.value) {
+    const multi = findMultilevelById(hocrContext.hocrPage.value, props.selectedBlockId);
+    const careaFlow = multi?.carea?.flow;
+    if (careaFlow && !flowSet.value.has(careaFlow)) {
+      alert(`The selected block belongs to flow "${careaFlow}", which is currently inactive. Please activate this flow to use Auto Block.`);
+      return;
+    }
+    await hocrContext.autoBridgeBlock(props.selectedBlockId, thresholds, flowSet.value);
   }
 }
 </script>
@@ -216,6 +250,16 @@ async function onAutoBridgeBlock() {
 
 .action-buttons sl-button {
   flex: 1;
+}
+
+.flow-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.flow-buttons sl-button {
+  flex: 1 1 auto;
 }
 
 .ocr-info-panel {
