@@ -2,33 +2,39 @@
 
 (Based on github issue #140)
 
-## Introduction
+It should be an easy matter to introduce a simple tool to implement semi-automatic detection of block continuation.
 
-Page change as well as carea changes forces a paragraph to be cut into smaller blocks, which is why special care must be given to whether the author intended the split or not. The goal is to detect and mark as linked/bridged unintended splits, but not intended ones.
+### Introduction
+
+Both page change **and** CAREA change force a paragraph to be cut into smaller blocks, which is why special care must be given to whether the author intended the split or not. The goal is to detect and mark as linked/bridged unintended splits, but not intended ones.
 
 NB: We examine both the horizontal space from paragraph's left edge to the first word in the first line and the horizontal space after the last word on the last line to the paragraph's right edge. The first we call "indent" which is a bad choice of word. The second we call "dedent" which is an even worse word.
 
 ## UI:
 
-In BridgeMode add a button "Auto detect".
+### Mode: Bridge 
 
-It should have a couple of parameters:
+Bridge mode has two buttons: "Auto Page" and "Auto Block".
+Both invoke an algorithm that (re)calculatesall metric and derived evaluations of distances and other measures that can help indicate author intent.
+Auto Page calculates for all blocks on the page.
+Auto Block calculates for the selected block.
 
-**X indent** which is really two numbers: 
-- X-indent-certainly-true: Above this number means we can be sure the typographer intended this as a new paragraph. Default 15
-- X-indent-certainly-false: Below this number means we can be sure the typographer intended this as  not a new paragraph. Default 5
+All the tests on value ranges (x_indent, x_dedent, y_advance) are determined by four numbers:
+- Certainly true: Above this number means we can be sure the typographer intended this as a new paragraph.
+- Certainly false: Below this number means we can be sure the typographer intended this as not a new paragraph. 
+- Suggested true: Above means it may possibly indicate a new paragraph.
+- Suggested false: Below means it may possibly indicate not a new paragraph.
 
+All of these should also have a checkbox that determines if they are used during auto-detection.
 
-**X dedent** which is really two numbers: 
-- X-dedent-certainly-true: Above this number means we can be sure the typographer intended this as a ending the paragraph. Default 20
-- X-dedent-certainly-false: Below this number means we can be sure the typographer intended this as not ending the paragraph. Default 0. (Note that a paragraph can of course end in a long line and still end. Let the user look at the page and judge.) 
-
-**Y advance** (default 0) which is the number of pixels between the preceding line's bottom and this line's top.
-
-Both of these should also have a checkbox that determines if they are used during auto-detection.
-
+Selecting a block will show the calculated metrics for that block below the tools.
 
 ## Nomenclature:
+
+> [!TIP]
+> "True" always points to a break from some other block.
+>
+> "False" always points to a continuation of some other block.
 
 Some block, **B**, has a **flow** and is on a **page**. We are interested in all blocks within a specific flow. The flow of a block is the flow of its parent carea. "A flow" is the short way of speaking about all blocks of all careas belonging to a specific flow.
 "The careas of a flow" is the well-determined document order of all careas with that flow.
@@ -53,11 +59,12 @@ Else if the block IS the first in its carea:
 **Per-boundary properties that are hard calculations:**
 
 **y_advance**(A,B) = B.bbox.top - A.bbox.bottom
+(Note: y_reverse(B,A) is the same as y_advance(A,B). Both space above and below a block is calculated)
 
-Note that x_indent and x_dedent requires blocks of more than one line to calculate.
+Note that x_indent and x_dedent require blocks of more than one line to calculate.
 Note that y_advance requires two blocks.
 
-Counting as input to the auto-detection algorithm are the criteria given by  the user. These are a small list of tests, whose truth-value should come into play:
+Counting as input to the auto-detection algorithm are the criteria given by the user. These are a small list of tests,whose truth-value should come into play:
 
 test_x_indent
 test_y_advance
@@ -68,10 +75,10 @@ test_hyphenation
 
 **What can be said with certainty (assuming a book that the user has identified as using x_indent and/or y_advance as visual indicators of paragraph break):**
 
-I think we should use an enum to store the state of these as an Option is too limited:
+Internally, an enum is used to store the state of these as an Option is too limited:
 - Untested ... simply not tested yet
 - Undetermined ... cannot be confirmed true nor false
-- Suggested(true) or Suggested(false) ... algorithmicly suggested but not fully determined
+- Suggested(true) or Suggested(false) ... algorithmically suggested but not fully determined
 - Determined(true) or Determined(false) ... algorithmically determined
 - Assigned(true) or Assigned(false) ... assigned by the user which must take precedence always
 - Error ... used to communicate a conflict that the user must deal with
@@ -89,9 +96,10 @@ if B.test_x_indent == Assigned:
     
 else:
   B.test_x_indent = 
-     Determined(true) if x_indent(B) >= threshold.max
-     Suggested(true) if value above min, below max
-     Determined(false) if x_indent(B) < threshold.min
+     Determined(true) if x_indent(B) >= threshold.certain_true
+     Determined(false) if x_indent(B) <= threshold.certain_false
+     Suggested(true) if x_indent(B) >= threshold.suggested_true
+     Suggested(false) if x_indent(B) <= threshold.suggested_false
 ```
 
 **B.test_x_dedent**
@@ -103,14 +111,15 @@ if B.test_x_dedent == Assigned:
 
 else:
   B.test_x_dedent = 
-     Determined(true) if x_dedent(B) >= threshold.max
-     Suggested(true) if value above min, below max
-     Determined(false) if x_dedent(B) < threshold.min
+     Determined(true) if x_dedent(B) >= threshold.certain_true
+     Determined(false) if x_dedent(B) <= threshold.certain_false
+     Suggested(true) if x_dedent(B) >= threshold.suggested_true
+     Suggested(false) if x_dedent(B) <= threshold.suggested_false
 ```
 
 
 **B.test_hyphenation**
-Does the block end i a hyphenation?
+Does the block end in a hyphenation?
 A per-block calculation
 ```
 if B.test_hyphenation == Assigned: 
@@ -132,9 +141,10 @@ A per-boundary calculation
 ```
 if test_y_advance and A,B ∈ same carea:
   A.test_y_advance = B.test_y_reverse =
-     Determined(true)  if y_advance(A, B) >= threshold.max 
-     Suggested(true) if value above min, below max
-     Determined(false) if y_advance(A, B) < threshold.min
+     Determined(true) if y_advance(A,B) >= threshold.certain_true
+     Determined(false) if y_advance(A,B) <= threshold.certain_false
+     Suggested(true) if y_advance(A,B) >= threshold.suggested_true
+     Suggested(false) if y_advance(A,B) <= threshold.suggested_false
    else:
       Unknown
 ```
@@ -186,26 +196,13 @@ B.continued =
 
 B.continues = 
   ... similarly, just for B,C
-
 ```
 
+## Branch Changes (since e747590)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+* **Four-value detection logic**: Thresholds now use `certainly_true`, `suggested_true`, `suggested_false`, and `certainly_false` to provide more granular suggestions.
+* **Terminal Block Detection**: Headers, images, tables, and lists are now automatically identified as paragraph terminators (`test_preceding_terminal` and `test_following_terminal`).
+* **Flow-based Bridging**: Auto-detection is limited to specific flows to ensure document consistency.
+* **Metrics Decoupling**: Metrics calculation is independent of the bridging algorithm, allowing individual block properties to be displayed in the UI.
+* **UI Symbols**: New symbol system for block hints (indent/dedent markers) displayed on blocks' first or last words.
+* **Mac-friendly symbols**: Use of Mac-friendly unicode symbols for evidence visualization.
