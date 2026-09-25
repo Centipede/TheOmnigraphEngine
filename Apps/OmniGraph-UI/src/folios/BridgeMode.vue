@@ -6,6 +6,8 @@
     :initial-page-stem="initialPageStem"
     :panels="panels"
     :project="project"
+    :flows="flows"
+    :layouts="layouts"
     :palette="grayHintPalette"
     :keyboard-handler="onKeyDown"
     hocr-initial-collapse-mode="block"
@@ -64,6 +66,8 @@ const props = defineProps<{
 
 const currentPage = ref<Page | null>(null);
 const project = ref<Project | null>(null);
+const flows = computed(() => project.value?.flows || []);
+const layouts = computed(() => project.value?.layouts || []);
 
 const selectedBlockId = ref<string | null>(null);
 const flowSet = ref<Set<string>>(new Set());

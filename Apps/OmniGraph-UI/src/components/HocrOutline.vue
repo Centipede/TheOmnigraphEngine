@@ -35,8 +35,9 @@
             <span class="hocr-toggle">{{ expandedBlocks.has(block.id) ? '▾' : '▸' }}</span>
           </div>
 
-          <!-- Hints -->
+          <!-- BLOCK HINTS -->
           <div v-if="block.hints" class="hocr-hints-list">
+
             <!-- Before -->
             <div v-if="block.hints.break_from_preceding && block.hints.break_from_preceding !== 'untested'" class="hocr-hints-line">
               <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_preceding)">
@@ -231,23 +232,16 @@ function isAssigned(ev?: Evidence): boolean {
 }
 
 const precedingParams = [
-  { key: 'test_x_indent', label: 'indent' },
-  { key: 'test_y_reverse', label: 'gap-above' },
-  { key: 'test_preceding_terminal', label: 'Hx-before' },
+  { key: 'test_x_indent', label: '⎡' },
+  { key: 'test_y_reverse', label: '⬓' },
+  { key: 'test_preceding_terminal', label: '⍑' },
 ] as const;
 
 const followingParams = [
-  { key: 'test_x_dedent', label: 'dedent' },
-  { key: 'test_y_advance', label: 'gap-below' },
-  { key: 'test_following_terminal', label: 'Hx-after' },
+  { key: 'test_x_dedent', label: '⎦' },
+  { key: 'test_y_advance', label: '⬒' },
+  { key: 'test_following_terminal', label: '⍊' },
 ] as const;
-
-function getEvidenceText(ev: Evidence): string {
-  if (typeof ev === 'string') return ev;
-  const key = Object.keys(ev)[0];
-  const val = (ev as any)[key];
-  return `${val}`;
-}
 
 function rescan(careaId: string) {
   if (!machineName.value || !stem.value) return;

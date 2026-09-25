@@ -61,16 +61,18 @@
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
 
+            <!-- BLOCK HINTS (break/continue paragraph) -->
+
             <div v-if="showBlockHints && item.level === 'block' && item.hints && (!item.flow || flowSet.has(item.flow))" class="hocr-block-hints">
-              <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) === false"
+              <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) !== null"
                    class="hocr-block-evidence hocr-block-evidence--preceding"
                    :class="getEvidenceClass(item.hints.break_from_preceding)">
-                ↑
+                {{ getEvidenceValue(item.hints.break_from_preceding) === true ? '⬞' : '⮬' }}
               </div>
-              <div v-if="item.hints.break_from_following && getEvidenceValue(item.hints.break_from_following) === false"
+              <div v-if="item.hints.break_from_following && getEvidenceValue(item.hints.break_from_following) !== null"
                    class="hocr-block-evidence hocr-block-evidence--following"
                    :class="getEvidenceClass(item.hints.break_from_following)">
-                ↓
+                {{ getEvidenceValue(item.hints.break_from_following) === true ? '⬞' : '⮯' }}
               </div>
               <div v-if="item.hints.break_from_preceding === 'error'"
                    class="hocr-block-evidence hocr-block-evidence--preceding ev-error">
@@ -80,20 +82,49 @@
                    class="hocr-block-evidence hocr-block-evidence--following ev-error">
                 ⚠
               </div>
+
+              <div class="hocr-block-hints-container hocr-block-hints-container--top">
+                <div v-if="item.hints.test_y_reverse && getEvidenceValue(item.hints.test_y_reverse) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_y_reverse)">
+                  ⬓
+                </div>
+                <div v-if="item.hints.test_preceding_terminal && getEvidenceValue(item.hints.test_preceding_terminal) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_preceding_terminal)">
+                  ⍑
+                </div>
+              </div>
+
+              <div class="hocr-block-hints-container hocr-block-hints-container--bottom">
+                <div v-if="item.hints.test_y_advance && getEvidenceValue(item.hints.test_y_advance) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_y_advance)">
+                  ⬒
+                </div>
+                <div v-if="item.hints.test_following_terminal && getEvidenceValue(item.hints.test_following_terminal) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_following_terminal)">
+                  ⍊
+                </div>
+              </div>
+
               <div v-if="item.hints.test_x_indent && getEvidenceValue(item.hints.test_x_indent) === true && item.firstWordBbox"
                    class="hocr-block-evidence hocr-block-evidence--indent"
                    :class="getEvidenceClass(item.hints.test_x_indent)"
-                   :style="overlayItemHintStyle(item, item.firstWordBbox, 'indent')">
-                ┌
+                   :style="overlayItemAlignWithWord(item, item.firstWordBbox, 'indent')">
+                ⎡
               </div>
               <div v-if="item.hints.test_x_dedent && getEvidenceValue(item.hints.test_x_dedent) === true && item.lastWordBbox"
                    class="hocr-block-evidence hocr-block-evidence--dedent"
                    :class="getEvidenceClass(item.hints.test_x_dedent)"
-                   :style="overlayItemHintStyle(item, item.lastWordBbox, 'dedent')">
-                ┘
+                   :style="overlayItemAlignWithWord(item, item.lastWordBbox, 'dedent')">
+                ⎦
               </div>
             </div>
           </div>
+
+          <!-- PAGE HINTS (dropcap, image, garbage, ...) -->
 
           <template v-if="page.hints">
             <div v-for="(hint, index) in page.hints"
@@ -686,7 +717,7 @@ function getEvidenceValue(ev: Evidence): boolean | null {
   return null;
 }
 
-function overlayItemHintStyle(item: OverlayItem, wordBbox: HocrBbox, type: 'indent' | 'dedent') {
+function overlayItemAlignWithWord(item: OverlayItem, wordBbox: HocrBbox, type: 'indent' | 'dedent') {
   const [bl, bt, br, bb] = item.bbox;
   const [wl, wt, wr, wb] = wordBbox;
 
@@ -699,13 +730,13 @@ function overlayItemHintStyle(item: OverlayItem, wordBbox: HocrBbox, type: 'inde
     return {
       left: `${((wl - bl) / bw) * 100}%`,
       top: `${((wt - bt) / bh) * 100}%`,
-      transform: 'translate(-50%, -50%)',
+      transform: 'translate(-70%, -20%)',
     };
   } else {
     return {
       left: `${((wr - bl) / bw) * 100}%`,
       top: `${((wb - bt) / bh) * 100}%`,
-      transform: 'translate(-50%, -50%)',
+      transform: 'translate(-30%, -80%)',
     };
   }
 }
@@ -1008,54 +1039,71 @@ function overlayItemStyle(item: OverlayItem) {
   pointer-events: none;
 }
 
-.hocr-block-hint {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #22c55e;
-  font-weight: bold;
-  font-size: 1.5rem;
-  line-height: 1;
-  text-shadow: 0 0 2px white;
-  z-index: 5;
-}
-
-.hocr-block-hint--up {
-  top: -0.8rem;
-}
-
-.hocr-block-hint--down {
-  bottom: -0.8rem;
-}
-
 .hocr-block-evidence {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   font-weight: bold;
   font-size: 1.5rem;
   line-height: 1;
   text-shadow: 0 0 2px white;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hocr-block-hints-container {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  gap: 0.2rem;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.hocr-block-hints-container--top {
+  top: 0;
+  transform: translate(0, -20%);
+}
+
+.hocr-block-hints-container--bottom {
+  bottom: 0;
+  transform: translate(0, 20%);
+}
+
+.hocr-block-hints-container .hocr-block-evidence {
+  position: relative;
+  font-size: 0.9rem;
 }
 
 .hocr-block-evidence--preceding {
-  top: -0.8rem;
+  top: 0;
+  left: 0;
 }
+.hocr-block-evidence--preceding.ev-val-true { transform: translate(-50%, -50%); }
+.hocr-block-evidence--preceding.ev-val-false { transform: translate(-90%, -90%); }
 
 .hocr-block-evidence--following {
-  bottom: -0.8rem;
+  bottom: 0;
+  right: 0;
 }
+.hocr-block-evidence--following.ev-val-true { transform: translate(50%, 50%); }
+.hocr-block-evidence--following.ev-val-false { transform: translate(90%, 90%); }
 
 .hocr-block-evidence--indent,
 .hocr-block-evidence--dedent {
-  font-size: 1.2rem;
+  font-size: 0.8rem;
 }
 
-.ev-suggested { color: #22c55e; opacity: 0.5; }
-.ev-determined { color: #22c55e; opacity: 1; }
-.ev-assigned { color: #3b82f6; opacity: 1; }
-.ev-error { color: #ef4444; opacity: 1; font-size: 1.2rem; }
+/* Evidence colors aligned with HocrOutline.vue (True=Orange, False=Sky) */
+.ev-val-true.ev-suggested { color: var(--sl-color-orange-500); opacity: 0.8; }
+.ev-val-true.ev-determined { color: var(--sl-color-orange-600); opacity: 1; }
+.ev-val-true.ev-assigned { color: var(--sl-color-orange-700); opacity: 1; }
+
+.ev-val-false.ev-suggested { color: var(--sl-color-sky-500); opacity: 0.8; }
+.ev-val-false.ev-determined { color: var(--sl-color-sky-600); opacity: 1; }
+.ev-val-false.ev-assigned { color: var(--sl-color-sky-700); opacity: 1; }
+
+.ev-error { color: var(--sl-color-red-600); opacity: 1; font-size: 1.2rem; }
 
 img {
   -webkit-user-select: none;
