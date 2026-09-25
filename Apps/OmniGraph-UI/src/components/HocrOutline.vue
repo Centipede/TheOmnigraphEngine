@@ -41,8 +41,8 @@
             <!-- Before -->
             <div v-if="block.hints.break_from_preceding && block.hints.break_from_preceding !== 'untested'" class="hocr-hints-line">
               <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_preceding)">
-                <sl-icon :name="getEvidenceValue(block.hints.break_from_preceding) === true ? 'align-start' : 'box-arrow-left'"></sl-icon>
-                <span>{{ getEvidenceValue(block.hints.break_from_preceding) === true ? '|- BREAK' : '-- CON\'T' }}</span>
+                <sl-icon name="box-arrow-left"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_preceding) === true ? '◇' : '⬉' }}</span>
               </div>
               <template v-for="param in precedingParams" :key="param.key">
                 <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
@@ -57,8 +57,8 @@
             <!-- After -->
             <div v-if="block.hints.break_from_following && block.hints.break_from_following !== 'untested'" class="hocr-hints-line">
               <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_following)">
-                <sl-icon :name="getEvidenceValue(block.hints.break_from_following) === true ? 'align-end' : 'box-arrow-right'"></sl-icon>
-                <span>{{ getEvidenceValue(block.hints.break_from_following) === true ? '|- BREAK' : '-- CON\'T' }}</span>
+                <sl-icon name="box-arrow-right"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_following) === true ? '◇' : '⬊' }}</span>
               </div>
               <template v-for="param in followingParams" :key="param.key">
                 <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
@@ -539,10 +539,10 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
   align-items: center;
   gap: 0.2rem;
   font-weight: 800;
-  font-size: 0.6rem;
+  font-size: 0.8rem;
   padding: 0.05rem 0.3rem;
   border-radius: 4px;
-  min-width: 4.5rem;
+  min-width: 1.5rem;
 }
 
 .hocr-hint-tag {

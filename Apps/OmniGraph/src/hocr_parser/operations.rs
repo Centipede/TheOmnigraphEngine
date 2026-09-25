@@ -110,7 +110,14 @@ impl HocrPage {
         }
     }
 
-    pub fn apply_auto_detection_to_all_blocks(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds, flow_set: &Option<Vec<String>>) {
+    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
+        for bbox in bboxes {
+            // Add as an image block, letting the engine find the best carea/vertical position
+            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
+        }
+        self.rebuild_bbox();
+    }
+    pub fn auto_bridge(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds, flow_set: &Option<Vec<String>>) {
         // First ensure metrics are calculated
         self.calculate_all_metrics(provider, stem);
 
@@ -173,19 +180,11 @@ impl HocrPage {
 
                 if let Some(path) = self.get_block_path(block_id) {
                     if let HocrPath::Block { carea, block } = path {
-                        self.careas[carea].blocks[block].apply_auto_detection(prec_ctx, foll_ctx, stem, *self_path, thresholds);
+                        self.careas[carea].blocks[block].auto_bridge(prec_ctx, foll_ctx, stem, *self_path, thresholds);
                     }
                 }
             }
         }
-    }
-
-    pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
-        for bbox in bboxes {
-            // Add as an image block, letting the engine find the best carea/vertical position
-            let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
-        }
-        self.rebuild_bbox();
     }
     pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool, carea_ids: Option<Vec<String>>) {
         if flows.is_empty() {
@@ -1270,7 +1269,7 @@ impl HocrBlock {
         });
     }
 
-    pub fn apply_auto_detection(
+    pub fn auto_bridge(
         &mut self,
         preceding: Option<(&HocrBlock, &str, HocrPath)>,
         following: Option<(&HocrBlock, &str, HocrPath)>,

@@ -34,7 +34,7 @@ fn test_auto_detection_reset_and_assigned() {
     };
 
     block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
     assert_eq!(block.hints.test_x_dedent, Evidence::Untested);
@@ -91,7 +91,7 @@ fn test_terminal_block_detection() {
         "page1",
         HocrPath::Block { carea: 0, block: 1 },
     );
-    paragraph.apply_auto_detection(
+    paragraph.auto_bridge(
         Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
         None,
         "page1",
@@ -126,7 +126,7 @@ fn test_terminal_block_detection() {
         "page1",
         HocrPath::Block { carea: 0, block: 1 },
     );
-    paragraph.apply_auto_detection(
+    paragraph.auto_bridge(
         Some((&header, "page1", HocrPath::Block { carea: 0, block: 0 })),
         None,
         "page1",
@@ -206,7 +206,7 @@ fn test_x_indent_dedent_omitted_for_single_line() {
     };
 
     block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
     assert_eq!(block.hints.test_x_dedent, Evidence::Untested);
@@ -232,7 +232,7 @@ fn test_x_indent_dedent_omitted_for_zero_lines() {
     };
 
     block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Untested);
     assert_eq!(block.hints.test_x_dedent, Evidence::Untested);
@@ -282,7 +282,7 @@ fn test_x_indent_dedent_included_for_multiple_lines() {
     };
 
     block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Determined(true)); // 20 >= 15
     assert_eq!(block.hints.test_x_dedent, Evidence::Determined(true)); // 20 >= 15
@@ -323,7 +323,7 @@ fn test_assigned_preserved_for_single_line() {
     };
 
     block.update_metrics(None, None, "page1", HocrPath::Block { carea: 0, block: 0 });
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     assert_eq!(block.hints.test_x_indent, Evidence::Assigned(true));
     assert_eq!(block.hints.test_x_dedent, Evidence::Assigned(false));
@@ -367,7 +367,7 @@ fn test_four_value_detection_logic() {
         ..DetectionThresholds::default()
     };
 
-    block.apply_auto_detection(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
+    block.auto_bridge(None, None, "page1", HocrPath::Block { carea: 0, block: 0 }, &thresholds);
 
     // x_indent = 10. certainly_true: 15, suggested_true: 8. 10 >= 8 -> Suggested(true)
     assert_eq!(block.hints.test_x_indent, Evidence::Suggested(true));

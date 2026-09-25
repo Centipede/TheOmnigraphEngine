@@ -61,18 +61,18 @@
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
 
-            <!-- BLOCK HINTS (break/continue paragraph) -->
+            <!-- BLOCK HINTS (break/continue paragraph) : Nice symbols: ⮬⮯⬞ -->
 
             <div v-if="showBlockHints && item.level === 'block' && item.hints && !isDimmed(item)" class="hocr-block-hints">
               <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) !== null"
                    class="hocr-block-evidence hocr-block-evidence--preceding"
                    :class="getEvidenceClass(item.hints.break_from_preceding)">
-                {{ getEvidenceValue(item.hints.break_from_preceding) === true ? '⬞' : '⮬' }}
+                {{ getEvidenceValue(item.hints.break_from_preceding) === true ? '◇' : '⬉' }}
               </div>
               <div v-if="item.hints.break_from_following && getEvidenceValue(item.hints.break_from_following) !== null"
                    class="hocr-block-evidence hocr-block-evidence--following"
                    :class="getEvidenceClass(item.hints.break_from_following)">
-                {{ getEvidenceValue(item.hints.break_from_following) === true ? '⬞' : '⮯' }}
+                {{ getEvidenceValue(item.hints.break_from_following) === true ? '◇' : '⬊' }}
               </div>
               <div v-if="item.hints.break_from_preceding === 'error'"
                    class="hocr-block-evidence hocr-block-evidence--preceding ev-error">
@@ -1051,7 +1051,7 @@ function overlayItemStyle(item: OverlayItem) {
 .hocr-block-evidence {
   position: absolute;
   font-weight: bold;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   line-height: 1;
   text-shadow: 0 0 2px white;
   z-index: 5;

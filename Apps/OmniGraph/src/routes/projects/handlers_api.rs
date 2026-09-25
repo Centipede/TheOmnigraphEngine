@@ -781,7 +781,7 @@ pub async fn auto_bridge_page(
         let html = std::fs::read_to_string(&hocr_path).ok()?;
         let mut page = crate::hocr_parser::parse(&html, ParserConfig::default())?;
 
-        page.apply_auto_detection_to_all_blocks(&provider, &stem, &payload.thresholds, &payload.flow_set);
+        page.auto_bridge(&provider, &stem, &payload.thresholds, &payload.flow_set);
 
         let new_html = page.to_hocr_html();
         storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;
@@ -823,7 +823,7 @@ pub async fn auto_bridge_block(
             let foll_ctx = following.as_ref().map(|(b, p, path)| (b, p.as_str(), *path));
 
             block.update_metrics(prec_ctx, foll_ctx, &stem, self_path);
-            block.apply_auto_detection(prec_ctx, foll_ctx, &stem, self_path, &payload.thresholds);
+            block.auto_bridge(prec_ctx, foll_ctx, &stem, self_path, &payload.thresholds);
 
             let new_html = page.to_hocr_html();
             storage::save_hocr_edited(&projects_dir, &machine_name, &stem, &new_html).ok()?;
