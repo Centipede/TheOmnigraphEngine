@@ -6,11 +6,15 @@
     :initial-page-stem="initialPageStem"
     :panels="panels"
     :project="project"
+    :dim-layers="dimLayers"
+    :flows="flows"
+    :layouts="layouts"
     :palette="grayHintPalette"
     :keyboard-handler="onKeyDown"
+    hocr-initial-collapse-mode="block"
     @current-page-change="onPageChange"
   >
-    <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette }">
+    <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette, dimLayers: workspaceDimLayers }">
       <div class="bridge-slider-container">
         <div
           class="bridge-slider"
@@ -32,10 +36,19 @@
               :reload-trigger="hocrReloadTrigger[page.scan.replace(/\.[^.]+$/, '')]"
               :interaction-update="makeInteractionUpdateHandler(page)"
               :interaction-click="() => onInteractionClick(page)"
+              :dim-layers="workspaceDimLayers || dimLayers"
             />
           </div>
         </div>
       </div>
+    </template>
+
+    <template #tools>
+      <BridgeDetectionTools
+          :selected-block-id="selectedBlockId"
+          :project="project"
+          v-model:flowSet="flowSet"
+      />
     </template>
   </PageWorkspace>
 </template>
@@ -44,10 +57,11 @@
 import { ref, onMounted, onUnmounted, computed, provide } from 'vue';
 import PageWorkspace from '../components/PageWorkspace.vue';
 import BridgePage from './BridgePage.vue';
+import BridgeDetectionTools from '../components/BridgeDetectionTools.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';
-import type {HocrNode, OverlayItem, Page, Project, PageInteractionUpdate} from '../types';
+import type {HocrNode, OverlayItem, Page, Project, PageInteractionUpdate, DimLayers} from '../types';
 import { DEFAULT_PALETTE } from '../types';
 
 const props = defineProps<{
@@ -58,8 +72,11 @@ const props = defineProps<{
 
 const currentPage = ref<Page | null>(null);
 const project = ref<Project | null>(null);
+const flows = computed(() => project.value?.flows || []);
+const layouts = computed(() => project.value?.layouts || []);
 
 const selectedBlockId = ref<string | null>(null);
+const flowSet = ref<Set<string>>(new Set());
 const selectedPageScan = ref<string | null>(null);
 const hoveredItemId = ref<string | null>(null);
 
@@ -74,6 +91,20 @@ const selectedItemIds = computed(() => {
 provide('selectedItemIds', selectedItemIds);
 provide('selectedPageScan', selectedPageScan);
 provide('indicatedItemId', ref(null));
+
+const dimmedFlows = computed(() => {
+  const allFlows = project.value?.flows.map(f => f.name) || [];
+  return new Set(allFlows.filter(f => !flowSet.value.has(f)));
+});
+
+const dimmedLayouts = ref(new Set<string>());
+
+const dimLayers = computed<DimLayers>(() => ({
+  flows: true,
+  layouts: false,
+  dimmedFlows: dimmedFlows,
+  dimmedLayouts: dimmedLayouts,
+}));
 
 
 function makeInteractionUpdateHandler(page: Page) {
@@ -149,6 +180,9 @@ async function fetchProjectMetadata(): Promise<void> {
     if (resp.ok) {
       const data = await resp.json() as Project;
       project.value = data;
+      if (data.flows && flowSet.value.size === 0) {
+        flowSet.value = new Set(data.flows.map(f => f.name));
+      }
     }
   } catch (e) {
     console.error('Failed to fetch project metadata:', e);
@@ -168,8 +202,10 @@ const panels = usePersistentPanels('panels.bridge', {
 });
 const { setActivePanels } = usePanelVisibilityContext();
 
-// Provide HOCR context for PageWorkspace and general use
-provideHocrContext();
+// Provide HOCR context for PageWorkspace and general use. BridgeMode is special in that it works with multiple pages at once.
+// But still there is a primary page relevant, namely the one in the center of the viewport, which is also the current page.
+// Note though, that each inlined BridgePage uses its own HOCR context, which is loaded on demand.
+provideHocrContext({ block_metrics: true });
 
 onMounted(() => {
   setActivePanels(panels);

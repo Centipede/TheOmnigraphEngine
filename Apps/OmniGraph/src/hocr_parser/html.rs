@@ -97,11 +97,32 @@ impl HocrBlock {
             self.bbox.bottom(),
         );
 
-        if self.hints.continue_from_previous {
-            title.push_str("; continue_from_previous");
+        if self.hints.test_x_indent != Evidence::Untested {
+            title.push_str(&format!("; test_x_indent {}", self.hints.test_x_indent.to_hocr_string()));
         }
-        if self.hints.continue_to_following {
-            title.push_str("; continue_to_following");
+        if self.hints.test_x_dedent != Evidence::Untested {
+            title.push_str(&format!("; test_x_dedent {}", self.hints.test_x_dedent.to_hocr_string()));
+        }
+        if self.hints.test_hyphenation != Evidence::Untested {
+            title.push_str(&format!("; test_hyphenation {}", self.hints.test_hyphenation.to_hocr_string()));
+        }
+        if self.hints.test_y_advance != Evidence::Untested {
+            title.push_str(&format!("; test_y_advance {}", self.hints.test_y_advance.to_hocr_string()));
+        }
+        if self.hints.test_y_reverse != Evidence::Untested {
+            title.push_str(&format!("; test_y_reverse {}", self.hints.test_y_reverse.to_hocr_string()));
+        }
+        if self.hints.test_preceding_terminal != Evidence::Untested {
+            title.push_str(&format!("; test_preceding_terminal {}", self.hints.test_preceding_terminal.to_hocr_string()));
+        }
+        if self.hints.test_following_terminal != Evidence::Untested {
+            title.push_str(&format!("; test_following_terminal {}", self.hints.test_following_terminal.to_hocr_string()));
+        }
+        if self.hints.break_from_preceding != Evidence::Untested {
+            title.push_str(&format!("; break_from_preceding {}", self.hints.break_from_preceding.to_hocr_string()));
+        }
+        if self.hints.break_from_following != Evidence::Untested {
+            title.push_str(&format!("; break_from_following {}", self.hints.break_from_following.to_hocr_string()));
         }
 
         let mut html = format!(

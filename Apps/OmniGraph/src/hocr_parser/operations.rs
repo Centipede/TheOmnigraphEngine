@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use crate::hocr_parser::models::*;
 use crate::hocr_parser::utils::*;
 use crate::hocr_parser::parser::find_node;
+use crate::hocr_parser::navigation::{HocrPageProvider, preceding_block, succeeding_block};
 
 impl HocrPage {
     // -- HIGHER ORDER OPERATIONS --
@@ -47,12 +48,143 @@ impl HocrPage {
             }
         }
     }
+    pub fn calculate_all_metrics(&mut self, provider: &dyn HocrPageProvider, stem: &str) {
+        let mut blocks_with_paths: HashMap<String, (HocrBlock, HocrPath)> = HashMap::new();
+        let mut flows_blocks: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if let Some(ref flow) = carea.flow {
+                let entry = flows_blocks.entry(flow.clone()).or_default();
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    let path = HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    };
+                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
+                    entry.push(block.id.clone());
+                }
+            }
+        }
+
+        for (_flow, ids) in flows_blocks {
+            for i in 0..ids.len() {
+                let block_id = &ids[i];
+                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
+
+                let preceding_owned = if i == 0 {
+                    preceding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let prec_ctx = if i > 0 {
+                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    preceding_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                let following_owned = if i == ids.len() - 1 {
+                    succeeding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let foll_ctx = if i < ids.len() - 1 {
+                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    following_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                if let Some(path) = self.get_block_path(block_id) {
+                    if let HocrPath::Block { carea, block } = path {
+                        self.careas[carea].blocks[block].update_metrics(prec_ctx, foll_ctx, stem, *self_path);
+                    }
+                }
+            }
+        }
+    }
+
     pub fn inject_images(&mut self, bboxes: Vec<HocrBbox>) {
         for bbox in bboxes {
             // Add as an image block, letting the engine find the best carea/vertical position
             let _ = self.add_block(None, bbox, Some(AddBlockType::Image), None, Some(false), None);
         }
         self.rebuild_bbox();
+    }
+    pub fn auto_bridge(&mut self, provider: &dyn HocrPageProvider, stem: &str, thresholds: &DetectionThresholds, flow_set: &Option<Vec<String>>) {
+        // First ensure metrics are calculated
+        self.calculate_all_metrics(provider, stem);
+
+        let mut blocks_with_paths: HashMap<String, (HocrBlock, HocrPath)> = HashMap::new();
+        let mut flows_blocks: HashMap<String, Vec<String>> = HashMap::new();
+
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if let Some(ref flow) = carea.flow {
+                if let Some(flows) = flow_set {
+                    if !flows.contains(flow) {
+                        continue;
+                    }
+                }
+                let entry = flows_blocks.entry(flow.clone()).or_default();
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    let path = HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    };
+                    blocks_with_paths.insert(block.id.clone(), (block.clone(), path));
+                    entry.push(block.id.clone());
+                }
+            }
+        }
+
+        for (_flow, ids) in flows_blocks {
+            for i in 0..ids.len() {
+                let block_id = &ids[i];
+                let (_, self_path) = blocks_with_paths.get(block_id).unwrap();
+
+                let preceding_owned = if i == 0 {
+                    preceding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let prec_ctx = if i > 0 {
+                    let (b, path) = blocks_with_paths.get(&ids[i - 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    preceding_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                let following_owned = if i == ids.len() - 1 {
+                    succeeding_block(provider, stem, block_id)
+                } else {
+                    None
+                };
+
+                let foll_ctx = if i < ids.len() - 1 {
+                    let (b, path) = blocks_with_paths.get(&ids[i + 1]).unwrap();
+                    Some((b, stem, *path))
+                } else {
+                    following_owned
+                        .as_ref()
+                        .map(|(b, p, path)| (b, p.as_str(), *path))
+                };
+
+                if let Some(path) = self.get_block_path(block_id) {
+                    if let HocrPath::Block { carea, block } = path {
+                        self.careas[carea].blocks[block].auto_bridge(prec_ctx, foll_ctx, stem, *self_path, thresholds);
+                    }
+                }
+            }
+        }
     }
     pub fn auto_flow(&mut self, flows: Vec<FlowSchema>, _layouts: Vec<LayoutSchema>, merge: bool, carea_ids: Option<Vec<String>>) {
         if flows.is_empty() {
@@ -668,6 +800,7 @@ impl HocrPage {
             id: new_id,
             bbox: HocrBbox::empty(),
             hints: HocrBlockHints::default(),
+            metrics: None,
             lines: right.to_vec(),
         };
         old_block.lines.truncate(line_after);
@@ -831,6 +964,7 @@ impl HocrPage {
                     lang: None,
                     bbox,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 };
 
@@ -882,6 +1016,7 @@ impl HocrPage {
                     lang: None,
                     bbox,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 });
 
@@ -952,13 +1087,325 @@ impl HocrPage {
         let block = &mut self.careas[carea].blocks[block];
         match hint_name {
             "continue_from_previous" => {
-                block.hints.continue_from_previous = !block.hints.continue_from_previous;
+                let current = match block.hints.break_from_preceding {
+                    Evidence::Assigned(b) => b,
+                    Evidence::Determined(b) => b,
+                    Evidence::Suggested(b) => b,
+                    _ => false,
+                };
+                block.hints.break_from_preceding = Evidence::Assigned(!current);
             }
             "continue_to_following" => {
-                block.hints.continue_to_following = !block.hints.continue_to_following;
+                let current = match block.hints.break_from_following {
+                    Evidence::Assigned(b) => b,
+                    Evidence::Determined(b) => b,
+                    Evidence::Suggested(b) => b,
+                    _ => false,
+                };
+                block.hints.break_from_following = Evidence::Assigned(!current);
             }
             _ => return Err("Invalid hint name".to_string()),
         }
         Ok(())
     }
+
+    pub fn get_block_flow(&self, block_id: &str) -> Option<String> {
+        for carea in &self.careas {
+            for block in &carea.blocks {
+                if block.id == block_id {
+                    return carea.flow.clone();
+                }
+            }
+        }
+        None
+    }
+
+    pub fn filter_careas(&self, flow: &str) -> Vec<&HocrCarea> {
+        self.careas
+            .iter()
+            .filter(|c| c.flow.as_deref() == Some(flow))
+            .collect()
+    }
+
+    pub fn filter_blocks(&self, flow: &str) -> Vec<&HocrBlock> {
+        self.filter_careas(flow)
+            .into_iter()
+            .flat_map(|c| c.blocks.iter())
+            .collect()
+    }
+
+    pub fn get_block_path(&self, block_id: &str) -> Option<HocrPath> {
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            for (b_idx, block) in carea.blocks.iter().enumerate() {
+                if block.id == block_id {
+                    return Some(HocrPath::Block {
+                        carea: c_idx,
+                        block: b_idx,
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    pub fn filter_blocks_with_paths(&self, flow: &str) -> Vec<(&HocrBlock, HocrPath)> {
+        let mut results = Vec::new();
+        for (c_idx, carea) in self.careas.iter().enumerate() {
+            if carea.flow.as_deref() == Some(flow) {
+                for (b_idx, block) in carea.blocks.iter().enumerate() {
+                    results.push((
+                        block,
+                        HocrPath::Block {
+                            carea: c_idx,
+                            block: b_idx,
+                        },
+                    ));
+                }
+            }
+        }
+        results
+    }
+}
+
+pub(crate) fn derive_evidence(tests: &[Evidence]) -> Evidence {
+    let mut det_true = false;
+    let mut det_false = false;
+    let mut suggested = None;
+    let mut all_untested = true;
+
+    for t in tests {
+        if *t != Evidence::Untested {
+            all_untested = false;
+        }
+        match t {
+            Evidence::Assigned(true) | Evidence::Determined(true) => det_true = true,
+            Evidence::Assigned(false) | Evidence::Determined(false) => det_false = true,
+            Evidence::Suggested(b) => {
+                if suggested.is_none() {
+                    suggested = Some(*b);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if all_untested {
+        return Evidence::Untested;
+    }
+
+    if det_true && det_false {
+        Evidence::Error
+    } else if det_true {
+        Evidence::Determined(true)
+    } else if det_false {
+        Evidence::Determined(false)
+    } else if let Some(b) = suggested {
+        Evidence::Suggested(b)
+    } else {
+        Evidence::Undetermined
+    }
+}
+
+impl HocrBlock {
+    pub fn x_indent(&self) -> i32 {
+        if self.lines.is_empty() {
+            return 0;
+        }
+        self.lines[0].bbox.left() - self.bbox.left()
+    }
+
+    pub fn x_dedent(&self) -> i32 {
+        if self.lines.is_empty() {
+            return 0;
+        }
+        self.bbox.right() - self.lines.last().unwrap().bbox.right()
+    }
+
+    pub fn test_hyphenation(&self) -> bool {
+        if self.lines.is_empty() {
+            return false;
+        }
+        let last_line = self.lines.last().unwrap();
+        if last_line.words.is_empty() {
+            return false;
+        }
+        let last_word = last_line.words.last().unwrap();
+        last_word.text.ends_with('-')
+            || last_word.text.ends_with('—')
+            || last_word.text.ends_with('–')
+    }
+
+    pub fn update_metrics(
+        &mut self,
+        preceding: Option<(&HocrBlock, &str, HocrPath)>,
+        following: Option<(&HocrBlock, &str, HocrPath)>,
+        self_page_stem: &str,
+        self_path: HocrPath,
+    ) {
+        let x_indent = self.x_indent();
+        let x_dedent = self.x_dedent();
+        let has_final_hyphen = self.test_hyphenation();
+
+        let mut y_reverse = None;
+        if let Some((prev, prev_page, prev_path)) = preceding {
+            if prev_page == self_page_stem && prev_path.to_carea() == self_path.to_carea() {
+                y_reverse = Some(y_advance(prev, self));
+            }
+        }
+
+        let mut y_advance_val = None;
+        if let Some((next, next_page, next_path)) = following {
+            if next_page == self_page_stem && next_path.to_carea() == self_path.to_carea() {
+                y_advance_val = Some(y_advance(self, next));
+            }
+        }
+
+        self.metrics = Some(HocrBlockMetrics {
+            x_indent,
+            x_dedent,
+            y_advance: y_advance_val,
+            y_reverse,
+            has_final_hyphen,
+        });
+    }
+
+    pub fn auto_bridge(
+        &mut self,
+        preceding: Option<(&HocrBlock, &str, HocrPath)>,
+        following: Option<(&HocrBlock, &str, HocrPath)>,
+        _self_page_stem: &str,
+        _self_path: HocrPath,
+        thresholds: &DetectionThresholds,
+    ) {
+        if self.metrics.is_none() {
+            // Should have metrics calculated before calling this if we want to use them.
+            // But for safety/backward compat, we could calculate them here if missing,
+            // though the goal is to decouple.
+            // For now, I'll assume metrics might be missing if not pre-calculated.
+            // But wait, the plan says simplified to consume self.metrics.
+        }
+
+        // Reset all hints that are not Assigned to Untested
+        if !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) { self.hints.test_x_indent = Evidence::Untested; }
+        if !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) { self.hints.test_x_dedent = Evidence::Untested; }
+        if !matches!(self.hints.test_hyphenation, Evidence::Assigned(_)) { self.hints.test_hyphenation = Evidence::Untested; }
+        if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) { self.hints.test_y_advance = Evidence::Untested; }
+        if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) { self.hints.test_y_reverse = Evidence::Untested; }
+        if !matches!(self.hints.test_preceding_terminal, Evidence::Assigned(_)) { self.hints.test_preceding_terminal = Evidence::Untested; }
+        if !matches!(self.hints.test_following_terminal, Evidence::Assigned(_)) { self.hints.test_following_terminal = Evidence::Untested; }
+        if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) { self.hints.break_from_preceding = Evidence::Untested; }
+        if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) { self.hints.break_from_following = Evidence::Untested; }
+
+        // Only paragraphs participate in considerations of continuation. All headers images, lists and tables live alone and cannot be continued.
+        if !matches!(self.kind, HocrBlockKind::Paragraph) {
+            if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) { self.hints.break_from_preceding = Evidence::Determined(true); }
+            if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) { self.hints.break_from_following = Evidence::Determined(true); }
+            return;
+        }
+
+        // 0. Terminal block detection
+        if !matches!(self.hints.test_preceding_terminal, Evidence::Assigned(_)) {
+            if let Some((prev, _, _)) = preceding {
+                self.hints.test_preceding_terminal = if !matches!(prev.kind, HocrBlockKind::Paragraph) {
+                    Evidence::Determined(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
+        }
+
+        if !matches!(self.hints.test_following_terminal, Evidence::Assigned(_)) {
+            if let Some((next, _, _)) = following {
+                self.hints.test_following_terminal = if !matches!(next.kind, HocrBlockKind::Paragraph) {
+                    Evidence::Determined(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
+        }
+
+        let ignore_preceding = matches!(self.hints.test_preceding_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_preceding_terminal, Evidence::Determined(true));
+        let ignore_following = matches!(self.hints.test_following_terminal, Evidence::Assigned(true)) || matches!(self.hints.test_following_terminal, Evidence::Determined(true));
+
+        let check_range = |val: i32, range: &DetectionRange| -> Evidence {
+            if val >= range.certainly_true {
+                Evidence::Determined(true)
+            } else if val >= range.suggested_true {
+                Evidence::Suggested(true)
+            } else if val <= range.certainly_false {
+                Evidence::Determined(false)
+            } else if val <= range.suggested_false {
+                Evidence::Suggested(false)
+            } else {
+                Evidence::Undetermined
+            }
+        };
+
+        if let Some(ref m) = self.metrics {
+            // 1. Low level indicators - per block
+            if thresholds.use_x_indent && self.lines.len() > 1 && !matches!(self.hints.test_x_indent, Evidence::Assigned(_)) && !ignore_preceding {
+                self.hints.test_x_indent = check_range(m.x_indent, &thresholds.x_indent);
+            }
+
+            if thresholds.use_x_dedent && self.lines.len() > 1 && !matches!(self.hints.test_x_dedent, Evidence::Assigned(_)) && !ignore_following {
+                self.hints.test_x_dedent = check_range(m.x_dedent, &thresholds.x_dedent);
+            }
+
+            if thresholds.use_hyphenation
+                && !matches!(self.hints.test_hyphenation, Evidence::Assigned(_))
+            {
+                self.hints.test_hyphenation = if m.has_final_hyphen {
+                    Evidence::Suggested(true)
+                } else {
+                    Evidence::Suggested(false)
+                };
+            }
+
+            // 2. Low level indicators - per boundary
+            if thresholds.use_y_advance {
+                if !ignore_preceding {
+                    if let Some(val) = m.y_reverse {
+                        if !matches!(self.hints.test_y_reverse, Evidence::Assigned(_)) {
+                            self.hints.test_y_reverse = check_range(val, &thresholds.y_advance);
+                        }
+                    }
+                }
+
+                if !ignore_following {
+                    if let Some(val) = m.y_advance {
+                        if !matches!(self.hints.test_y_advance, Evidence::Assigned(_)) {
+                            self.hints.test_y_advance = check_range(val, &thresholds.y_advance);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Mid level calculations
+        if !matches!(self.hints.break_from_preceding, Evidence::Assigned(_)) {
+            self.hints.break_from_preceding =
+                derive_evidence(&[self.hints.test_preceding_terminal, self.hints.test_x_indent, self.hints.test_y_reverse, self.hints.test_preceding_terminal]);
+        }
+
+        if !matches!(self.hints.break_from_following, Evidence::Assigned(_)) {
+            self.hints.break_from_following =
+                derive_evidence(&[self.hints.test_following_terminal, self.hints.test_x_dedent, self.hints.test_y_advance, self.hints.test_following_terminal]);
+        }
+    }
+
+    pub fn get_continued_evidence(a: &HocrBlock, b: &HocrBlock) -> Evidence {
+        let a_break = a.hints.break_from_following.is_true();
+        let b_break = b.hints.break_from_preceding.is_true();
+
+        match (a_break, b_break) {
+            (Some(false), Some(false)) => Evidence::Determined(true),
+            (Some(true), Some(true)) => Evidence::Determined(false),
+            (Some(av), Some(bv)) if av != bv => Evidence::Error,
+            _ => Evidence::Undetermined,
+        }
+    }
+}
+
+pub fn y_advance(a: &HocrBlock, b: &HocrBlock) -> i32 {
+    b.bbox.top() - a.bbox.bottom()
 }

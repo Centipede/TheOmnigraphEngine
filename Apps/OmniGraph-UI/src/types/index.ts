@@ -3,7 +3,7 @@ export type { SectionHeadline, SubsectionType, SectionKind, Section, Headline, S
 export type { Project, FlowSchema, LayoutSchema, ColorSpecification } from './project';
 export type { OcrCommandFormat, OcrServer, OcrServerStatus, OcrSettingsUpdate, SettingsForm, SettingsStatus } from './settings';
 export type { PanelId, PanelVisibility } from './panels';
-export type { HocrBbox, HocrLevel, HocrCarea, HocrLine, HocrPage, HocrBlock, HocrWord, HocrNode, MultiSelect } from './hocr';
-export type { OverlayRole, OverlayItem, PageInteractionUpdate, PageInteractionClick, PageInteractionDrag, PointerSettings, EditorPalette } from './hocr_interaction';
+export type { HocrBbox, HocrLevel, HocrCarea, HocrLine, HocrPage, HocrBlock, HocrWord, HocrNode, MultiSelect, Evidence, DetectionThresholds } from './hocr';
+export type { OverlayRole, OverlayItem, DimLayers, PageInteractionUpdate, PageInteractionClick, PageInteractionDrag, PointerSettings, EditorPalette } from './hocr_interaction';
 export { findItem, getChildren, bboxContainsPoint, findSiblingsAroundCursor, sortBylevel, findMultilevelById, findMultiLevelItemByPoint, sortIdsByDocumentOrder } from './hocr';
 export { getParentLevel, getChildLevel, DEFAULT_PALETTE } from './hocr_interaction';

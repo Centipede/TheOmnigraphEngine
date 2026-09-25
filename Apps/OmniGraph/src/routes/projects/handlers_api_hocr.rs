@@ -1,11 +1,11 @@
 use crate::hocr_parser;
-use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath};
+use crate::hocr_parser::{HocrBlockKind, HocrPage, HocrPath, ParserConfig};
 use crate::routes::projects::forms::{AddRequest, MorphRequest, MergeItemsRequest, MergeRequest, SplitRequest, RescanRequest};
 use crate::routes::projects::handlers_api::get_hocr_json;
 use crate::routes::projects::storage;
 use crate::state::AppState;
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, State, Query};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde_json::json;
@@ -307,7 +307,7 @@ pub async fn carea_rescan(
     };
 
     // 8. Parse the returned hOCR as a HocrPage
-    let mut new_page = match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text)).await.unwrap_or(None) {
+    let mut new_page = match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text, ParserConfig::default())).await.unwrap_or(None) {
         Some(p) => p,
         None => return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to parse OCR result").into_response(),
     };
@@ -1255,7 +1255,7 @@ pub async fn word_rescan(
 
     // 7. Parse the returned hOCR as a HocrPage
     let mut new_page =
-        match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text))
+        match tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&hocr_text, ParserConfig::default()))
             .await
             .unwrap_or(None)
         {
@@ -1299,7 +1299,7 @@ pub async fn parse_page(
         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html))
+    let page = tokio::task::spawn_blocking(move || crate::hocr_parser::parse(&html, ParserConfig::default()))
         .await
         .unwrap_or(None);
 
@@ -1327,7 +1327,7 @@ pub async fn restore_from_original(
         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
     }
 
-    get_hocr_json(State(state), Path((machine_name, stem)))
+    get_hocr_json(State(state), Path((machine_name, stem)), Query(ParserConfig::default()))
         .await
         .into_response()
 }

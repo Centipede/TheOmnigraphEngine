@@ -1,5 +1,11 @@
 import { ref, provide, inject, type Ref, type InjectionKey } from 'vue';
-import type { HocrPage } from '../types/hocr';
+import type { HocrPage, DetectionThresholds } from '../types/hocr';
+import { augmentHocrPageWithWordCoords } from '../utils/hocr';
+
+export interface LoadHocrOptions {
+  isNoHocrAcceptable?: boolean;
+  block_metrics?: boolean;
+}
 
 export interface HocrContext {
   hocrPage: Ref<HocrPage | null>;
@@ -7,34 +13,43 @@ export interface HocrContext {
   stem: Ref<string | null>;
   loading: Ref<boolean>;
   error: Ref<string | null>;
-  loadHocr: (machineName: string, stem: string, isNoHocrAcceptable?: boolean) => Promise<void>;
+  loadHocr: (machineName: string, stem: string, options?: LoadHocrOptions) => Promise<void>;
   rescanCarea: (machineName: string, stem: string, careaId: string, language?: string) => Promise<void>;
   rescanWord: (machineName: string, stem: string, wordId: string, language?: string) => Promise<void>;
+  autoBridgePage: (thresholds: DetectionThresholds, flowSet?: Set<string>) => Promise<void>;
+  autoBridgeBlock: (blockId: string, thresholds: DetectionThresholds, flowSet?: Set<string>) => Promise<void>;
   updateHocr: (page: HocrPage | null) => void;
   clearHocr: () => void;
+  baseOptions: LoadHocrOptions;
 }
 
 const HocrSymbol: InjectionKey<HocrContext> = Symbol('hocr');
 
-export async function fetchHocrPage(machineName: string, stem: string, isNoHocrAcceptable = true): Promise<HocrPage | null> {
-  const resp = await fetch(`/api/projects/${machineName}/pages/${stem}/hocr-json`);
+export async function fetchHocrPage(machineName: string, stem: string, options: LoadHocrOptions = { isNoHocrAcceptable: true }): Promise<HocrPage | null> {
+  const params = new URLSearchParams();
+  if (options.block_metrics) params.append('block_metrics', 'true');
+  const query = params.toString();
+  const url = `/api/projects/${machineName}/pages/${stem}/hocr-json${query ? `?${query}` : ''}`;
+
+  const resp = await fetch(url);
   if (!resp.ok) {
-    if (resp.status === 404 && isNoHocrAcceptable) {
+    if (resp.status === 404 && options.isNoHocrAcceptable) {
       return null;
     }
     throw new Error(`Failed to load hOCR: ${resp.statusText}`);
   }
-  return await resp.json() as HocrPage;
+  const page = await resp.json() as HocrPage;
+  return augmentHocrPageWithWordCoords(page);
 }
 
-export function provideHocrContext() {
+export function provideHocrContext(baseOptions: LoadHocrOptions = {}) {
   const hocrPage = ref<HocrPage | null>(null);
   const machineName = ref<string | null>(null);
   const stem = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  async function loadHocr(mName: string, sName: string, isNoHocrAcceptable = true) {
+  async function loadHocr(mName: string, sName: string, options?: LoadHocrOptions) {
     if (!mName || !sName) {
       hocrPage.value = null;
       machineName.value = null;
@@ -47,7 +62,8 @@ export function provideHocrContext() {
     machineName.value = mName;
     stem.value = sName;
     try {
-      hocrPage.value = await fetchHocrPage(mName, sName, isNoHocrAcceptable);
+      const finalOptions = { isNoHocrAcceptable: true, ...baseOptions, ...options };
+      hocrPage.value = await fetchHocrPage(mName, sName, finalOptions);
     } catch (e) {
       hocrPage.value = null;
       error.value = e instanceof Error ? e.message : String(e);
@@ -69,11 +85,13 @@ export function provideHocrContext() {
       });
       if (resp.ok) {
         const data = await resp.json();
+        let page: HocrPage;
         if (data && typeof data === 'object' && 'page' in data) {
-          hocrPage.value = data.page as HocrPage;
+          page = data.page as HocrPage;
         } else {
-          hocrPage.value = data as HocrPage;
+          page = data as HocrPage;
         }
+        hocrPage.value = augmentHocrPageWithWordCoords(page);
       } else {
         error.value = `Rescan failed: ${await resp.text()}`;
       }
@@ -97,13 +115,69 @@ export function provideHocrContext() {
       });
       if (resp.ok) {
         const data = await resp.json();
+        let page: HocrPage;
         if (data && typeof data === 'object' && 'page' in data) {
-          hocrPage.value = data.page as HocrPage;
+          page = data.page as HocrPage;
         } else {
-          hocrPage.value = data as HocrPage;
+          page = data as HocrPage;
         }
+        hocrPage.value = augmentHocrPageWithWordCoords(page);
       } else {
         error.value = `Rescan failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function autoBridgePage(thresholds: DetectionThresholds, flowSet?: Set<string>) {
+    if (!machineName.value || !stem.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${machineName.value}/pages/${stem.value}/auto-bridge-page`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          thresholds,
+          flow_set: flowSet ? Array.from(flowSet) : undefined
+        })
+      });
+      if (resp.ok) {
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });
+      } else {
+        error.value = `Auto-bridge page failed: ${await resp.text()}`;
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function autoBridgeBlock(blockId: string, thresholds: DetectionThresholds, flowSet?: Set<string>) {
+    if (!machineName.value || !stem.value) return;
+    loading.value = true;
+    error.value = null;
+    try {
+      const resp = await fetch(`/api/projects/${machineName.value}/pages/${stem.value}/hocr/blocks/${blockId}/auto-bridge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          thresholds,
+          flow_set: flowSet ? Array.from(flowSet) : undefined
+        })
+      });
+      if (resp.ok) {
+        hocrPage.value = await fetchHocrPage(machineName.value, stem.value, { ...baseOptions, isNoHocrAcceptable: false });
+      } else {
+        error.value = `Auto-bridge block failed: ${await resp.text()}`;
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
@@ -132,8 +206,11 @@ export function provideHocrContext() {
     loadHocr,
     rescanCarea,
     rescanWord,
+    autoBridgePage,
+    autoBridgeBlock,
     updateHocr,
-    clearHocr
+    clearHocr,
+    baseOptions
   };
 
   provide(HocrSymbol, context);

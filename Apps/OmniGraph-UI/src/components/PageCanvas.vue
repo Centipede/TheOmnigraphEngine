@@ -48,6 +48,9 @@
                :style="overlayItemStyle(item)"
 
           >
+            <div v-if="isDimmed(item)"
+                 class="hocr-dimmed-overlay" />
+
             <div class="hocr-overlay-item-info"
                  v-if="item.role === 'active'">
               <span class="hocr-overlay-item-kind"
@@ -58,11 +61,70 @@
               <span class="hocr-overlay-item-id">{{ item.id }}</span>
             </div>
 
-            <div v-if="showBlockHints && item.level === 'block' && item.hints" class="hocr-block-hints">
-              <div v-if="item.hints.continue_from_previous" class="hocr-block-hint hocr-block-hint--up">↑</div>
-              <div v-if="item.hints.continue_to_following" class="hocr-block-hint hocr-block-hint--down">↓</div>
+            <!-- BLOCK HINTS (break/continue paragraph) : Nice symbols: ⮬⮯⬞ -->
+
+            <div v-if="showBlockHints && item.level === 'block' && item.hints && !isDimmed(item)" class="hocr-block-hints">
+              <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) !== null"
+                   class="hocr-block-evidence hocr-block-evidence--preceding"
+                   :class="getEvidenceClass(item.hints.break_from_preceding)">
+                {{ getEvidenceValue(item.hints.break_from_preceding) === true ? '◇' : '⬉' }}
+              </div>
+              <div v-if="item.hints.break_from_following && getEvidenceValue(item.hints.break_from_following) !== null"
+                   class="hocr-block-evidence hocr-block-evidence--following"
+                   :class="getEvidenceClass(item.hints.break_from_following)">
+                {{ getEvidenceValue(item.hints.break_from_following) === true ? '◇' : '⬊' }}
+              </div>
+              <div v-if="item.hints.break_from_preceding === 'error'"
+                   class="hocr-block-evidence hocr-block-evidence--preceding ev-error">
+                ⚠
+              </div>
+              <div v-if="item.hints.break_from_following === 'error'"
+                   class="hocr-block-evidence hocr-block-evidence--following ev-error">
+                ⚠
+              </div>
+
+              <div class="hocr-block-hints-container hocr-block-hints-container--top">
+                <div v-if="item.hints.test_y_reverse && getEvidenceValue(item.hints.test_y_reverse) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_y_reverse)">
+                  ⬓
+                </div>
+                <div v-if="item.hints.test_preceding_terminal && getEvidenceValue(item.hints.test_preceding_terminal) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_preceding_terminal)">
+                  ⍑
+                </div>
+              </div>
+
+              <div class="hocr-block-hints-container hocr-block-hints-container--bottom">
+                <div v-if="item.hints.test_y_advance && getEvidenceValue(item.hints.test_y_advance) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_y_advance)">
+                  ⬒
+                </div>
+                <div v-if="item.hints.test_following_terminal && getEvidenceValue(item.hints.test_following_terminal) !== null"
+                     class="hocr-block-evidence"
+                     :class="getEvidenceClass(item.hints.test_following_terminal)">
+                  ⍊
+                </div>
+              </div>
+
+              <div v-if="item.hints.test_x_indent && getEvidenceValue(item.hints.test_x_indent) === true && item.firstWordBbox"
+                   class="hocr-block-evidence hocr-block-evidence--indent"
+                   :class="getEvidenceClass(item.hints.test_x_indent)"
+                   :style="overlayItemAlignWithWord(item, item.firstWordBbox, 'indent')">
+                ⎡
+              </div>
+              <div v-if="item.hints.test_x_dedent && getEvidenceValue(item.hints.test_x_dedent) === true && item.lastWordBbox"
+                   class="hocr-block-evidence hocr-block-evidence--dedent"
+                   :class="getEvidenceClass(item.hints.test_x_dedent)"
+                   :style="overlayItemAlignWithWord(item, item.lastWordBbox, 'dedent')">
+                ⎦
+              </div>
             </div>
           </div>
+
+          <!-- PAGE HINTS (dropcap, image, garbage, ...) -->
 
           <template v-if="page.hints">
             <div v-for="(hint, index) in page.hints"
@@ -107,9 +169,11 @@ import {
   getChildren,
   getParentLevel,
   bboxContainsPoint,
+  type HocrBbox,
   type HocrLevel,
   type HocrPage,
   type OverlayItem,
+  type Evidence,
   type OverlayRole,
   type Page,
   type Hint,
@@ -118,7 +182,8 @@ import {
   type HocrNode,
   type FlowSchema,
   type LayoutSchema,
-  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag
+  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag,
+  type DimLayers
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
@@ -155,12 +220,19 @@ const props = withDefaults(defineProps<{
   careaLayers?: { flow: boolean; layout: boolean };
   minimal?: boolean;
   showBlockHints?: boolean;
+  dimLayers?: DimLayers;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
   minimal: false,
   showBlockHints: false,
+  dimLayers: () => ({
+    flows: false,
+    layouts: false,
+    dimmedFlows: ref(new Set<string>()),
+    dimmedLayouts: ref(new Set<string>()),
+  }),
 });
 
 const { hocrPage } = useHocrContext();
@@ -168,27 +240,27 @@ const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Se
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectedPageScan = inject<Ref<string | null>>('selectedPageScan', ref(null));
 
+function isDimmed(item: OverlayItem) {
+  if (item.level !== 'carea' && item.level !== 'block') return false;
+
+  const { flows, layouts, dimmedFlows, dimmedLayouts } = props.dimLayers;
+
+  if (flows && item.flow && dimmedFlows.value.has(item.flow)) {
+    return true;
+  }
+
+  if (layouts && item.layout && dimmedLayouts.value.has(item.layout)) {
+    return true;
+  }
+
+  return false;
+}
+
 function isItemSelected(id: string) {
   if (!selectedItemIds.value.has(id)) return false;
   if (selectedPageScan.value && selectedPageScan.value !== props.page.scan) return false;
   return true;
 }
-
-const project = ref<any>(null);
-
-async function fetchProject() {
-  if (!props.machineName) return;
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}`);
-    if (resp.ok) {
-      project.value = await resp.json();
-    }
-  } catch (e) {
-    console.error('Failed to fetch project in PageCanvas', e);
-  }
-}
-
-onMounted(fetchProject);
 
 const imageStyle = computed(() => {
   return {};
@@ -325,7 +397,9 @@ const overlayItems = computed((): OverlayItem[] => {
         role: cr,
         color: careaColor,
         kind: null,
-        wconf: getMinWconf(carea)
+        wconf: getMinWconf(carea),
+        flow: carea.flow,
+        layout: carea.layout,
       });
     }
 
@@ -349,6 +423,10 @@ const overlayItems = computed((): OverlayItem[] => {
           kind: blockKindFor(block),
           wconf: getMinWconf(block),
           hints: block.hints,
+          flow: carea.flow,
+          layout: carea.layout,
+          firstWordBbox: block.firstWordBbox,
+          lastWordBbox: block.lastWordBbox,
         });
       }
 
@@ -631,6 +709,47 @@ function getHintColor(type: HintType) {
   return '#000000';
 }
 
+function getEvidenceClass(ev: Evidence) {
+  if (typeof ev === 'string') {
+    return `ev-${ev}`;
+  }
+  const key = Object.keys(ev)[0];
+  const val = (ev as any)[key];
+  return `ev-${key} ev-val-${val}`;
+}
+
+function getEvidenceValue(ev: Evidence): boolean | null {
+  if (typeof ev === 'string') return null;
+  if ('suggested' in ev) return ev.suggested;
+  if ('determined' in ev) return ev.determined;
+  if ('assigned' in ev) return ev.assigned;
+  return null;
+}
+
+function overlayItemAlignWithWord(item: OverlayItem, wordBbox: HocrBbox, type: 'indent' | 'dedent') {
+  const [bl, bt, br, bb] = item.bbox;
+  const [wl, wt, wr, wb] = wordBbox;
+
+  const bw = br - bl;
+  const bh = bb - bt;
+
+  if (bw === 0 || bh === 0) return {};
+
+  if (type === 'indent') {
+    return {
+      left: `${((wl - bl) / bw) * 100}%`,
+      top: `${((wt - bt) / bh) * 100}%`,
+      transform: 'translate(-70%, -20%)',
+    };
+  } else {
+    return {
+      left: `${((wr - bl) / bw) * 100}%`,
+      top: `${((wb - bt) / bh) * 100}%`,
+      transform: 'translate(-30%, -80%)',
+    };
+  }
+}
+
 function hintStyle(hint: Hint) {
   const color = getHintColor(hint.type);
   return {
@@ -894,6 +1013,16 @@ function overlayItemStyle(item: OverlayItem) {
   opacity: 1 !important;
 }
 
+.hocr-dimmed-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
 /* N+1: children — lighter fill, thin outline, selectable */
 .hocr-overlay--child {
   pointer-events: none;
@@ -919,25 +1048,71 @@ function overlayItemStyle(item: OverlayItem) {
   pointer-events: none;
 }
 
-.hocr-block-hint {
+.hocr-block-evidence {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #22c55e;
   font-weight: bold;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   line-height: 1;
   text-shadow: 0 0 2px white;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.hocr-block-hint--up {
-  top: -0.8rem;
+.hocr-block-hints-container {
+  position: absolute;
+  left: 50%;
+  display: flex;
+  gap: 0.2rem;
+  z-index: 5;
+  pointer-events: none;
 }
 
-.hocr-block-hint--down {
-  bottom: -0.8rem;
+.hocr-block-hints-container--top {
+  top: 0;
+  transform: translate(0, -20%);
 }
+
+.hocr-block-hints-container--bottom {
+  bottom: 0;
+  transform: translate(0, 20%);
+}
+
+.hocr-block-hints-container .hocr-block-evidence {
+  position: relative;
+  font-size: 0.9rem;
+}
+
+.hocr-block-evidence--preceding {
+  top: 0;
+  left: 0;
+}
+.hocr-block-evidence--preceding.ev-val-true { transform: translate(-50%, -50%); }
+.hocr-block-evidence--preceding.ev-val-false { transform: translate(-90%, -90%); }
+
+.hocr-block-evidence--following {
+  bottom: 0;
+  right: 0;
+}
+.hocr-block-evidence--following.ev-val-true { transform: translate(50%, 50%); }
+.hocr-block-evidence--following.ev-val-false { transform: translate(90%, 90%); }
+
+.hocr-block-evidence--indent,
+.hocr-block-evidence--dedent {
+  font-size: 0.8rem;
+}
+
+/* Evidence colors aligned with HocrOutline.vue (True=Orange, False=Sky) */
+.ev-val-true.ev-suggested { color: var(--sl-color-orange-500); opacity: 0.8; }
+.ev-val-true.ev-determined { color: var(--sl-color-orange-600); opacity: 1; }
+.ev-val-true.ev-assigned { color: var(--sl-color-orange-700); opacity: 1; }
+
+.ev-val-false.ev-suggested { color: var(--sl-color-sky-500); opacity: 0.8; }
+.ev-val-false.ev-determined { color: var(--sl-color-sky-600); opacity: 1; }
+.ev-val-false.ev-assigned { color: var(--sl-color-sky-700); opacity: 1; }
+
+.ev-error { color: var(--sl-color-red-600); opacity: 1; font-size: 1.2rem; }
 
 img {
   -webkit-user-select: none;

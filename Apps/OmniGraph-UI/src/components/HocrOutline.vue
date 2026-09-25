@@ -35,6 +35,42 @@
             <span class="hocr-toggle">{{ expandedBlocks.has(block.id) ? '▾' : '▸' }}</span>
           </div>
 
+          <!-- BLOCK HINTS -->
+          <div v-if="block.hints" class="hocr-hints-list">
+
+            <!-- Before -->
+            <div v-if="block.hints.break_from_preceding && block.hints.break_from_preceding !== 'untested'" class="hocr-hints-line">
+              <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_preceding)">
+                <sl-icon name="box-arrow-left"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_preceding) === true ? '◇' : '⬉' }}</span>
+              </div>
+              <template v-for="param in precedingParams" :key="param.key">
+                <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
+                  {{ param.label }}
+                </div>
+              </template>
+              <div v-if="isAssigned(block.hints.break_from_preceding)" class="hocr-hint-tag" :class="getEvidenceClass(block.hints.break_from_preceding)">
+                user
+              </div>
+            </div>
+
+            <!-- After -->
+            <div v-if="block.hints.break_from_following && block.hints.break_from_following !== 'untested'" class="hocr-hints-line">
+              <div class="hocr-hints-conclusion" :class="getEvidenceClass(block.hints.break_from_following)">
+                <sl-icon name="box-arrow-right"></sl-icon>
+                <span>{{ getEvidenceValue(block.hints.break_from_following) === true ? '◇' : '⬊' }}</span>
+              </div>
+              <template v-for="param in followingParams" :key="param.key">
+                <div v-if="block.hints[param.key] && block.hints[param.key] !== 'untested'" class="hocr-hint-tag" :class="getEvidenceClass(block.hints[param.key]!)">
+                  {{ param.label }}
+                </div>
+              </template>
+              <div v-if="isAssigned(block.hints.break_from_following)" class="hocr-hint-tag" :class="getEvidenceClass(block.hints.break_from_following)">
+                user
+              </div>
+            </div>
+          </div>
+
           <!-- Lines -->
           <div v-if="expandedBlocks.has(block.id)" class="hocr-children">
             <div v-for="line in block.lines" :key="line.id" class="hocr-item">
@@ -87,7 +123,7 @@
 import {inject, reactive, ref, watch} from 'vue';
 import type { Ref } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
-import type { HocrLevel, HocrCarea, HocrBlock, HocrLine, HocrWord, EditorPalette } from '../types';
+import type { HocrLevel, HocrCarea, HocrBlock, HocrLine, HocrWord, EditorPalette, Evidence } from '../types';
 import { DEFAULT_PALETTE, findMultilevelById } from '../types';
 import type { FlowSchema, LayoutSchema, ColorSpecification } from '../types';
 import { applyColorSpecs } from '../utils/colors';
@@ -96,10 +132,12 @@ const props = withDefaults(defineProps<{
   palette?: EditorPalette;
   flows?: FlowSchema[];
   layouts?: LayoutSchema[];
+  initialCollapseMode?: 'all' | 'block' | 'carea' | 'none';
 }>(), {
   palette: () => DEFAULT_PALETTE,
   flows: () => [],
   layouts: () => [],
+  initialCollapseMode: 'none',
 });
 
 const { hocrPage, machineName, stem, rescanCarea, rescanWord } = useHocrContext();
@@ -109,6 +147,30 @@ const selectNodeCb      = inject<(level: string, id: string, e?: MouseEvent) => 
 
 function indicate(id: string | null) {
   if (indicatedItemId) indicatedItemId.value = id;
+}
+
+watch(hocrPage, (newPage) => {
+  if (newPage) {
+    applyInitialCollapse();
+  }
+}, { immediate: true });
+
+function applyInitialCollapse() {
+  if (!props.initialCollapseMode || props.initialCollapseMode === 'none') return;
+
+  if (props.initialCollapseMode === 'all') {
+    collapseAll();
+  } else if (props.initialCollapseMode === 'carea') {
+    collapseAll();
+  } else if (props.initialCollapseMode === 'block') {
+    collapseToBlock();
+  }
+}
+
+function collapseToBlock() {
+  collapsedCareas.clear();
+  expandedBlocks.clear();
+  expandedLines.clear();
 }
 
 watch(selectedItemIds, () => {
@@ -147,6 +209,39 @@ function toggleLine(id: string) {
 function selectNode(level: HocrLevel, id: string, e?: MouseEvent) {
   selectNodeCb(level, id, e);
 }
+
+function getEvidenceClass(ev: Evidence) {
+  if (typeof ev === 'string') {
+    return `ev-${ev}`;
+  }
+  const key = Object.keys(ev)[0];
+  const val = (ev as any)[key];
+  return `ev-${key} ev-val-${val}`;
+}
+
+function getEvidenceValue(ev?: Evidence): boolean | null {
+  if (!ev || typeof ev === 'string') return null;
+  if ('suggested' in ev) return ev.suggested;
+  if ('determined' in ev) return ev.determined;
+  if ('assigned' in ev) return ev.assigned;
+  return null;
+}
+
+function isAssigned(ev?: Evidence): boolean {
+  return typeof ev === 'object' && ev !== null && 'assigned' in ev;
+}
+
+const precedingParams = [
+  { key: 'test_x_indent', label: '⎡' },
+  { key: 'test_y_reverse', label: '⬓' },
+  { key: 'test_preceding_terminal', label: '⍑' },
+] as const;
+
+const followingParams = [
+  { key: 'test_x_dedent', label: '⎦' },
+  { key: 'test_y_advance', label: '⬒' },
+  { key: 'test_following_terminal', label: '⍊' },
+] as const;
 
 function rescan(careaId: string) {
   if (!machineName.value || !stem.value) return;
@@ -426,5 +521,74 @@ function careaPreview(carea: HocrCarea, maxLen = 60): string {
   color: var(--color-text-dimmed, #a2acb6);
   font-size: 0.8rem;
   font-style: italic;
+}
+
+.hocr-hints-list {
+  padding: 0 0.4rem 0.2rem 2.2rem;
+}
+
+.hocr-hints-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.1rem;
+}
+
+.hocr-hints-conclusion {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-weight: 800;
+  font-size: 0.8rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  min-width: 1.5rem;
+}
+
+.hocr-hint-tag {
+  font-size: 0.6rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  opacity: 0.9;
+}
+
+.ev-suggested.ev-val-true {
+  color: var(--sl-color-orange-900);
+  border-color: var(--sl-color-orange-300);
+  background: var(--sl-color-orange-200);
+}
+.ev-suggested.ev-val-false {
+  color: var(--sl-color-sky-900);
+  border-color: var(--sl-color-sky-300);
+  background: var(--sl-color-sky-200);
+}
+
+.ev-determined.ev-val-true {
+  color: white;
+  border-color: var(--sl-color-orange-500);
+  background: var(--sl-color-orange-400);
+}
+.ev-determined.ev-val-false {
+  color: white;
+  border-color: var(--sl-color-sky-500);
+  background: var(--sl-color-sky-400);
+}
+
+.ev-assigned.ev-val-true {
+  color: white;
+  border-color: var(--sl-color-orange-700);
+  background: var(--sl-color-orange-600);
+}
+.ev-assigned.ev-val-false {
+  color: white;
+  border-color: var(--sl-color-sky-700);
+  background: var(--sl-color-sky-600);
+}
+
+.ev-error {
+  color: var(--sl-color-red-900);
+  border-color: var(--sl-color-red-300);
+  background: var(--sl-color-red-200);
 }
 </style>

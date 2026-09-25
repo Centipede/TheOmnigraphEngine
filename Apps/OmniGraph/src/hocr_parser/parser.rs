@@ -1,6 +1,15 @@
 use std::collections::HashMap;
 use scraper::{ElementRef, Html, Selector};
+use serde::{Deserialize, Serialize};
 use crate::hocr_parser::models::*;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ParserConfig {
+    #[serde(default)]
+    pub block_metrics: bool,
+    #[serde(default)]
+    pub line_metrics: bool,
+}
 
 pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown> {
     el.child_elements()
@@ -9,7 +18,7 @@ pub fn collect_unknowns(el: ElementRef, selector: &Selector) -> Vec<HocrUnknown>
         .collect()
 }
 
-pub fn parse(html: &str) -> Option<HocrPage> {
+pub fn parse(html: &str, _config: ParserConfig) -> Option<HocrPage> {
     let document = Html::parse_document(html);
 
     let sel_page = Selector::parse("div.ocr_page").ok()?;
@@ -108,16 +117,51 @@ pub fn parse(html: &str) -> Option<HocrPage> {
                             .split_whitespace()
                             .find_map(HocrBlockKind::from_class_name)
                     }?;
-                    let hints = HocrBlockHints {
-                        continue_from_previous: block_title_map.contains_key("continue_from_previous"),
-                        continue_to_following: block_title_map.contains_key("continue_to_following"),
-                    };
+                    let mut hints = HocrBlockHints::default();
+
+                    // Legacy hints
+                    if block_title_map.contains_key("continue_from_previous") {
+                        hints.break_from_preceding = Evidence::Assigned(false);
+                    }
+                    if block_title_map.contains_key("continue_to_following") {
+                        hints.break_from_following = Evidence::Assigned(false);
+                    }
+
+                    // Modern hints
+                    if let Some(s) = block_title_map.get("test_x_indent") {
+                        hints.test_x_indent = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_x_dedent") {
+                        hints.test_x_dedent = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_hyphenation") {
+                        hints.test_hyphenation = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_y_advance") {
+                        hints.test_y_advance = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_y_reverse") {
+                        hints.test_y_reverse = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_preceding_terminal") {
+                        hints.test_preceding_terminal = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("test_following_terminal") {
+                        hints.test_following_terminal = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("break_from_preceding") {
+                        hints.break_from_preceding = Evidence::from_hocr_string(s);
+                    }
+                    if let Some(s) = block_title_map.get("break_from_following") {
+                        hints.break_from_following = Evidence::from_hocr_string(s);
+                    }
                     let block = HocrBlock {
                         level: "block".to_string(),
                         id: block_id,
                         bbox: block_bbox,
                         lang: block_lang,
                         hints,
+                        metrics: None,
                         kind,
                         lines,
                     };

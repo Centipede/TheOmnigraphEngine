@@ -136,6 +136,7 @@
             :show-page-canvas="!isPanelVisible('page-canvas')"
             :palette="effectivePalette"
             :pointer-settings="pointerSettings"
+            :dim-layers="dimLayers"
         >
           <PageCanvas
               v-if="currentPage && currentPageCrop"
@@ -153,6 +154,7 @@
               :layouts="layoutsMap"
               :carea-layers="showLayers"
               :machine-name="machineName"
+              :dim-layers="dimLayers"
           />
         </slot>
       </div>
@@ -206,6 +208,7 @@
             :flows="flows"
             :layouts="layouts"
             :palette="effectivePalette"
+            :initial-collapse-mode="hocrInitialCollapseMode"
         />
       </div>
     </div><!-- end workspace-right-sidebar -->
@@ -224,7 +227,7 @@ import { isTypingTarget } from '../utils/dom';
 import type {
   PixelRegion, FlowSchema, HocrLevel,
   LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette,
-  Project
+  Project, DimLayers
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import type {PanelVisibility} from '../types';
@@ -285,11 +288,14 @@ const props = withDefaults(defineProps<{
       pageInteractionClick?: () => void;
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
       isNoHocrAcceptable?: boolean;
+      hocrInitialCollapseMode?: 'all' | 'block' | 'carea' | 'none';
+      dimLayers?: DimLayers;
     }>(), {
       canPagesBeFiltered: true,
       palette: null,
       project: null,
       isNoHocrAcceptable: true,
+      hocrInitialCollapseMode: 'none',
     }
 );
 
@@ -708,7 +714,7 @@ watch(currentPage, (page) => {
   emit('currentPageChange', page);
   if (page) {
     const stem = page.scan.replace(/\.[^.]+$/, '');
-    hocrContext.loadHocr(props.machineName, stem, props.isNoHocrAcceptable);
+    hocrContext.loadHocr(props.machineName, stem, { isNoHocrAcceptable: props.isNoHocrAcceptable });
   } else {
     hocrContext.clearHocr();
   }

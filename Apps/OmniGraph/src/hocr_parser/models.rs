@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::hocr_parser::utils::*;
 
 /// Bounding box in scan pixel coordinates: [left, top, right, bottom]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct HocrBbox(pub [i32; 4]);
 
@@ -18,7 +18,7 @@ pub struct HocrUnknown {
     pub string: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrWord {
     #[serde(default = "word_level", skip_deserializing)]
     pub level: String,
@@ -32,7 +32,7 @@ pub struct HocrWord {
     pub dropcap: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrLine {
     #[serde(default = "line_level", skip_deserializing)]
     pub level: String,
@@ -47,12 +47,135 @@ pub struct HocrLine {
     pub x_ascenders: Option<f32>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Evidence {
+    Untested,
+    Undetermined,
+    Suggested(bool),
+    Determined(bool),
+    Assigned(bool),
+    Error,
+}
+
+impl Evidence {
+    pub fn is_true(&self) -> Option<bool> {
+        match self {
+            Evidence::Suggested(b) | Evidence::Determined(b) | Evidence::Assigned(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    pub fn to_hocr_string(&self) -> String {
+        match self {
+            Evidence::Untested => "untested".to_string(),
+            Evidence::Undetermined => "undetermined".to_string(),
+            Evidence::Suggested(b) => format!("suggested_{}", b),
+            Evidence::Determined(b) => format!("determined_{}", b),
+            Evidence::Assigned(b) => format!("assigned_{}", b),
+            Evidence::Error => "error".to_string(),
+        }
+    }
+
+    pub fn from_hocr_string(s: &str) -> Self {
+        match s {
+            "untested" => Evidence::Untested,
+            "undetermined" => Evidence::Undetermined,
+            "suggested_true" => Evidence::Suggested(true),
+            "suggested_false" => Evidence::Suggested(false),
+            "determined_true" => Evidence::Determined(true),
+            "determined_false" => Evidence::Determined(false),
+            "assigned_true" => Evidence::Assigned(true),
+            "assigned_false" => Evidence::Assigned(false),
+            "error" => Evidence::Error,
+            _ => Evidence::Untested,
+        }
+    }
+}
+
+impl Default for Evidence {
+    fn default() -> Self {
+        Evidence::Untested
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct DetectionRange {
+    pub certainly_true: i32,
+    pub suggested_true: i32,
+    pub suggested_false: i32,
+    pub certainly_false: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectionThresholds {
+    pub x_indent: DetectionRange,
+    pub x_dedent: DetectionRange,
+    pub y_advance: DetectionRange,
+    pub use_x_indent: bool,
+    pub use_x_dedent: bool,
+    pub use_y_advance: bool,
+    pub use_hyphenation: bool,
+}
+
+impl Default for DetectionThresholds {
+    fn default() -> Self {
+        Self {
+            x_indent: DetectionRange {
+                certainly_true: 15,
+                suggested_true: 10,
+                suggested_false: 5,
+                certainly_false: 2,
+            },
+            x_dedent: DetectionRange {
+                certainly_true: 20,
+                suggested_true: 10,
+                suggested_false: 5,
+                certainly_false: 0,
+            },
+            y_advance: DetectionRange {
+                certainly_true: 10,
+                suggested_true: 5,
+                suggested_false: 2,
+                certainly_false: 0,
+            },
+            use_x_indent: true,
+            use_x_dedent: true,
+            use_y_advance: true,
+            use_hyphenation: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HocrBlockHints {
     #[serde(default)]
-    pub continue_from_previous: bool,
+    pub test_x_indent: Evidence,
     #[serde(default)]
-    pub continue_to_following: bool,
+    pub test_x_dedent: Evidence,
+    #[serde(default)]
+    pub test_hyphenation: Evidence,
+    #[serde(default)]
+    pub test_y_advance: Evidence,
+    #[serde(default)]
+    pub test_y_reverse: Evidence,
+    #[serde(default)]
+    pub test_preceding_terminal: Evidence,
+    #[serde(default)]
+    pub test_following_terminal: Evidence,
+    #[serde(default)]
+    pub break_from_preceding: Evidence,
+    #[serde(default)]
+    pub break_from_following: Evidence,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HocrBlockMetrics {
+    pub x_indent: i32,
+    pub x_dedent: i32,
+    pub y_advance: Option<i32>,
+    pub y_reverse: Option<i32>,
+    pub has_final_hyphen: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +188,8 @@ pub struct HocrBlock {
     pub lang: Option<String>,
     #[serde(default)]
     pub hints: HocrBlockHints,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<HocrBlockMetrics>,
     pub kind: HocrBlockKind,
     pub lines: Vec<HocrLine>,
 }

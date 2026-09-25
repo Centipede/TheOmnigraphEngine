@@ -178,7 +178,7 @@ fn count_from_id_correct_number() {
 #[test]
 fn next_unique_id() {
 
-    let page = parse(SAMPLE1).unwrap();
+    let page = parse(SAMPLE1, ParserConfig::default()).unwrap();
 
     assert_eq!(page.page_id, "page_1");
     assert_eq!(page.get_next_number_with_stem("block"), Some(2));
@@ -192,7 +192,7 @@ fn next_unique_id() {
 
 #[test]
 fn signatures_match() {
-    let page = parse(SAMPLE1).unwrap();
+    let page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     let sig = signature(&page);
     assert_eq!(sig, to_sig(r#"page_1(
         block_1_1(
@@ -201,7 +201,7 @@ fn signatures_match() {
                 line_1_2(word_1_5, word_1_6)))
     )"#));
 
-    let page = parse(SAMPLE2).unwrap();
+    let page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     let sig = signature(&page);
     assert_eq!(sig, to_sig(r#"page_1(
         block_1_1(
@@ -221,13 +221,13 @@ fn signatures_match() {
 
 #[test]
 fn locating_items() {
-    let page = parse(SAMPLE2).unwrap();
+    let page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     assert_eq!(find_node(&page, "line_1_1"), Some(HocrPath::Line {carea:0, block:0, line:0}))
 }
 
 #[test]
 fn move_line_up() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     let orig_sig = signature(&page);
     page.move_line_up(0,0,0);
     assert_eq!(signature(&page), orig_sig);
@@ -253,7 +253,7 @@ fn move_line_up() {
 
 #[test]
 fn move_line_down() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
 
     // Move line_1_1 down within the same block
     page.move_line_down(0, 0, 0);
@@ -273,7 +273,7 @@ fn move_line_down() {
     )"#));
 
     // Reset page
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
 
     // Move line_1_2 down to next block
     page.move_line_down(0, 0, 1);
@@ -295,7 +295,7 @@ fn move_line_down() {
 
 #[test]
 fn merge_carea() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
 
     // Merge block_1_2 into block_1_1 (carea 1 into carea 0)
     page.merge_carea(0, 1);
@@ -315,7 +315,7 @@ fn merge_carea() {
 
 #[test]
 fn merge_block() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     // First merge careas so we have two blocks in one carea
     page.merge_carea(0, 1);
 
@@ -336,7 +336,7 @@ fn merge_block() {
 #[test]
 fn test_merge_careas_success() {
     // Test 2 careas
-    let mut page = parse(SAMPLE_3CAREAS).unwrap();
+    let mut page = parse(SAMPLE_3CAREAS, ParserConfig::default()).unwrap();
     page.merge_careas(&mut vec![0, 1]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
         carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2))),
@@ -344,7 +344,7 @@ fn test_merge_careas_success() {
     )"#));
 
     // Test 3 careas
-    let mut page = parse(SAMPLE_3CAREAS).unwrap();
+    let mut page = parse(SAMPLE_3CAREAS, ParserConfig::default()).unwrap();
     page.merge_careas(&mut vec![0, 1, 2]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
         carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2)),par_3:P(line_3(word_3)))
@@ -353,7 +353,7 @@ fn test_merge_careas_success() {
 
 #[test]
 fn test_merge_careas_failures() {
-    let mut page = parse(SAMPLE_3CAREAS).unwrap();
+    let mut page = parse(SAMPLE_3CAREAS, ParserConfig::default()).unwrap();
     
     // Less than 2
     assert!(page.merge_careas(&mut vec![0]).is_err());
@@ -365,7 +365,7 @@ fn test_merge_careas_failures() {
 #[test]
 fn test_merge_blocks_success() {
     // Test 2 blocks in same carea
-    let mut page = parse(SAMPLE_COMPLEX).unwrap();
+    let mut page = parse(SAMPLE_COMPLEX, ParserConfig::default()).unwrap();
     let _orig_sig = signature(&page);
     page.merge_blocks(&mut vec![(0, 0), (0, 1)]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
@@ -374,7 +374,7 @@ fn test_merge_blocks_success() {
     )"#));
 
     // Test 2 blocks across careas
-    let mut page = parse(SAMPLE_COMPLEX).unwrap();
+    let mut page = parse(SAMPLE_COMPLEX, ParserConfig::default()).unwrap();
     page.merge_blocks(&mut vec![(0, 1), (1, 0)]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
         carea_1(par_1:P(line_1(word_1)),par_2:P(line_2(word_2),line_3(word_3))),
@@ -382,7 +382,7 @@ fn test_merge_blocks_success() {
     )"#));
 
     // Test 3 blocks
-    let mut page = parse(SAMPLE_COMPLEX).unwrap();
+    let mut page = parse(SAMPLE_COMPLEX, ParserConfig::default()).unwrap();
     page.merge_blocks(&mut vec![(0, 0), (0, 1), (1, 0)]).unwrap();
     assert_eq!(signature(&page), to_sig(r#"page_1(
         carea_1(par_1:P(line_1(word_1),line_2(word_2),line_3(word_3))),
@@ -392,7 +392,7 @@ fn test_merge_blocks_success() {
 
 #[test]
 fn test_merge_blocks_failures() {
-    let mut page = parse(SAMPLE_COMPLEX).unwrap();
+    let mut page = parse(SAMPLE_COMPLEX, ParserConfig::default()).unwrap();
     
     // Less than 2
     assert!(page.merge_blocks(&mut vec![(0, 0)]).is_err());
@@ -403,7 +403,7 @@ fn test_merge_blocks_failures() {
 
 #[test]
 fn test_merge_blocks_cleanup() {
-    let mut page = parse(SAMPLE_COMPLEX).unwrap();
+    let mut page = parse(SAMPLE_COMPLEX, ParserConfig::default()).unwrap();
     
     // Merge all blocks from carea_2 into carea_1
     page.merge_blocks(&mut vec![(0, 1), (1, 0), (1, 1)]).unwrap();
@@ -417,7 +417,7 @@ fn test_merge_blocks_cleanup() {
 
 #[test]
 fn add_block_none_carea_no_erase() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     let bbox = HocrBbox([483, 500, 1645, 600]);
     let _ = page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(false), None);
 
@@ -431,7 +431,7 @@ fn add_block_none_carea_no_erase() {
 
 #[test]
 fn add_block_none_carea_with_erase() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     // This bbox overlaps with both lines of block_1_1
     let bbox = HocrBbox([483, 280, 1645, 430]);
     let _ = page.add_block(None, bbox, Some(AddBlockType::Text), None, Some(true), Some(50));
@@ -446,7 +446,7 @@ fn add_block_none_carea_with_erase() {
 
 #[test]
 fn add_block_none_carea_vertical_positioning() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     // Add one above
     let bbox_above = HocrBbox([483, 100, 1645, 200]);
     let _ = page.add_block(None, bbox_above, None, None, None, None);
@@ -462,7 +462,7 @@ fn add_block_none_carea_vertical_positioning() {
 
 #[test]
 fn add_block_with_shrink_wrap_false() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     let original_carea_bbox = page.careas[0].bbox;
 
     // Add a block that is outside the current carea bbox
@@ -479,7 +479,7 @@ fn add_block_with_shrink_wrap_false() {
 
 #[test]
 fn add_block_with_shrink_wrap_true() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     let original_carea_bbox = page.careas[0].bbox;
 
     // Add a block that is outside the current carea bbox
@@ -495,7 +495,7 @@ fn add_block_with_shrink_wrap_true() {
 
 #[test]
 fn test_coordinate_shifting() {
-    let mut page = parse(SAMPLE1).unwrap();
+    let mut page = parse(SAMPLE1, ParserConfig::default()).unwrap();
     let dx = 100;
     let dy = 200;
 
@@ -516,7 +516,7 @@ fn test_coordinate_shifting() {
 
 #[test]
 fn test_insert_careas_after() {
-    let mut page = parse(SAMPLE_3CAREAS).unwrap();
+    let mut page = parse(SAMPLE_3CAREAS, ParserConfig::default()).unwrap();
     let new_carea = page.careas[0].clone();
     let mut new_careas = vec![new_carea];
     new_careas[0].id = "new_carea".to_string();
@@ -531,7 +531,7 @@ fn test_insert_careas_after() {
 
 #[test]
 fn test_merge_lines_success() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     // par_1_1 has line_1_1 and line_1_2.
     // indices for par_1_1: carea 0, block 0.
     // lines: (0, 0, 0) and (0, 0, 1).
@@ -546,7 +546,7 @@ fn test_merge_lines_success() {
 
 #[test]
 fn test_merge_words_success() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     // line_1_1 has words 1, 2, 3, 4.
     // indices: (0, 0, 0, 0), (0, 0, 0, 1).
 
@@ -562,7 +562,7 @@ fn test_merge_words_success() {
 
 #[test]
 fn test_merge_words_across_lines() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     // word_1_4 (last of line 1) and word_1_5 (first of line 2) are consecutive.
     // word_1_4: (0, 0, 0, 3)
     // word_1_5: (0, 0, 1, 0)
@@ -581,7 +581,7 @@ fn test_merge_words_across_lines() {
 
 #[test]
 fn test_merge_words_cleanup_line() {
-    let mut page = parse(SAMPLE2).unwrap();
+    let mut page = parse(SAMPLE2, ParserConfig::default()).unwrap();
     // Merge all words of line_1_2 into line_1_1
     // line_1_2 words: word_1_5 (0,0,1,0), word_1_6 (0,0,1,1)
     // line_1_1 words: word_1_1 (0,0,0,0) to word_1_4 (0,0,0,3)
@@ -604,7 +604,7 @@ fn test_carea_metadata_parsing() {
             </div>
         </div>
     "#;
-    let page = parse(html).unwrap();
+    let page = parse(html, ParserConfig::default()).unwrap();
     assert_eq!(page.careas[0].flow, Some("footnotes".to_string()));
     assert_eq!(page.careas[0].layout, Some("center".to_string()));
     assert_eq!(page.careas[1].flow, Some("".to_string()));
@@ -650,7 +650,7 @@ fn test_carea_metadata_defaulting() {
             </div>
         </div>
     "#;
-    let page = parse(html).unwrap();
+    let page = parse(html, ParserConfig::default()).unwrap();
     assert_eq!(page.careas[0].flow, None);
     assert_eq!(page.careas[0].layout, None);
 }
@@ -671,6 +671,7 @@ fn test_split_carea_metadata_preservation() {
                 kind: HocrBlockKind::Paragraph,
                 lang: None,
                 hints: HocrBlockHints::default(),
+                metrics: None,
                 lines: vec![],
             },
             HocrBlock {
@@ -680,6 +681,7 @@ fn test_split_carea_metadata_preservation() {
                 kind: HocrBlockKind::Paragraph,
                 lang: None,
                 hints: HocrBlockHints::default(),
+                metrics: None,
                 lines: vec![],
             },
         ],
@@ -786,6 +788,7 @@ fn test_auto_layout_merging() {
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -803,6 +806,7 @@ fn test_auto_layout_merging() {
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -820,6 +824,7 @@ fn test_auto_layout_merging() {
                     kind: HocrBlockKind::Paragraph,
                     lang: None,
                     hints: HocrBlockHints::default(),
+                    metrics: None,
                     lines: vec![],
                 }],
                 unknowns: vec![],
@@ -862,7 +867,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(0, 0, 10, 10),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -871,7 +876,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(20, 20, 30, 30),
                 flow: Some("F1".to_string()),
                 layout: Some("L2".to_string()),
-                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -880,7 +885,7 @@ fn test_auto_layout_consecutive_layout_grouping() {
                 bbox: HocrBbox::new(40, 40, 50, 50),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
         ],
@@ -910,7 +915,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(0, 0, 10, 10),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b1".to_string(), level: "block".to_string(), bbox: HocrBbox::new(0, 0, 10, 10), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -919,7 +924,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(20, 20, 30, 30),
                 flow: Some("F2".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b2".to_string(), level: "block".to_string(), bbox: HocrBbox::new(20, 20, 30, 30), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
             HocrCarea {
@@ -928,7 +933,7 @@ fn test_auto_flow_carea_selection() {
                 bbox: HocrBbox::new(40, 40, 50, 50),
                 flow: Some("F1".to_string()),
                 layout: Some("L1".to_string()),
-                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), lines: vec![] }],
+                blocks: vec![HocrBlock { id: "b3".to_string(), level: "block".to_string(), bbox: HocrBbox::new(40, 40, 50, 50), kind: HocrBlockKind::Paragraph, lang: None, hints: HocrBlockHints::default(), metrics: None, lines: vec![] }],
                 unknowns: vec![],
             },
         ],
@@ -953,7 +958,7 @@ fn test_auto_flow_carea_selection() {
 
 #[test]
 fn test_replace_or_merge_carea_uniqueness() {
-    let mut page = parse(SAMPLE_3CAREAS).unwrap();
+    let mut page = parse(SAMPLE_3CAREAS, ParserConfig::default()).unwrap();
     // The sample has careas with IDs: carea_1, carea_2, carea_3.
     // It has blocks (pars): par_1, par_2, par_3.
     // Lines: line_1, line_2, line_3.
@@ -1009,7 +1014,7 @@ fn test_dropcap_roundtrip() {
         </div>
     "#, html);
 
-    let page = parse(&full_html).unwrap();
+    let page = parse(&full_html, ParserConfig::default()).unwrap();
     let word = &page.careas[0].blocks[0].lines[0].words[0];
     assert_eq!(word.dropcap, Some("W".to_string()));
     assert_eq!(word.text, "hen".to_string());
@@ -1031,7 +1036,7 @@ fn test_inject_dropcaps() {
                 </p>
             </div>
         </div>
-    "#).unwrap();
+    "#, ParserConfig::default()).unwrap();
 
     let injections = vec![DropCapInjection {
         text: "W".to_string(),
@@ -1057,7 +1062,7 @@ fn test_inject_images() {
                 </p>
             </div>
         </div>
-    "#).unwrap();
+    "#, ParserConfig::default()).unwrap();
 
     let image_bboxes = vec![HocrBbox([600, 600, 800, 800])];
 
@@ -1099,22 +1104,24 @@ fn test_block_hints_parsing_and_html() {
         </div>
     "#;
 
-    let page = parse(hocr).unwrap();
+    let page = parse(hocr, ParserConfig::default()).unwrap();
     let block1 = &page.careas[0].blocks[0];
     let block2 = &page.careas[0].blocks[1];
 
-    assert!(block1.hints.continue_from_previous);
-    assert!(block1.hints.continue_to_following);
-    assert!(!block2.hints.continue_from_previous);
-    assert!(!block2.hints.continue_to_following);
+    assert_eq!(block1.hints.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(block1.hints.break_from_following, Evidence::Assigned(false));
+    assert_eq!(block2.hints.break_from_preceding, Evidence::Untested);
+    assert_eq!(block2.hints.break_from_following, Evidence::Untested);
 
     let html = block1.to_hocr_html();
-    assert!(html.contains("continue_from_previous"));
-    assert!(html.contains("continue_to_following"));
+    assert!(!html.contains("continue_from_previous"));
+    assert!(!html.contains("continue_to_following"));
+    assert!(html.contains("break_from_preceding assigned_false"));
+    assert!(html.contains("break_from_following assigned_false"));
     
     let html2 = block2.to_hocr_html();
-    assert!(!html2.contains("continue_from_previous"));
-    assert!(!html2.contains("continue_to_following"));
+    assert!(!html2.contains("break_from_preceding"));
+    assert!(!html2.contains("break_from_following"));
 }
 
 #[test]
@@ -1135,16 +1142,79 @@ fn test_block_hints_roundtrip() {
 </html>
 "#;
 
-    let page = parse(hocr).unwrap();
+    let page = parse(hocr, ParserConfig::default()).unwrap();
     let generated_html = page.to_hocr_html();
     
-    // We don't necessarily need exact string equality because of formatting/escaping,
-    // but the hints should be there.
-    assert!(generated_html.contains("continue_from_previous"));
-    assert!(generated_html.contains("continue_to_following"));
+    // Legacy hints removed from output, modern hints added
+    assert!(!generated_html.contains("continue_from_previous"));
+    assert!(!generated_html.contains("continue_to_following"));
+    assert!(generated_html.contains("break_from_preceding assigned_false"));
+    assert!(generated_html.contains("break_from_following assigned_false"));
     
     // Parse again
-    let page2 = parse(&generated_html).unwrap();
-    assert!(page2.careas[0].blocks[0].hints.continue_from_previous);
-    assert!(page2.careas[0].blocks[0].hints.continue_to_following);
+    let page2 = parse(&generated_html, ParserConfig::default()).unwrap();
+    assert_eq!(page2.careas[0].blocks[0].hints.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(page2.careas[0].blocks[0].hints.break_from_following, Evidence::Assigned(false));
+}
+
+#[test]
+fn test_modern_block_hints_roundtrip() {
+    let mut hints = HocrBlockHints::default();
+    hints.test_x_indent = Evidence::Suggested(true);
+    hints.test_x_dedent = Evidence::Determined(false);
+    hints.test_hyphenation = Evidence::Assigned(true);
+    hints.test_y_advance = Evidence::Error;
+    hints.test_y_reverse = Evidence::Undetermined;
+    hints.break_from_preceding = Evidence::Assigned(false);
+    hints.break_from_following = Evidence::Assigned(true);
+
+    let block = HocrBlock {
+        level: "block".to_string(),
+        id: "par_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        kind: HocrBlockKind::Paragraph,
+        lang: None,
+        hints,
+        metrics: None,
+        lines: vec![],
+    };
+
+    let carea = HocrCarea {
+        level: "carea".to_string(),
+        id: "carea_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        flow: None,
+        layout: None,
+        blocks: vec![block],
+        unknowns: vec![],
+    };
+
+    let page = HocrPage {
+        level: "page".to_string(),
+        page_id: "page_1".to_string(),
+        bbox: HocrBbox::new(0, 0, 100, 100),
+        careas: vec![carea],
+        unknowns: vec![],
+    };
+
+    let html = page.to_hocr_html();
+    
+    assert!(html.contains("test_x_indent suggested_true"));
+    assert!(html.contains("test_x_dedent determined_false"));
+    assert!(html.contains("test_hyphenation assigned_true"));
+    assert!(html.contains("test_y_advance error"));
+    assert!(html.contains("test_y_reverse undetermined"));
+    assert!(html.contains("break_from_preceding assigned_false"));
+    assert!(html.contains("break_from_following assigned_true"));
+
+    let page2 = parse(&html, ParserConfig::default()).unwrap();
+    let hints2 = &page2.careas[0].blocks[0].hints;
+
+    assert_eq!(hints2.test_x_indent, Evidence::Suggested(true));
+    assert_eq!(hints2.test_x_dedent, Evidence::Determined(false));
+    assert_eq!(hints2.test_hyphenation, Evidence::Assigned(true));
+    assert_eq!(hints2.test_y_advance, Evidence::Error);
+    assert_eq!(hints2.test_y_reverse, Evidence::Undetermined);
+    assert_eq!(hints2.break_from_preceding, Evidence::Assigned(false));
+    assert_eq!(hints2.break_from_following, Evidence::Assigned(true));
 }

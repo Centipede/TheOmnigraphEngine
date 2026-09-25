@@ -31,9 +31,49 @@ export interface HocrLine {
     x_ascenders?: number;
 }
 
+export type Evidence =
+    | 'untested'
+    | 'undetermined'
+    | { suggested: boolean }
+    | { determined: boolean }
+    | { assigned: boolean }
+    | 'error';
+
+export interface DetectionRange {
+    certainly_true: number;
+    suggested_true: number;
+    suggested_false: number;
+    certainly_false: number;
+}
+
+export interface DetectionThresholds {
+    x_indent: DetectionRange;
+    x_dedent: DetectionRange;
+    y_advance: DetectionRange;
+    use_x_indent: boolean;
+    use_x_dedent: boolean;
+    use_y_advance: boolean;
+    use_hyphenation: boolean;
+}
+
 export interface HocrBlockHints {
-    continue_from_previous: boolean;
-    continue_to_following: boolean;
+    test_x_indent?: Evidence;
+    test_x_dedent?: Evidence;
+    test_hyphenation?: Evidence;
+    test_y_advance?: Evidence;
+    test_y_reverse?: Evidence;
+    test_preceding_terminal?: Evidence;
+    test_following_terminal?: Evidence;
+    break_from_preceding?: Evidence;
+    break_from_following?: Evidence;
+}
+
+export interface HocrBlockMetrics {
+    x_indent: number;
+    x_dedent: number;
+    y_advance: number | null;
+    y_reverse: number | null;
+    has_final_hyphen: boolean;
 }
 
 export interface HocrBlock {
@@ -43,7 +83,10 @@ export interface HocrBlock {
     kind: string;
     lang?: string;
     hints: HocrBlockHints;
+    metrics?: HocrBlockMetrics;
     lines: HocrLine[];
+    firstWordBbox?: HocrBbox;
+    lastWordBbox?: HocrBbox;
 }
 
 export interface HocrCarea {

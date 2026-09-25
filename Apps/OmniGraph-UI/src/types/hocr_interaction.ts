@@ -1,3 +1,4 @@
+import type {Ref} from 'vue';
 import type {HocrBbox, HocrNode, HocrLevel, HocrBlockHints} from "./hocr.ts";
 import type {ColorSpecification} from "./project.ts";
 
@@ -62,6 +63,10 @@ export interface OverlayItem {
     wconf?: number;
     lang?: string;
     hints?: HocrBlockHints;
+    flow?: string;
+    layout?: string;
+    firstWordBbox?: HocrBbox;
+    lastWordBbox?: HocrBbox;
 }
 
 export type PageInteractionUpdate = (
@@ -78,6 +83,13 @@ export interface PointerSettings {
     color: string;
     icon: string;
     label: string;
+}
+
+export interface DimLayers {
+    flows: boolean;
+    layouts: boolean;
+    dimmedFlows: Ref<Set<string>>;
+    dimmedLayouts: Ref<Set<string>>;
 }
 
 export type PageInteractionClick = () => void;
