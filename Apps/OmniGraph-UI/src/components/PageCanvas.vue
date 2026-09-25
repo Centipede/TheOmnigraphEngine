@@ -48,7 +48,7 @@
                :style="overlayItemStyle(item)"
 
           >
-            <div v-if="(item.level === 'carea' || item.level === 'block') && item.flow && !flowSet.has(item.flow)"
+            <div v-if="isDimmed(item)"
                  class="hocr-dimmed-overlay" />
 
             <div class="hocr-overlay-item-info"
@@ -63,7 +63,7 @@
 
             <!-- BLOCK HINTS (break/continue paragraph) -->
 
-            <div v-if="showBlockHints && item.level === 'block' && item.hints && (!item.flow || flowSet.has(item.flow))" class="hocr-block-hints">
+            <div v-if="showBlockHints && item.level === 'block' && item.hints && !isDimmed(item)" class="hocr-block-hints">
               <div v-if="item.hints.break_from_preceding && getEvidenceValue(item.hints.break_from_preceding) !== null"
                    class="hocr-block-evidence hocr-block-evidence--preceding"
                    :class="getEvidenceClass(item.hints.break_from_preceding)">
@@ -182,7 +182,8 @@ import {
   type HocrNode,
   type FlowSchema,
   type LayoutSchema,
-  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag
+  type EditorPalette, type HintType, type PageInteractionClick, type PageInteractionDrag,
+  type DimLayers
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import {makeVariedPalette, applyColorSpecs} from '../utils/colors';
@@ -219,41 +220,47 @@ const props = withDefaults(defineProps<{
   careaLayers?: { flow: boolean; layout: boolean };
   minimal?: boolean;
   showBlockHints?: boolean;
+  dimLayers?: DimLayers;
 }>(), {
   showCropOverlay: true,
   palette: () => DEFAULT_PALETTE,
   hocrLevel: null,
   minimal: false,
   showBlockHints: false,
+  dimLayers: () => ({
+    flows: false,
+    layouts: false,
+    dimmedFlows: ref(new Set<string>()),
+    dimmedLayouts: ref(new Set<string>()),
+  }),
 });
 
 const { hocrPage } = useHocrContext();
-const flowSet = inject<Ref<Set<string>>>('flowSet', ref(new Set()));
 const selectedItemIds = inject<Ref<Set<string>>>('selectedItemIds',   ref(new Set()));
 const indicatedItemId = inject<Ref<string | null>>('indicatedItemId', ref(null));
 const selectedPageScan = inject<Ref<string | null>>('selectedPageScan', ref(null));
+
+function isDimmed(item: OverlayItem) {
+  if (item.level !== 'carea' && item.level !== 'block') return false;
+
+  const { flows, layouts, dimmedFlows, dimmedLayouts } = props.dimLayers;
+
+  if (flows && item.flow && dimmedFlows.value.has(item.flow)) {
+    return true;
+  }
+
+  if (layouts && item.layout && dimmedLayouts.value.has(item.layout)) {
+    return true;
+  }
+
+  return false;
+}
 
 function isItemSelected(id: string) {
   if (!selectedItemIds.value.has(id)) return false;
   if (selectedPageScan.value && selectedPageScan.value !== props.page.scan) return false;
   return true;
 }
-
-const project = ref<any>(null);
-
-async function fetchProject() {
-  if (!props.machineName) return;
-  try {
-    const resp = await fetch(`/api/projects/${props.machineName}`);
-    if (resp.ok) {
-      project.value = await resp.json();
-    }
-  } catch (e) {
-    console.error('Failed to fetch project in PageCanvas', e);
-  }
-}
-
-onMounted(fetchProject);
 
 const imageStyle = computed(() => {
   return {};
@@ -392,6 +399,7 @@ const overlayItems = computed((): OverlayItem[] => {
         kind: null,
         wconf: getMinWconf(carea),
         flow: carea.flow,
+        layout: carea.layout,
       });
     }
 
@@ -416,6 +424,7 @@ const overlayItems = computed((): OverlayItem[] => {
           wconf: getMinWconf(block),
           hints: block.hints,
           flow: carea.flow,
+          layout: carea.layout,
           firstWordBbox: block.firstWordBbox,
           lastWordBbox: block.lastWordBbox,
         });

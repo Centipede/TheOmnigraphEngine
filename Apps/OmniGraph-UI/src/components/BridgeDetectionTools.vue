@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, inject, type Ref } from 'vue';
+import { reactive, computed } from 'vue';
 import { useHocrContext } from '../composables/useHocr';
 import type { DetectionThresholds, HocrBlock } from '../types/hocr';
 import { findItem, findMultilevelById } from '../types/hocr';
@@ -99,22 +99,26 @@ import type { Project } from '../types/project';
 
 const props = defineProps<{
   selectedBlockId: string | null;
+  project: Project | null;
+  flowSet: Set<string>;
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:flowSet', flowSet: Set<string>): void;
 }>();
 
 const hocrContext = useHocrContext();
-const flowSet = inject<Ref<Set<string>>>('flowSet')!;
-const project = inject<Ref<Project | null>>('project')!;
 
-const flows = computed(() => project.value?.flows || []);
+const flows = computed(() => props.project?.flows || []);
 
 function toggleFlow(flowName: string) {
-  const newSet = new Set(flowSet.value);
+  const newSet = new Set(props.flowSet);
   if (newSet.has(flowName)) {
     newSet.delete(flowName);
   } else {
     newSet.add(flowName);
   }
-  flowSet.value = newSet;
+  emit('update:flowSet', newSet);
 }
 
 const selectedBlock = computed(() => {
@@ -157,18 +161,18 @@ function onThresholdChange() {
 }
 
 async function onAutoBridgePage() {
-  await hocrContext.autoBridgePage(thresholds, flowSet.value);
+  await hocrContext.autoBridgePage(thresholds, props.flowSet);
 }
 
 async function onAutoBridgeBlock() {
   if (props.selectedBlockId && hocrContext.hocrPage.value) {
     const multi = findMultilevelById(hocrContext.hocrPage.value, props.selectedBlockId);
     const careaFlow = multi?.carea?.flow;
-    if (careaFlow && !flowSet.value.has(careaFlow)) {
+    if (careaFlow && !props.flowSet.has(careaFlow)) {
       alert(`The selected block belongs to flow "${careaFlow}", which is currently inactive. Please activate this flow to use Auto Block.`);
       return;
     }
-    await hocrContext.autoBridgeBlock(props.selectedBlockId, thresholds, flowSet.value);
+    await hocrContext.autoBridgeBlock(props.selectedBlockId, thresholds, props.flowSet);
   }
 }
 </script>

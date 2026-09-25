@@ -6,6 +6,7 @@
     :initial-page-stem="initialPageStem"
     :panels="panels"
     :project="project"
+    :dim-layers="dimLayers"
     :flows="flows"
     :layouts="layouts"
     :palette="grayHintPalette"
@@ -13,7 +14,7 @@
     hocr-initial-collapse-mode="block"
     @current-page-change="onPageChange"
   >
-    <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette }">
+    <template #page-canvas="{ pages, currentPageIndex, scanBaseUrl, palette, dimLayers: workspaceDimLayers }">
       <div class="bridge-slider-container">
         <div
           class="bridge-slider"
@@ -35,6 +36,7 @@
               :reload-trigger="hocrReloadTrigger[page.scan.replace(/\.[^.]+$/, '')]"
               :interaction-update="makeInteractionUpdateHandler(page)"
               :interaction-click="() => onInteractionClick(page)"
+              :dim-layers="workspaceDimLayers || dimLayers"
             />
           </div>
         </div>
@@ -42,7 +44,11 @@
     </template>
 
     <template #tools>
-      <BridgeDetectionTools :selected-block-id="selectedBlockId" />
+      <BridgeDetectionTools
+          :selected-block-id="selectedBlockId"
+          :project="project"
+          v-model:flowSet="flowSet"
+      />
     </template>
   </PageWorkspace>
 </template>
@@ -55,7 +61,7 @@ import BridgeDetectionTools from '../components/BridgeDetectionTools.vue';
 import { usePersistentPanels } from '../composables/usePersistentPanels';
 import { usePanelVisibilityContext } from '../composables/usePanelVisibility';
 import { provideHocrContext } from '../composables/useHocr';
-import type {HocrNode, OverlayItem, Page, Project, PageInteractionUpdate} from '../types';
+import type {HocrNode, OverlayItem, Page, Project, PageInteractionUpdate, DimLayers} from '../types';
 import { DEFAULT_PALETTE } from '../types';
 
 const props = defineProps<{
@@ -85,8 +91,20 @@ const selectedItemIds = computed(() => {
 provide('selectedItemIds', selectedItemIds);
 provide('selectedPageScan', selectedPageScan);
 provide('indicatedItemId', ref(null));
-provide('flowSet', flowSet);
-provide('project', project);
+
+const dimmedFlows = computed(() => {
+  const allFlows = project.value?.flows.map(f => f.name) || [];
+  return new Set(allFlows.filter(f => !flowSet.value.has(f)));
+});
+
+const dimmedLayouts = ref(new Set<string>());
+
+const dimLayers = computed<DimLayers>(() => ({
+  flows: true,
+  layouts: false,
+  dimmedFlows: dimmedFlows,
+  dimmedLayouts: dimmedLayouts,
+}));
 
 
 function makeInteractionUpdateHandler(page: Page) {

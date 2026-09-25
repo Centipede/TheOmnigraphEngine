@@ -10,6 +10,7 @@
       hocrLevel="block"
       :interaction-update="interactionUpdate"
       :interaction-click="interactionClick"
+      :dim-layers="dimLayers"
     />
   </div>
 </template>
@@ -18,7 +19,7 @@
 import { watch, onMounted, inject, type Ref } from 'vue';
 import PageCanvas from '../components/PageCanvas.vue';
 import { provideHocrContext, useHocrContext } from '../composables/useHocr';
-import type { Page, PageInteractionUpdate, PageInteractionClick } from '../types';
+import type { Page, PageInteractionUpdate, PageInteractionClick, DimLayers } from '../types';
 
 const props = defineProps<{
   page: Page;
@@ -29,6 +30,7 @@ const props = defineProps<{
   reloadTrigger?: number;
   interactionUpdate?: PageInteractionUpdate;
   interactionClick?: PageInteractionClick;
+  dimLayers?: DimLayers;
 }>();
 
 // Inject parent context (shared by tools) before providing local context

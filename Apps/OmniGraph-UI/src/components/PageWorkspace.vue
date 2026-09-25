@@ -136,6 +136,7 @@
             :show-page-canvas="!isPanelVisible('page-canvas')"
             :palette="effectivePalette"
             :pointer-settings="pointerSettings"
+            :dim-layers="dimLayers"
         >
           <PageCanvas
               v-if="currentPage && currentPageCrop"
@@ -153,6 +154,7 @@
               :layouts="layoutsMap"
               :carea-layers="showLayers"
               :machine-name="machineName"
+              :dim-layers="dimLayers"
           />
         </slot>
       </div>
@@ -225,7 +227,7 @@ import { isTypingTarget } from '../utils/dom';
 import type {
   PixelRegion, FlowSchema, HocrLevel,
   LayoutSchema, Page, PageDb, PageInteractionUpdate, PanelId, PointerSettings, StructureDb, EditorPalette,
-  Project
+  Project, DimLayers
 } from '../types';
 import { DEFAULT_PALETTE } from '../types';
 import type {PanelVisibility} from '../types';
@@ -287,6 +289,7 @@ const props = withDefaults(defineProps<{
       pageInteractionDrag?: (x1: number, y1: number, x2: number, y2: number) => void;
       isNoHocrAcceptable?: boolean;
       hocrInitialCollapseMode?: 'all' | 'block' | 'carea' | 'none';
+      dimLayers?: DimLayers;
     }>(), {
       canPagesBeFiltered: true,
       palette: null,
